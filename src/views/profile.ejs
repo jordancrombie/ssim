@@ -1,0 +1,94 @@
+<%- include('layout', { body: `
+  <div class="max-w-4xl mx-auto py-12 px-4">
+    <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+      <!-- Header -->
+      <div class="gradient-bg px-8 py-6">
+        <h1 class="text-3xl font-bold text-white">Your Profile</h1>
+        <p class="text-purple-100 mt-1">OIDC authentication successful</p>
+      </div>
+
+      <!-- User Info Section -->
+      <div class="p-8">
+        <div class="flex items-start space-x-6 mb-8">
+          <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+            ${userInfo?.picture ? `
+              <img src="${userInfo.picture}" alt="Profile" class="w-20 h-20 rounded-full object-cover" />
+            ` : `
+              <svg class="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
+            `}
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">${userInfo?.name || 'User'}</h2>
+            <p class="text-gray-600">${userInfo?.email || 'No email provided'}</p>
+            <span class="inline-block mt-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+              Authenticated via ${providerId || 'OIDC'}
+            </span>
+          </div>
+        </div>
+
+        <!-- Claims Section -->
+        <div class="mb-8">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            OIDC Claims (UserInfo)
+          </h3>
+          <div class="bg-gray-50 rounded-xl p-4 overflow-x-auto">
+            <pre class="text-sm text-gray-800 whitespace-pre-wrap">${JSON.stringify(userInfo, null, 2)}</pre>
+          </div>
+        </div>
+
+        <!-- Token Info Section -->
+        <div class="mb-8">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+            </svg>
+            Token Information
+          </h3>
+          <div class="bg-gray-50 rounded-xl p-4">
+            <div class="grid gap-4">
+              ${tokenSet?.scope ? `
+                <div>
+                  <span class="text-sm font-medium text-gray-500">Scopes Granted</span>
+                  <p class="text-gray-800 mt-1">${tokenSet.scope}</p>
+                </div>
+              ` : ''}
+              ${tokenSet?.expires_at ? `
+                <div>
+                  <span class="text-sm font-medium text-gray-500">Token Expires</span>
+                  <p class="text-gray-800 mt-1">${new Date(tokenSet.expires_at * 1000).toLocaleString()}</p>
+                </div>
+              ` : ''}
+              ${tokenSet?.access_token ? `
+                <div>
+                  <span class="text-sm font-medium text-gray-500">Access Token (truncated)</span>
+                  <p class="text-gray-800 mt-1 font-mono text-xs break-all">${tokenSet.access_token.substring(0, 50)}...</p>
+                </div>
+              ` : ''}
+              ${tokenSet?.id_token ? `
+                <div>
+                  <span class="text-sm font-medium text-gray-500">ID Token (truncated)</span>
+                  <p class="text-gray-800 mt-1 font-mono text-xs break-all">${tokenSet.id_token.substring(0, 50)}...</p>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex space-x-4">
+          <a href="/" class="flex-1 text-center py-3 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+            Back to Home
+          </a>
+          <a href="/auth/logout" class="flex-1 text-center py-3 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+            Logout
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+`, isAuthenticated: true }) %>

@@ -1,0 +1,40 @@
+<%- include('layout', { body: `
+  <div class="min-h-[calc(100vh-200px)] flex items-center justify-center py-12 px-4">
+    <div class="max-w-md w-full">
+      <div class="bg-white rounded-2xl card-shadow p-8">
+        <div class="text-center mb-8">
+          <h1 class="text-3xl font-bold text-gray-800 mb-2">Login to SSIM</h1>
+          <p class="text-gray-600">Choose an identity provider to continue</p>
+        </div>
+
+        <div class="space-y-4">
+          ${providers && providers.length > 0 ? providers.map(provider => `
+            <a href="/auth/login/${provider.id}"
+               class="block w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.02]">
+              <div class="flex items-center justify-center space-x-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                </svg>
+                <span>Continue with ${provider.name}</span>
+              </div>
+            </a>
+          `).join('') : `
+            <div class="text-center py-8 text-gray-500">
+              <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+              <p class="text-lg font-medium">No providers configured</p>
+              <p class="text-sm mt-2">Please configure OIDC providers in the environment</p>
+            </div>
+          `}
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-gray-200">
+          <p class="text-center text-sm text-gray-500">
+            By logging in, you agree to share your profile information with SSIM
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+`, isAuthenticated: false }) %>
