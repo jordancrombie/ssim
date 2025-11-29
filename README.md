@@ -8,6 +8,7 @@ A simple web application that demonstrates OIDC (OpenID Connect) authentication 
 - Supports multiple OIDC providers
 - Displays user claims and token information after authentication
 - PKCE (Proof Key for Code Exchange) support for enhanced security
+- RP-Initiated Logout (ends session at both SSIM and the identity provider)
 - Session-based authentication state
 - Clean, responsive UI with Tailwind CSS
 
@@ -115,7 +116,7 @@ INSERT INTO oauth_clients (
 | `/auth/providers` | GET | List available OIDC providers (JSON) |
 | `/auth/login/:providerId` | GET | Initiate OIDC login flow |
 | `/auth/callback/:providerId` | GET | OIDC callback handler |
-| `/auth/logout` | GET | Logout and clear session |
+| `/auth/logout` | GET | Logout (RP-Initiated Logout at provider) |
 | `/auth/me` | GET | Get current user info (JSON) |
 | `/health` | GET | Health check endpoint |
 
@@ -143,6 +144,7 @@ ssim/
 
 ## OIDC Flow
 
+### Login Flow
 1. User clicks "Login" and selects an identity provider
 2. SSIM generates PKCE code verifier/challenge and state
 3. User is redirected to the OIDC provider's authorization endpoint
@@ -151,6 +153,13 @@ ssim/
 6. SSIM exchanges code for tokens (access token, ID token)
 7. SSIM fetches user info from the provider's userinfo endpoint
 8. User is shown their profile with claims and token info
+
+### Logout Flow (RP-Initiated Logout)
+1. User clicks "Logout"
+2. SSIM destroys the local session
+3. SSIM redirects to the provider's `end_session_endpoint` with the ID token
+4. Provider ends the user's session
+5. Provider redirects back to SSIM's home page
 
 ## License
 

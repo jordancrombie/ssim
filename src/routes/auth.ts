@@ -112,12 +112,32 @@ router.get('/callback/:providerId', async (req: Request, res: Response) => {
   }
 });
 
-// Logout
+// Logout - performs RP-Initiated Logout if provider supports it
 router.get('/logout', (req: Request, res: Response) => {
+  const providerId = req.session.providerId;
+  const idToken = req.session.tokenSet?.id_token;
+
   req.session.destroy((err) => {
     if (err) {
       console.error('Session destroy error:', err);
     }
+
+    // If we have provider info, try to do RP-Initiated Logout
+    if (providerId && idToken) {
+      const provider = getProvider(providerId);
+      if (provider) {
+        const endSessionEndpoint = provider.client.issuer.metadata.end_session_endpoint;
+        if (endSessionEndpoint) {
+          // Redirect to the provider's logout endpoint
+          const logoutUrl = new URL(endSessionEndpoint);
+          logoutUrl.searchParams.set('id_token_hint', idToken);
+          logoutUrl.searchParams.set('post_logout_redirect_uri', config.appBaseUrl);
+          return res.redirect(logoutUrl.toString());
+        }
+      }
+    }
+
+    // Fallback: just redirect to home
     res.redirect('/');
   });
 });
