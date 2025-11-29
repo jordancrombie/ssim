@@ -36,6 +36,9 @@ COPY --from=builder /app/dist ./dist
 # Copy views (EJS templates)
 COPY --from=builder /app/src/views ./dist/views
 
+# Copy public assets (logo, etc.)
+COPY --from=builder /app/src/public ./dist/public
+
 # Set ownership
 RUN chown -R ssim:nodejs /app
 
