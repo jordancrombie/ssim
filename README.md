@@ -9,7 +9,7 @@ A simple web application that demonstrates OIDC (OpenID Connect) authentication 
 - Displays user claims and token information after authentication
 - PKCE (Proof Key for Code Exchange) support for enhanced security
 - RP-Initiated Logout (ends session at both SSIM and the identity provider)
-- **KONEK** - Open Banking integration to fetch account data from BSIM
+- **KENOK** - Open Banking integration to fetch account data from BSIM
 - OAuth 2.0 Resource Indicators (RFC 8707) for JWT access tokens
 - Session-based authentication state
 - Clean, responsive UI with Tailwind CSS
@@ -115,7 +115,7 @@ INSERT INTO oauth_clients (
 | `/` | GET | Home page |
 | `/login` | GET | Login page with provider selection |
 | `/profile` | GET | User profile (after authentication) |
-| `/konek` | GET | KONEK - Open Banking account access |
+| `/kenok` | GET | KENOK - Open Banking account access |
 | `/auth/providers` | GET | List available OIDC providers (JSON) |
 | `/auth/login/:providerId` | GET | Initiate OIDC login flow |
 | `/auth/callback/:providerId` | GET | OIDC callback handler |
@@ -139,7 +139,7 @@ ssim/
 │   ├── views/
 │   │   ├── layout.ejs      # Base layout
 │   │   ├── home.ejs        # Home page
-│   │   ├── konek.ejs       # KONEK - Open Banking page
+│   │   ├── kenok.ejs       # KENOK - Open Banking page
 │   │   ├── login.ejs       # Login/provider selection
 │   │   └── profile.ejs     # User profile display
 │   ├── public/
@@ -163,8 +163,8 @@ ssim/
 8. User info is extracted from ID token claims
 9. User is shown their profile with claims and token info
 
-### KONEK Flow (Open Banking)
-1. Authenticated user navigates to KONEK page
+### KENOK Flow (Open Banking)
+1. Authenticated user navigates to KENOK page
 2. User clicks "Fetch My Accounts from BSIM"
 3. SSIM calls Open Banking API with JWT Bearer token
 4. Open Banking API validates JWT signature and audience

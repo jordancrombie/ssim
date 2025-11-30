@@ -134,24 +134,24 @@ describe('Page Routes', () => {
     });
   });
 
-  describe('GET /konek', () => {
+  describe('GET /kenok', () => {
     it('should redirect to /login when not authenticated', async () => {
       const app = createTestApp();
-      const response = await request(app).get('/konek');
+      const response = await request(app).get('/kenok');
 
       expect(response.status).toBe(302);
       expect(response.headers.location).toBe('/login');
     });
 
-    it('should render konek page when authenticated', async () => {
+    it('should render kenok page when authenticated', async () => {
       const app = createTestApp({
         userInfo: { sub: 'user-123' },
         tokenSet: { access_token: 'token123' },
       });
-      const response = await request(app).get('/konek');
+      const response = await request(app).get('/kenok');
 
       expect(response.status).toBe(200);
-      expect(response.body.view).toBe('konek');
+      expect(response.body.view).toBe('kenok');
     });
 
     it('should pass userInfo and tokenSet to template', async () => {
@@ -159,7 +159,7 @@ describe('Page Routes', () => {
       const tokenSet = { access_token: 'token123', scope: 'openid profile' };
 
       const app = createTestApp({ userInfo, tokenSet });
-      const response = await request(app).get('/konek');
+      const response = await request(app).get('/kenok');
 
       expect(response.body.options.userInfo).toEqual(userInfo);
       expect(response.body.options.tokenSet).toEqual(tokenSet);

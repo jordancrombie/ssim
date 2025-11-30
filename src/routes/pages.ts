@@ -35,13 +35,13 @@ router.get('/profile', (req: Request, res: Response) => {
   });
 });
 
-// KONEK page (Open Banking integration)
-router.get('/konek', (req: Request, res: Response) => {
+// KENOK page (Open Banking integration)
+router.get('/kenok', (req: Request, res: Response) => {
   if (!req.session.userInfo) {
     return res.redirect('/login');
   }
 
-  res.render('konek', {
+  res.render('kenok', {
     userInfo: req.session.userInfo,
     tokenSet: req.session.tokenSet,
   });

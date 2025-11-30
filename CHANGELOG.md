@@ -5,7 +5,7 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 ## [1.1.0] - 2024-11-29
 
 ### Added
-- **KONEK Page** - New Open Banking integration page for fetching account data
+- **KENOK Page** - New Open Banking integration page for fetching account data
 - Open Banking API client with JWT Bearer token authentication
 - Resource indicator support for obtaining JWT access tokens
 - SSIM logo served at `/logo.png` for OIDC provider display
@@ -17,7 +17,7 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 - Session save is now explicit before OIDC redirect to prevent race conditions
 
 ### API Endpoints
-- `GET /konek` - KONEK page for Open Banking account access
+- `GET /kenok` - KENOK page for Open Banking account access
 - `GET /api/accounts` - Proxy endpoint to fetch accounts from BSIM Open Banking API
 
 ### Technical Details
