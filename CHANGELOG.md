@@ -2,6 +2,29 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.1.0] - 2024-11-29
+
+### Added
+- **KONEK Page** - New Open Banking integration page for fetching account data
+- Open Banking API client with JWT Bearer token authentication
+- Resource indicator support for obtaining JWT access tokens
+- SSIM logo served at `/logo.png` for OIDC provider display
+- Debug logging for token analysis during development
+
+### Changed
+- Authorization flow now includes `resource` parameter for JWT access tokens
+- Token callback extracts user info from ID token claims (required for resource-restricted tokens)
+- Session save is now explicit before OIDC redirect to prevent race conditions
+
+### API Endpoints
+- `GET /konek` - KONEK page for Open Banking account access
+- `GET /api/accounts` - Proxy endpoint to fetch accounts from BSIM Open Banking API
+
+### Technical Details
+- Uses OAuth 2.0 Resource Indicators (RFC 8707) to request JWT access tokens
+- Access tokens are audience-restricted to `https://openbanking.banksim.ca`
+- User profile data extracted from ID token since access token is resource-bound
+
 ## [1.0.1] - 2024-11-29
 
 ### Added

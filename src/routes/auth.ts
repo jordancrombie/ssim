@@ -53,9 +53,20 @@ router.get('/login/:providerId', async (req: Request, res: Response) => {
     nonce,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
+    // Request JWT access token for Open Banking API access
+    resource: 'https://openbanking.banksim.ca',
   });
 
-  res.redirect(authUrl);
+  console.log('Authorization URL:', authUrl);
+
+  // Ensure session is saved before redirecting to avoid race condition
+  req.session.save((err) => {
+    if (err) {
+      console.error('Session save error:', err);
+      return res.status(500).json({ error: 'Failed to save session' });
+    }
+    res.redirect(authUrl);
+  });
 });
 
 // Handle OIDC callback
@@ -77,14 +88,32 @@ router.get('/callback/:providerId', async (req: Request, res: Response) => {
     const params = provider.client.callbackParams(req);
     const redirectUri = `${config.appBaseUrl}/auth/callback/${providerId}`;
 
+    console.log('[SSIM] Exchanging authorization code for tokens...');
     const tokenSet = await provider.client.callback(redirectUri, params, {
       state: oidcState,
       nonce: oidcNonce,
       code_verifier: codeVerifier,
     });
+    console.log('[SSIM] Token exchange successful');
+    console.log('[SSIM] Access token (first 50 chars):', tokenSet.access_token?.substring(0, 50));
+    console.log('[SSIM] Access token length:', tokenSet.access_token?.length);
 
-    // Get user info from the provider
-    const userInfo = await provider.client.userinfo(tokenSet.access_token!);
+    // Get user info from ID token claims instead of userinfo endpoint
+    // When using resource indicators, the access token is audience-restricted
+    // to the resource server (Open Banking API), not the userinfo endpoint
+    const idTokenClaims = tokenSet.claims();
+    console.log('[SSIM] ID Token claims:', idTokenClaims);
+
+    // Use ID token claims as user info
+    const userInfo = {
+      sub: idTokenClaims.sub,
+      name: idTokenClaims.name,
+      given_name: idTokenClaims.given_name,
+      family_name: idTokenClaims.family_name,
+      email: idTokenClaims.email,
+      email_verified: idTokenClaims.email_verified,
+    };
+    console.log('[SSIM] User info from ID token:', userInfo);
 
     // Store in session
     req.session.userInfo = userInfo as Record<string, unknown>;

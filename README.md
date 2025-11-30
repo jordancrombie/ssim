@@ -9,6 +9,8 @@ A simple web application that demonstrates OIDC (OpenID Connect) authentication 
 - Displays user claims and token information after authentication
 - PKCE (Proof Key for Code Exchange) support for enhanced security
 - RP-Initiated Logout (ends session at both SSIM and the identity provider)
+- **KONEK** - Open Banking integration to fetch account data from BSIM
+- OAuth 2.0 Resource Indicators (RFC 8707) for JWT access tokens
 - Session-based authentication state
 - Clean, responsive UI with Tailwind CSS
 
@@ -51,7 +53,7 @@ OIDC_PROVIDERS='[
     "issuer": "https://auth.banksim.ca",
     "clientId": "ssim-store",
     "clientSecret": "your-client-secret",
-    "scopes": "openid profile email"
+    "scopes": "openid profile email fdx:accountdetailed:read fdx:transactions:read"
   }
 ]'
 ```
@@ -113,11 +115,13 @@ INSERT INTO oauth_clients (
 | `/` | GET | Home page |
 | `/login` | GET | Login page with provider selection |
 | `/profile` | GET | User profile (after authentication) |
+| `/konek` | GET | KONEK - Open Banking account access |
 | `/auth/providers` | GET | List available OIDC providers (JSON) |
 | `/auth/login/:providerId` | GET | Initiate OIDC login flow |
 | `/auth/callback/:providerId` | GET | OIDC callback handler |
 | `/auth/logout` | GET | Logout (RP-Initiated Logout at provider) |
 | `/auth/me` | GET | Get current user info (JSON) |
+| `/api/accounts` | GET | Fetch accounts from Open Banking API |
 | `/health` | GET | Health check endpoint |
 
 ## Architecture
@@ -129,13 +133,17 @@ ssim/
 │   │   ├── env.ts          # Environment configuration
 │   │   └── oidc.ts         # OIDC client setup
 │   ├── routes/
+│   │   ├── api.ts          # Open Banking API proxy routes
 │   │   ├── auth.ts         # Authentication routes
 │   │   └── pages.ts        # Page routes
 │   ├── views/
 │   │   ├── layout.ejs      # Base layout
 │   │   ├── home.ejs        # Home page
+│   │   ├── konek.ejs       # KONEK - Open Banking page
 │   │   ├── login.ejs       # Login/provider selection
 │   │   └── profile.ejs     # User profile display
+│   ├── public/
+│   │   └── logo.png        # SSIM logo for OIDC providers
 │   └── server.ts           # Express app entry point
 ├── Dockerfile
 ├── docker-compose.yml
@@ -147,12 +155,20 @@ ssim/
 ### Login Flow
 1. User clicks "Login" and selects an identity provider
 2. SSIM generates PKCE code verifier/challenge and state
-3. User is redirected to the OIDC provider's authorization endpoint
-4. User authenticates with the provider
-5. Provider redirects back to SSIM with authorization code
-6. SSIM exchanges code for tokens (access token, ID token)
-7. SSIM fetches user info from the provider's userinfo endpoint
-8. User is shown their profile with claims and token info
+3. SSIM includes `resource=https://openbanking.banksim.ca` for JWT access tokens
+4. User is redirected to the OIDC provider's authorization endpoint
+5. User authenticates with the provider
+6. Provider redirects back to SSIM with authorization code
+7. SSIM exchanges code for tokens (JWT access token, ID token)
+8. User info is extracted from ID token claims
+9. User is shown their profile with claims and token info
+
+### KONEK Flow (Open Banking)
+1. Authenticated user navigates to KONEK page
+2. User clicks "Fetch My Accounts from BSIM"
+3. SSIM calls Open Banking API with JWT Bearer token
+4. Open Banking API validates JWT signature and audience
+5. Account data is returned and displayed
 
 ### Logout Flow (RP-Initiated Logout)
 1. User clicks "Logout"

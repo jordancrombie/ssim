@@ -35,4 +35,16 @@ router.get('/profile', (req: Request, res: Response) => {
   });
 });
 
+// KONEK page (Open Banking integration)
+router.get('/konek', (req: Request, res: Response) => {
+  if (!req.session.userInfo) {
+    return res.redirect('/login');
+  }
+
+  res.render('konek', {
+    userInfo: req.session.userInfo,
+    tokenSet: req.session.tokenSet,
+  });
+});
+
 export default router;

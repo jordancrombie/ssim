@@ -1,0 +1,155 @@
+<%- include('layout', { body: `
+  <div class="max-w-4xl mx-auto py-12 px-4">
+    <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+      <!-- Header -->
+      <div class="gradient-bg px-8 py-6">
+        <h1 class="text-3xl font-bold text-white">KONEK</h1>
+        <p class="text-purple-100 mt-1">Open Banking Account Access</p>
+      </div>
+
+      <div class="p-8">
+        <!-- User Info -->
+        <div class="mb-8 p-4 bg-gray-50 rounded-xl">
+          <p class="text-sm text-gray-500">Logged in as</p>
+          <p class="font-semibold text-gray-800">${userInfo?.name || userInfo?.email || 'User'}</p>
+          <p class="text-xs text-gray-400 mt-1">Subject (sub): ${userInfo?.sub || 'N/A'}</p>
+        </div>
+
+        <!-- Fetch Accounts Button -->
+        <div class="mb-8">
+          <button
+            id="fetchAccountsBtn"
+            onclick="fetchAccounts()"
+            class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+            </svg>
+            <span>Fetch My Accounts from BSIM</span>
+          </button>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden mb-8">
+          <div class="flex items-center justify-center py-8">
+            <svg class="animate-spin h-8 w-8 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="ml-3 text-gray-600">Fetching accounts...</span>
+          </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden mb-8">
+          <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div class="flex items-start">
+              <svg class="w-6 h-6 text-red-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <div>
+                <h3 class="text-red-800 font-semibold">Error fetching accounts</h3>
+                <p id="errorMessage" class="text-red-600 text-sm mt-1"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+            </svg>
+            Your Accounts
+          </h3>
+
+          <!-- Accounts Grid -->
+          <div id="accountsGrid" class="grid gap-4">
+            <!-- Accounts will be inserted here -->
+          </div>
+
+          <!-- Raw Response -->
+          <div class="mt-8">
+            <h4 class="text-sm font-medium text-gray-500 mb-2">Raw API Response</h4>
+            <div class="bg-gray-50 rounded-xl p-4 overflow-x-auto">
+              <pre id="rawResponse" class="text-xs text-gray-800 whitespace-pre-wrap"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Back Link -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+          <a href="/profile" class="text-purple-600 hover:text-purple-700 font-medium flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Profile
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchAccounts() {
+      const btn = document.getElementById('fetchAccountsBtn');
+      const loadingState = document.getElementById('loadingState');
+      const errorState = document.getElementById('errorState');
+      const resultsSection = document.getElementById('resultsSection');
+      const errorMessage = document.getElementById('errorMessage');
+      const accountsGrid = document.getElementById('accountsGrid');
+      const rawResponse = document.getElementById('rawResponse');
+
+      // Reset states
+      btn.disabled = true;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+      loadingState.classList.remove('hidden');
+      errorState.classList.add('hidden');
+      resultsSection.classList.add('hidden');
+
+      try {
+        const response = await fetch('/api/accounts');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.details || data.error || 'Failed to fetch accounts');
+        }
+
+        // Show results
+        rawResponse.textContent = JSON.stringify(data, null, 2);
+
+        // Render accounts
+        const accounts = data.accounts || data || [];
+        if (Array.isArray(accounts) && accounts.length > 0) {
+          accountsGrid.innerHTML = accounts.map(account => \`
+            <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="text-sm text-gray-500">\${account.accountType || account.type || 'Account'}</p>
+                  <p class="font-mono text-lg font-semibold text-gray-800">\${account.accountNumber || account.accountId || 'N/A'}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm text-gray-500">Balance</p>
+                  <p class="text-2xl font-bold text-purple-600">$\${(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                </div>
+              </div>
+              \${account.currency ? \`<p class="mt-2 text-xs text-gray-400">Currency: \${account.currency}</p>\` : ''}
+            </div>
+          \`).join('');
+        } else {
+          accountsGrid.innerHTML = '<p class="text-gray-500 text-center py-4">No accounts found</p>';
+        }
+
+        resultsSection.classList.remove('hidden');
+      } catch (error) {
+        errorMessage.textContent = error.message;
+        errorState.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        loadingState.classList.add('hidden');
+      }
+    }
+  </script>
+`, isAuthenticated: true }) %>
