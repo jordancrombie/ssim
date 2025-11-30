@@ -122,21 +122,26 @@
         // Render accounts
         const accounts = data.accounts || data || [];
         if (Array.isArray(accounts) && accounts.length > 0) {
-          accountsGrid.innerHTML = accounts.map(account => \`
+          accountsGrid.innerHTML = accounts.map(account => {
+            // Handle balance - can be a number or an object with current/available
+            const balanceValue = typeof account.balance === 'object'
+              ? (account.balance.current || account.balance.available || 0)
+              : (account.balance || 0);
+            return \`
             <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
               <div class="flex justify-between items-start">
                 <div>
                   <p class="text-sm text-gray-500">\${account.accountType || account.type || 'Account'}</p>
-                  <p class="font-mono text-lg font-semibold text-gray-800">\${account.accountNumber || account.accountId || 'N/A'}</p>
+                  <p class="font-mono text-lg font-semibold text-gray-800">\${account.accountNumberMasked || account.accountNumber || account.accountId || 'N/A'}</p>
                 </div>
                 <div class="text-right">
                   <p class="text-sm text-gray-500">Balance</p>
-                  <p class="text-2xl font-bold text-purple-600">$\${(account.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                  <p class="text-2xl font-bold text-purple-600">$\${balanceValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
               \${account.currency ? \`<p class="mt-2 text-xs text-gray-400">Currency: \${account.currency}</p>\` : ''}
             </div>
-          \`).join('');
+          \`}).join('');
         } else {
           accountsGrid.innerHTML = '<p class="text-gray-500 text-center py-4">No accounts found</p>';
         }
