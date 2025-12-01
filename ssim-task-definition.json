@@ -1,0 +1,45 @@
+{
+  "family": "bsim-ssim",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::301868770392:role/bsim-ecs-task-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "ssim",
+      "image": "301868770392.dkr.ecr.ca-central-1.amazonaws.com/bsim/ssim:latest",
+      "portMappings": [
+        {
+          "containerPort": 3005,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "3005" },
+        { "name": "SESSION_SECRET", "value": "idIhtiTOfG+wfTYw06oKWaVYZ5T2b7m/rg+tQY9jCW8=" },
+        { "name": "TRUST_PROXY", "value": "true" },
+        { "name": "APP_BASE_URL", "value": "https://ssim.banksim.ca" },
+        { "name": "OPENBANKING_API_URL", "value": "https://openbanking.banksim.ca" },
+        { "name": "OIDC_PROVIDERS", "value": "[{\"id\":\"bsim\",\"name\":\"BSIM Bank\",\"issuer\":\"https://auth.banksim.ca\",\"clientId\":\"ssim-client\",\"clientSecret\":\"ssim-secret-change-me\",\"scopes\":\"openid profile email fdx:accountdetailed:read fdx:transactions:read\"}]" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/bsim-ssim",
+          "awslogs-region": "ca-central-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -qO- http://localhost:3005/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
