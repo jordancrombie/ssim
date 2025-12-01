@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
+import { config } from '../config/env';
 
 const router = Router();
-
-const OPENBANKING_BASE_URL = 'https://openbanking.banksim.ca';
 
 // Fetch accounts from Open Banking API
 router.get('/accounts', async (req: Request, res: Response) => {
@@ -33,7 +32,7 @@ router.get('/accounts', async (req: Request, res: Response) => {
       console.log('Token is not a JWT (opaque token)');
     }
 
-    const response = await fetch(`${OPENBANKING_BASE_URL}/users/${sub}/accounts`, {
+    const response = await fetch(`${config.openbankingBaseUrl}/users/${sub}/accounts`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

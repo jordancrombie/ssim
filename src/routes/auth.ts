@@ -54,7 +54,7 @@ router.get('/login/:providerId', async (req: Request, res: Response) => {
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     // Request JWT access token for Open Banking API access
-    resource: 'https://openbanking.banksim.ca',
+    resource: config.openbankingBaseUrl,
   });
 
   console.log('Authorization URL:', authUrl);

@@ -30,5 +30,6 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   sessionSecret: process.env.SESSION_SECRET || 'dev-session-secret',
   appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:3005',
+  openbankingBaseUrl: process.env.OPENBANKING_BASE_URL || 'https://openbanking.banksim.ca',
   providers: parseProviders(),
 };
