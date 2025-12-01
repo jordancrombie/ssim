@@ -23,7 +23,7 @@
         { "name": "TRUST_PROXY", "value": "true" },
         { "name": "APP_BASE_URL", "value": "https://ssim.banksim.ca" },
         { "name": "OPENBANKING_API_URL", "value": "https://openbanking.banksim.ca" },
-        { "name": "OIDC_PROVIDERS", "value": "[{\"id\":\"bsim\",\"name\":\"BSIM Bank\",\"issuer\":\"https://auth.banksim.ca\",\"clientId\":\"ssim-client\",\"clientSecret\":\"ssim-secret-change-me\",\"scopes\":\"openid profile email fdx:accountdetailed:read fdx:transactions:read\"}]" }
+        { "name": "OIDC_PROVIDERS", "value": "[{\"id\":\"bsim\",\"name\":\"BSIM Bank\",\"issuer\":\"https://auth.banksim.ca\",\"clientId\":\"ssim-client\",\"clientSecret\":\"e829e6a1a87565b56a419c94c7780f4e2774de7ee98d5d0a98a343786b4598dd\",\"scopes\":\"openid profile email fdx:accountdetailed:read fdx:transactions:read\"}]" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",

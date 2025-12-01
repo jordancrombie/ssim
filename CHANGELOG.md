@@ -2,6 +2,24 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.2.0] - 2024-11-30
+
+### Added
+- AWS ECS Fargate deployment support
+- `AWS_DEPLOYMENT.md` - Comprehensive deployment documentation
+- `ssim-task-definition.json` - ECS task definition template
+- `TRUST_PROXY` environment variable support for running behind load balancers
+- Configurable `OPENBANKING_BASE_URL` environment variable
+
+### Fixed
+- **Session persistence behind ALB** - Added `trust proxy` support to fix "Invalid session state" error during OIDC callback when running behind AWS ALB or nginx reverse proxy
+- Secure cookies now work correctly with HTTPS termination at load balancer
+
+### Infrastructure
+- Production deployment at https://ssim.banksim.ca
+- Deployed as ECS Fargate service in BSIM AWS infrastructure
+- CloudWatch logging at `/ecs/bsim-ssim`
+
 ## [1.1.0] - 2024-11-29
 
 ### Added
