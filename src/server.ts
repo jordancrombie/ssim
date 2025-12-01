@@ -11,6 +11,12 @@ import apiRoutes from './routes/api';
 
 const app = express();
 
+// Trust proxy when running behind ALB/nginx (required for secure cookies over HTTPS)
+if (config.trustProxy) {
+  app.set('trust proxy', 1);
+  console.log('Trust proxy enabled for production deployment');
+}
+
 // View engine setup
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));

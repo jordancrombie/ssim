@@ -82,6 +82,22 @@ docker build -t ssim .
 docker run -p 3005:3005 --env-file .env ssim
 ```
 
+## AWS Deployment
+
+SSIM is deployed to AWS ECS Fargate as part of the BSIM infrastructure. See [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for complete deployment instructions.
+
+**Production URL:** https://ssim.banksim.ca
+
+### Key Configuration for Production
+
+When running behind a load balancer (AWS ALB, nginx), set these environment variables:
+
+```env
+NODE_ENV=production
+TRUST_PROXY=true          # Required for secure cookies behind ALB
+APP_BASE_URL=https://ssim.banksim.ca
+```
+
 ## Registering SSIM as an OAuth Client in BSIM
 
 To use SSIM with BSIM's auth server, you need to register it as an OAuth client:
