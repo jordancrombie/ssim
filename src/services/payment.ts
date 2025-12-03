@@ -129,3 +129,75 @@ export async function getPaymentStatus(transactionId: string): Promise<{
 }> {
   return makePaymentRequest(`/${transactionId}`, 'GET');
 }
+
+// Webhook registration types and functions
+export interface WebhookRegistrationParams {
+  merchantId: string;
+  endpoint: string;
+  events: string[];
+  secret?: string;
+}
+
+export interface WebhookRegistrationResult {
+  id: string;
+  merchantId: string;
+  url: string;
+  events: string[];
+  secret?: string;
+  createdAt: string;
+}
+
+const WEBHOOK_API_BASE = `${config.paymentApiUrl}/api/v1/webhooks`;
+
+async function makeWebhookRequest<T>(
+  endpoint: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  body?: Record<string, unknown>
+): Promise<T> {
+  const url = `${WEBHOOK_API_BASE}${endpoint}`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
+  // Add API key if configured
+  if (config.paymentApiKey) {
+    headers['X-API-Key'] = config.paymentApiKey;
+  }
+
+  console.log(`[WebhookService] ${method} ${url}`);
+
+  const response = await fetch(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const data = await response.json() as Record<string, unknown>;
+
+  if (!response.ok) {
+    console.error('[WebhookService] API error:', response.status, data);
+    const message = (data.message as string) || (data.error as string) || `Webhook API error: ${response.status}`;
+    throw new Error(message);
+  }
+
+  console.log('[WebhookService] Response:', data);
+  return data as T;
+}
+
+export async function registerWebhook(params: WebhookRegistrationParams): Promise<WebhookRegistrationResult> {
+  return makeWebhookRequest<WebhookRegistrationResult>('', 'POST', {
+    merchantId: params.merchantId,
+    url: params.endpoint,  // NSIM expects 'url' field
+    events: params.events,
+    secret: params.secret,
+  });
+}
+
+export async function listWebhooks(merchantId: string): Promise<WebhookRegistrationResult[]> {
+  return makeWebhookRequest<WebhookRegistrationResult[]>(`?merchantId=${encodeURIComponent(merchantId)}`, 'GET');
+}
+
+export async function deleteWebhook(webhookId: string): Promise<void> {
+  await makeWebhookRequest(`/${webhookId}`, 'DELETE');
+}

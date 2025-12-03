@@ -7,6 +7,7 @@ A simple web application that demonstrates OIDC (OpenID Connect) authentication 
 - **Store & Shopping Cart** - Product catalog with add-to-cart functionality
 - **Payment Integration (NSIM)** - Card payments via BSIM OAuth consent and NSIM payment network
 - **Order Management** - Order history and order details pages
+- **Payment Webhooks** - Async payment status updates from NSIM with signature verification
 - Simple login page with OIDC provider selection
 - Supports multiple OIDC providers
 - Displays user claims and token information after authentication
@@ -168,6 +169,12 @@ INSERT INTO oauth_clients (
 | `/payment/void/:orderId` | POST | Void authorized payment |
 | `/payment/refund/:orderId` | POST | Refund captured payment |
 
+### Webhooks
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/webhooks/payment` | POST | Receive payment status updates from NSIM |
+| `/webhooks/health` | GET | Webhook endpoint health check |
+
 ### Other
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -192,6 +199,7 @@ ssim/
 │   │   ├── auth.ts         # Authentication routes
 │   │   ├── cart.ts         # Shopping cart routes
 │   │   ├── payment.ts      # NSIM payment integration
+│   │   ├── webhooks.ts     # NSIM webhook handlers
 │   │   └── pages.ts        # Page routes
 │   ├── services/
 │   │   └── payment.ts      # NSIM Payment API client
@@ -260,6 +268,15 @@ ssim/
 │   Browser   │     │  (checkout)  │     │  (consent)   │     │  (payments)  │
 └─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
 ```
+
+## Future Improvements (TODO)
+
+- [ ] **Persistent storage** - Orders are currently in-memory; add database storage (PostgreSQL/Redis)
+- [ ] **Payment capture UI** - Add UI buttons to capture/void authorized payments from order details page
+- [ ] **Better error handling** - Show specific payment errors to users (e.g., "Insufficient funds", "Card expired")
+- [ ] **Production deployment** - Update production `.env` with proper payment credentials
+- [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period
+- [ ] **Email notifications** - Send order confirmation and status update emails
 
 ## License
 

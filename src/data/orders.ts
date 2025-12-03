@@ -33,6 +33,11 @@ export function getOrdersByUserId(userId: string): Order[] {
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
+export function getOrderByTransactionId(transactionId: string): Order | undefined {
+  return Array.from(orders.values())
+    .find(order => order.paymentDetails?.transactionId === transactionId);
+}
+
 export function updateOrderStatus(id: string, status: OrderStatus): Order | undefined {
   const order = orders.get(id);
   if (!order) return undefined;

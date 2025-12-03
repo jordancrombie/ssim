@@ -40,4 +40,6 @@ export const config = {
   merchantId: process.env.MERCHANT_ID || 'ssim-merchant',
   paymentClientId: process.env.PAYMENT_CLIENT_ID || 'ssim-client',
   paymentClientSecret: process.env.PAYMENT_CLIENT_SECRET || '',
+  // Webhook configuration
+  webhookSecret: process.env.WEBHOOK_SECRET || '',
 };
