@@ -2,6 +2,28 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.5.0] - 2025-12-03
+
+### Production Deployment
+- **NSIM Payment Integration Live** - Full payment flow deployed to production
+- Production URL: https://ssim.banksim.ca
+- Payment API: https://payment.banksim.ca
+
+### Added
+- Production environment variables for NSIM integration:
+  - `PAYMENT_API_URL` - NSIM payment API endpoint
+  - `PAYMENT_AUTH_URL` - BSIM auth for payment consent
+  - `PAYMENT_CLIENT_ID` / `PAYMENT_CLIENT_SECRET` - OAuth credentials
+  - `MERCHANT_ID` - Merchant identifier for NSIM
+  - `WEBHOOK_SECRET` - HMAC secret for webhook verification
+- Automatic webhook registration with NSIM on startup
+- Updated AWS deployment documentation with payment configuration
+
+### Infrastructure
+- ECS task definition updated with payment environment variables
+- Docker build now uses `docker buildx` for ARM/Apple Silicon compatibility
+- Webhook endpoint registered: `https://ssim.banksim.ca/webhooks/payment`
+
 ## [1.4.1] - 2025-12-03
 
 ### Improved

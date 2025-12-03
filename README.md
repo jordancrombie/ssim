@@ -1,21 +1,34 @@
 # SSIM - Store Simulator
 
-A simple web application that demonstrates OIDC (OpenID Connect) authentication by connecting to identity providers like BSIM (Banking Simulator).
+A merchant demo application that demonstrates e-commerce payment flows using BSIM (Banking Simulator) for authentication and NSIM (Network Simulator) for payment processing.
+
+**Production URL:** https://ssim.banksim.ca
+
+## Overview
+
+SSIM is part of the BankSim ecosystem - a suite of applications that simulate real-world banking and payment infrastructure:
+
+| Component | Description | URL |
+|-----------|-------------|-----|
+| **BSIM** | Core banking simulator with auth server | https://banksim.ca |
+| **SSIM** | Store/merchant simulator (this repo) | https://ssim.banksim.ca |
+| **NSIM** | Payment network simulator | https://payment.banksim.ca |
 
 ## Features
 
+### E-Commerce & Payments
 - **Store & Shopping Cart** - Product catalog with add-to-cart functionality
-- **Payment Integration (NSIM)** - Card payments via BSIM OAuth consent and NSIM payment network
-- **Order Management** - Order history and order details pages
-- **Payment Webhooks** - Async payment status updates from NSIM with signature verification
-- Simple login page with OIDC provider selection
-- Supports multiple OIDC providers
-- Displays user claims and token information after authentication
-- PKCE (Proof Key for Code Exchange) support for enhanced security
-- RP-Initiated Logout (ends session at both SSIM and the identity provider)
+- **NSIM Payment Integration** - Full payment lifecycle (authorize, capture, void, refund)
+- **Payment Webhooks** - Real-time payment status updates with HMAC-SHA256 signature verification
+- **Order Management** - Order history, details, and confirmation pages
+- **Decline Handling** - Clear error messages with card retry support
+
+### Authentication & Open Banking
+- **OIDC Authentication** - Login via BSIM identity provider
+- **PKCE Support** - Proof Key for Code Exchange for enhanced security
+- **RP-Initiated Logout** - Ends session at both SSIM and BSIM
 - **KENOK** - Open Banking integration to fetch account data from BSIM
-- OAuth 2.0 Resource Indicators (RFC 8707) for JWT access tokens
-- Session-based authentication state
+- **OAuth 2.0 Resource Indicators** - RFC 8707 for JWT access tokens
 - Clean, responsive UI with Tailwind CSS
 
 ## Quick Start
@@ -252,15 +265,8 @@ ssim/
 5. Provider redirects back to SSIM's home page
 
 ### Payment Flow (NSIM Integration)
-1. User adds products to cart and proceeds to checkout
-2. User clicks "Pay with BSIM Card"
-3. SSIM creates an order and redirects to BSIM auth with `payment:authorize` scope
-4. User selects a card and consents to the payment
-5. BSIM redirects back with authorization code
-6. SSIM exchanges code for tokens containing `card_token` claim
-7. SSIM calls NSIM `/api/v1/payments/authorize` with card token
-8. NSIM processes authorization through BSIM
-9. On success, user sees order confirmation
+
+The payment flow demonstrates a real-world card payment authorization:
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
@@ -269,13 +275,52 @@ ssim/
 └─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
+1. **Checkout** - User adds products to cart and clicks "Pay with BSIM"
+2. **Card Selection** - SSIM redirects to BSIM auth with `payment:authorize` scope
+3. **User Consent** - User selects a card and authorizes the payment amount
+4. **Token Exchange** - BSIM returns authorization code; SSIM exchanges for JWT with `card_token`
+5. **Payment Authorization** - SSIM calls NSIM `/api/v1/payments/authorize` with card token
+6. **Processing** - NSIM validates with BSIM and checks card limits/balance
+7. **Result** - On success, order is authorized; on decline, user sees specific reason
+
+### Payment Lifecycle
+
+After authorization, merchants can perform these operations via NSIM:
+
+| Operation | Description | SSIM Endpoint |
+|-----------|-------------|---------------|
+| **Authorize** | Reserve funds on customer's card | `POST /payment/initiate` |
+| **Capture** | Settle the authorized amount | `POST /payment/capture/:orderId` |
+| **Void** | Cancel before capture | `POST /payment/void/:orderId` |
+| **Refund** | Return funds after capture | `POST /payment/refund/:orderId` |
+
+### Webhook Events
+
+SSIM automatically registers for payment webhooks on startup. NSIM sends real-time updates:
+
+- `payment.authorized` - Payment successfully authorized
+- `payment.captured` - Payment captured/settled
+- `payment.voided` - Authorization cancelled
+- `payment.refunded` - Funds returned to customer
+- `payment.declined` - Authorization rejected (insufficient funds, etc.)
+- `payment.expired` - Authorization timeout
+- `payment.failed` - Processing error
+
 ## Future Improvements (TODO)
 
+### Completed
+- [x] **NSIM Payment Integration** - Full payment flow with authorize, capture, void, refund
+- [x] **Payment Webhooks** - Real-time status updates with signature verification
+- [x] **Production Deployment** - Deployed to AWS ECS Fargate at https://ssim.banksim.ca
+- [x] **Decline Handling** - Clear error messages with card retry support
+
+### Pending
 - [ ] **Persistent storage** - Orders are currently in-memory; add database storage (PostgreSQL/Redis)
 - [ ] **Payment capture UI** - Add UI buttons to capture/void authorized payments from order details page
-- [ ] **Production deployment** - Update production `.env` with proper payment credentials
 - [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period
 - [ ] **Email notifications** - Send order confirmation and status update emails
+- [ ] **Partial refunds** - Support refunding less than the full captured amount
+- [ ] **Receipt generation** - Generate PDF receipts for completed orders
 
 ## License
 
