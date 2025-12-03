@@ -14,6 +14,7 @@ export interface AuthorizeResult {
   authorizationCode?: string;
   timestamp?: string;
   message?: string;
+  declineReason?: string;
 }
 
 export interface CaptureResult {
@@ -66,6 +67,13 @@ async function makePaymentRequest<T>(
   });
 
   const data = await response.json() as Record<string, unknown>;
+
+  // For authorize endpoint, return the response even if it's a decline (400 status)
+  // This allows proper handling of declined payments
+  if (!response.ok && endpoint === '/authorize' && data.status === 'declined') {
+    console.log('[PaymentService] Payment declined:', data);
+    return data as T;
+  }
 
   if (!response.ok) {
     console.error('[PaymentService] API error:', response.status, data);
