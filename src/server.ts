@@ -10,6 +10,8 @@ import pageRoutes from './routes/pages';
 import apiRoutes from './routes/api';
 import cartRoutes from './routes/cart';
 import paymentRoutes from './routes/payment';
+import webhookRoutes from './routes/webhooks';
+import { registerWebhook } from './services/payment';
 
 const app = express();
 
@@ -55,6 +57,7 @@ app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/payment', paymentRoutes);
+app.use('/webhooks', webhookRoutes);
 app.use('/', pageRoutes);
 
 // Health check
@@ -71,6 +74,35 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   });
 });
 
+// Register webhook with NSIM on startup
+async function registerPaymentWebhook(): Promise<void> {
+  const webhookEndpoint = `${config.appBaseUrl}/webhooks/payment`;
+  const events = [
+    'payment.authorized',
+    'payment.captured',
+    'payment.voided',
+    'payment.refunded',
+    'payment.declined',
+    'payment.expired',
+    'payment.failed',
+  ];
+
+  try {
+    console.log('[Startup] Registering webhook with NSIM...');
+    const result = await registerWebhook({
+      merchantId: config.merchantId,
+      endpoint: webhookEndpoint,
+      events,
+      secret: config.webhookSecret || undefined,
+    });
+    console.log('[Startup] Webhook registered successfully:', result.id);
+  } catch (error) {
+    // Log but don't fail startup - webhook registration is not critical
+    console.warn('[Startup] Failed to register webhook (non-fatal):', error instanceof Error ? error.message : error);
+    console.warn('[Startup] Payment status updates may need manual refresh');
+  }
+}
+
 // Start server
 async function start() {
   try {
@@ -81,6 +113,9 @@ async function start() {
       console.log(`SSIM Store Simulator running on port ${config.port}`);
       console.log(`Visit: ${config.appBaseUrl}`);
     });
+
+    // Register webhook after server is listening (non-blocking)
+    registerPaymentWebhook();
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

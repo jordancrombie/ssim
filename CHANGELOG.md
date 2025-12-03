@@ -2,6 +2,22 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.4.0] - 2025-12-03
+
+### Added
+- **Payment Webhooks** - Async payment status updates from NSIM
+- Webhook endpoint at `/webhooks/payment` with HMAC-SHA256 signature verification
+- Automatic webhook registration with NSIM on server startup
+- Support for all payment events: authorized, captured, voided, refunded, declined, expired, failed
+- Order lookup by transaction ID for webhook processing
+- `WEBHOOK_SECRET` environment variable for signature verification
+
+### Technical Details
+- Webhooks are registered automatically when SSIM starts
+- Signature verification uses timing-safe comparison to prevent timing attacks
+- Non-fatal webhook registration - server continues if NSIM is unavailable
+- All webhook events return 200 quickly to prevent NSIM retries
+
 ## [1.3.0] - 2025-12-03
 
 ### Added
