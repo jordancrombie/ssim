@@ -1,0 +1,81 @@
+<%- include('layout', { body: `
+  <div class="max-w-4xl mx-auto py-12 px-4">
+    <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+      <!-- Header -->
+      <div class="gradient-bg px-8 py-6">
+        <h1 class="text-3xl font-bold text-white">Order History</h1>
+        <p class="text-purple-100 mt-1">View your past orders and their status</p>
+      </div>
+
+      <div class="p-8">
+        ${orders.length === 0 ? `
+        <!-- Empty State -->
+        <div class="text-center py-12">
+          <svg class="w-20 h-20 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+          </svg>
+          <h2 class="text-xl font-semibold text-gray-800 mt-4">No orders yet</h2>
+          <p class="text-gray-600 mt-2">Start shopping to see your orders here</p>
+          <a href="/store" class="inline-block mt-6 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+            Browse Store
+          </a>
+        </div>
+        ` : `
+        <!-- Orders List -->
+        <div class="space-y-4">
+          ${orders.map(order => `
+            <div class="border border-gray-200 rounded-xl p-6 hover:border-purple-200 transition">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                <div>
+                  <p class="text-sm text-gray-500">Order ID</p>
+                  <p class="font-mono font-medium text-gray-800">${order.id}</p>
+                </div>
+                <div class="mt-2 sm:mt-0">
+                  <span class="px-3 py-1 rounded-full text-sm font-medium ${
+                    order.status === 'authorized' ? 'bg-blue-100 text-blue-800' :
+                    order.status === 'captured' ? 'bg-green-100 text-green-800' :
+                    order.status === 'refunded' ? 'bg-yellow-100 text-yellow-800' :
+                    order.status === 'voided' ? 'bg-gray-100 text-gray-800' :
+                    order.status === 'declined' ? 'bg-red-100 text-red-800' :
+                    order.status === 'failed' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }">
+                    ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="text-sm text-gray-500">${order.items.length} item${order.items.length !== 1 ? 's' : ''}</p>
+                  <p class="text-sm text-gray-500">${new Date(order.createdAt).toLocaleDateString('en-CA', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}</p>
+                </div>
+                <div class="mt-4 sm:mt-0 flex items-center space-x-4">
+                  <span class="text-xl font-bold text-purple-600">${formatPrice(order.subtotal)}</span>
+                  <a href="/orders/${order.id}" class="text-purple-600 hover:text-purple-700 font-medium">
+                    View Details
+                  </a>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        `}
+
+        <!-- Back to Store -->
+        <div class="mt-8 pt-6 border-t border-gray-200">
+          <a href="/store" class="text-purple-600 hover:text-purple-700 font-medium flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Store
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+`, isAuthenticated: true, cartCount: cartCount }) %>

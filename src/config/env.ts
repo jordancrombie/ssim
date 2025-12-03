@@ -33,4 +33,11 @@ export const config = {
   openbankingBaseUrl: process.env.OPENBANKING_BASE_URL || 'https://openbanking.banksim.ca',
   trustProxy: process.env.TRUST_PROXY === 'true',
   providers: parseProviders(),
+  // Payment integration (NSIM)
+  paymentApiUrl: process.env.PAYMENT_API_URL || 'https://payment-dev.banksim.ca',
+  paymentAuthUrl: process.env.PAYMENT_AUTH_URL || 'https://auth-dev.banksim.ca',
+  paymentApiKey: process.env.PAYMENT_API_KEY || '',
+  merchantId: process.env.MERCHANT_ID || 'ssim-merchant',
+  paymentClientId: process.env.PAYMENT_CLIENT_ID || 'ssim-client',
+  paymentClientSecret: process.env.PAYMENT_CLIENT_SECRET || '',
 };

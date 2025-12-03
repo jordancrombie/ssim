@@ -1,0 +1,101 @@
+<%- include('layout', { body: `
+  <div class="max-w-4xl mx-auto py-12 px-4">
+    <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+      <!-- Success Header -->
+      <div class="bg-green-500 px-8 py-10 text-center">
+        <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+        <h1 class="text-3xl font-bold text-white">Payment Successful!</h1>
+        <p class="text-green-100 mt-2">Thank you for your order</p>
+      </div>
+
+      <div class="p-8">
+        <!-- Order Details -->
+        <div class="mb-8">
+          <div class="flex justify-between items-start mb-6">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-800">Order Details</h2>
+              <p class="text-sm text-gray-500">Order ID: ${order.id}</p>
+            </div>
+            <span class="px-3 py-1 rounded-full text-sm font-medium ${
+              order.status === 'authorized' ? 'bg-blue-100 text-blue-800' :
+              order.status === 'captured' ? 'bg-green-100 text-green-800' :
+              'bg-gray-100 text-gray-800'
+            }">
+              ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+            </span>
+          </div>
+
+          <!-- Order Items -->
+          <div class="bg-gray-50 rounded-xl p-6 mb-6">
+            <div class="space-y-4">
+              ${order.items.map(item => `
+                <div class="flex justify-between items-center">
+                  <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-6 h-6 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <p class="font-medium text-gray-800">${item.productName}</p>
+                      <p class="text-sm text-gray-500">Qty: ${item.quantity} x ${formatPrice(item.unitPrice)}</p>
+                    </div>
+                  </div>
+                  <p class="font-semibold text-gray-800">${formatPrice(item.subtotal)}</p>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="border-t border-gray-200 mt-4 pt-4">
+              <div class="flex justify-between items-center">
+                <span class="text-lg font-semibold text-gray-800">Total</span>
+                <span class="text-2xl font-bold text-purple-600">${formatPrice(order.subtotal)}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Information -->
+          ${order.paymentDetails ? `
+          <div class="bg-purple-50 rounded-xl p-6">
+            <h3 class="font-semibold text-purple-800 mb-3">Payment Information</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-purple-600">Transaction ID</span>
+                <span class="font-mono text-purple-800">${order.paymentDetails.transactionId}</span>
+              </div>
+              ${order.paymentDetails.authorizationCode ? `
+              <div class="flex justify-between">
+                <span class="text-purple-600">Authorization Code</span>
+                <span class="font-mono text-purple-800">${order.paymentDetails.authorizationCode}</span>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+          ` : ''}
+        </div>
+
+        <!-- Order Date -->
+        <div class="text-sm text-gray-500 mb-8">
+          <p>Order placed: ${new Date(order.createdAt).toLocaleString('en-CA', {
+            dateStyle: 'full',
+            timeStyle: 'short'
+          })}</p>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a href="/store" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-xl font-semibold text-center transition">
+            Continue Shopping
+          </a>
+          <a href="/orders" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 px-6 rounded-xl font-semibold text-center transition">
+            View All Orders
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+`, isAuthenticated: true, cartCount: 0 }) %>

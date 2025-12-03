@@ -2,6 +2,59 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.3.0] - 2025-12-03
+
+### Added
+- **Store & Shopping Cart** - Product catalog with add-to-cart functionality
+- **NSIM Payment Integration** - Full payment flow with BSIM card authorization
+- **Order Management** - Order history, order details, and order confirmation pages
+- Product catalog with sample products (src/data/products.ts)
+- In-memory order storage (src/data/orders.ts)
+- Payment service for NSIM API integration (src/services/payment.ts)
+- Cart API endpoints for managing shopping cart
+- Payment OAuth flow with `payment:authorize` scope
+- Support for card token extraction from JWT access tokens
+
+### Payment Flow
+1. User adds items to cart and proceeds to checkout
+2. SSIM redirects to BSIM auth with `payment:authorize` scope
+3. User selects card and consents to payment
+4. BSIM returns authorization code with `card_token` in JWT
+5. SSIM calls NSIM `/api/v1/payments/authorize` endpoint
+6. On success, order is marked as authorized
+
+### New Pages
+- `/store` - Product catalog
+- `/checkout` - Shopping cart and payment initiation
+- `/orders` - Order history
+- `/orders/:id` - Order details
+- `/order-confirmation/:id` - Payment confirmation
+
+### New API Endpoints
+- `GET /api/cart` - Get cart contents
+- `POST /api/cart/add` - Add item to cart
+- `DELETE /api/cart/remove/:productId` - Remove item from cart
+- `POST /api/cart/clear` - Clear cart
+- `POST /payment/initiate` - Create order and start payment OAuth flow
+- `GET /payment/callback` - Handle payment OAuth callback
+- `POST /payment/capture/:orderId` - Capture authorized payment
+- `POST /payment/void/:orderId` - Void authorized payment
+- `POST /payment/refund/:orderId` - Refund captured payment
+
+### Environment Variables
+- `PAYMENT_API_URL` - NSIM payment API endpoint
+- `PAYMENT_AUTH_URL` - BSIM auth URL for payment consent
+- `PAYMENT_API_KEY` - API key for NSIM (optional)
+- `MERCHANT_ID` - Merchant ID (must match OAuth client_id)
+- `PAYMENT_CLIENT_ID` - OAuth client ID for payment flow
+- `PAYMENT_CLIENT_SECRET` - OAuth client secret for payment flow
+
+### Technical Details
+- Amounts are stored in cents internally, converted to dollars for NSIM API
+- Card tokens are extracted from JWT `card_token` claim
+- Merchant ID must match the OAuth client_id used during consent
+- PKCE is used for payment authorization flow
+
 ## [1.2.0] - 2024-11-30
 
 ### Added
