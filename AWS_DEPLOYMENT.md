@@ -2,6 +2,50 @@
 
 SSIM is deployed to AWS as part of the BSIM (Banking Simulator) infrastructure, running on ECS Fargate behind the shared Application Load Balancer.
 
+---
+
+## Multi-Repository Ecosystem
+
+> **IMPORTANT:** SSIM is part of a multi-repository ecosystem. While this repo contains the SSIM application code, **all AWS deployment configuration is managed from the BSIM repository**.
+
+### Repository Structure
+
+| Repository | Description | Role |
+|------------|-------------|------|
+| **[bsim](https://github.com/jordancrombie/bsim)** | Core banking simulator | **Orchestrator** - owns all AWS infrastructure |
+| **[ssim](https://github.com/jordancrombie/ssim)** | Store Simulator (this repo) | Merchant demo app |
+| **[nsim](https://github.com/jordancrombie/nsim)** | Payment Network Simulator | Payment routing middleware |
+
+### Key Points
+
+1. **BSIM is the "showrunner"**: The BSIM repo contains:
+   - ECS task definitions for ALL services (including SSIM)
+   - ALB listener rules and target groups
+   - Security groups and networking config
+   - docker-compose files for local development
+
+2. **Shared infrastructure**: SSIM shares with BSIM:
+   - ECS Cluster (`bsim-cluster`)
+   - Application Load Balancer (`bsim-alb`)
+   - VPC and subnets
+   - SSL certificate (`*.banksim.ca`)
+
+3. **This repo contains**: Only the SSIM application source code and Dockerfile
+
+### Deployment Workflow
+
+```
+1. Make changes to SSIM code in this repo
+2. Build and push Docker image to ECR (commands below)
+3. Update ECS service (force new deployment)
+   - Task definitions live in BSIM repo, but image tag is :latest
+   - Updating the service pulls the new image
+```
+
+For infrastructure changes (task definition updates, ALB rules, etc.), see the [BSIM AWS Deployment Guide](https://github.com/jordancrombie/bsim/blob/main/AWS_DEPLOYMENT.md).
+
+---
+
 ## Architecture Overview
 
 ```
@@ -77,6 +121,12 @@ The ECS task is configured with these environment variables:
 | `APP_BASE_URL` | `https://ssim.banksim.ca` | Application base URL |
 | `OPENBANKING_API_URL` | `https://openbanking.banksim.ca` | BSIM Open Banking API |
 | `OIDC_PROVIDERS` | `<json>` | OIDC provider configuration |
+| `PAYMENT_API_URL` | `https://payment.banksim.ca` | NSIM Payment API URL |
+| `PAYMENT_AUTH_URL` | `https://auth.banksim.ca` | BSIM Auth URL for payment OAuth |
+| `PAYMENT_CLIENT_ID` | `ssim-client` | OAuth client ID for payment flow |
+| `PAYMENT_CLIENT_SECRET` | `<secret>` | OAuth client secret |
+| `MERCHANT_ID` | `ssim-client` | Merchant ID for NSIM |
+| `WEBHOOK_SECRET` | `<secret>` | HMAC secret for webhook verification |
 
 ### OIDC Provider Configuration
 
@@ -93,9 +143,18 @@ The ECS task is configured with these environment variables:
 
 **Note:** The OAuth client must be registered in the BSIM auth server with:
 - **Client ID:** `ssim-client`
-- **Redirect URI:** `https://ssim.banksim.ca/auth/callback/bsim`
+- **Redirect URIs:**
+  - `https://ssim.banksim.ca/auth/callback/bsim` (OIDC login)
+  - `https://ssim.banksim.ca/payment/callback` (payment OAuth)
 - **Grant Types:** `authorization_code`, `refresh_token`
-- **Scopes:** `openid profile email fdx:accountdetailed:read fdx:transactions:read`
+- **Scopes:** `openid profile email fdx:accountdetailed:read fdx:transactions:read payment:authorize`
+
+### Webhook Registration
+
+SSIM automatically registers a webhook with NSIM on startup. The webhook endpoint is:
+- **URL:** `https://ssim.banksim.ca/webhooks/payment`
+- **Events:** `payment.authorized`, `payment.captured`, `payment.voided`, `payment.refunded`, `payment.declined`, `payment.expired`, `payment.failed`
+- **Signature Verification:** HMAC-SHA256 with `WEBHOOK_SECRET`
 
 ## Deployment Commands
 
@@ -106,11 +165,11 @@ The ECS task is configured with these environment variables:
 aws ecr get-login-password --region ca-central-1 | \
   docker login --username AWS --password-stdin 301868770392.dkr.ecr.ca-central-1.amazonaws.com
 
-# Build for AMD64 (required for Fargate)
-docker build --platform linux/amd64 -t bsim/ssim .
+# Build for AMD64 (required for Fargate - important if building on ARM/Apple Silicon)
+docker buildx build --platform linux/amd64 -t ssim:latest --load .
 
 # Tag and push
-docker tag bsim/ssim:latest 301868770392.dkr.ecr.ca-central-1.amazonaws.com/bsim/ssim:latest
+docker tag ssim:latest 301868770392.dkr.ecr.ca-central-1.amazonaws.com/bsim/ssim:latest
 docker push 301868770392.dkr.ecr.ca-central-1.amazonaws.com/bsim/ssim:latest
 ```
 

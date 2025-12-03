@@ -23,7 +23,13 @@
         { "name": "TRUST_PROXY", "value": "true" },
         { "name": "APP_BASE_URL", "value": "https://ssim.banksim.ca" },
         { "name": "OPENBANKING_API_URL", "value": "https://openbanking.banksim.ca" },
-        { "name": "OIDC_PROVIDERS", "value": "[{\"id\":\"bsim\",\"name\":\"BSIM Bank\",\"issuer\":\"https://auth.banksim.ca\",\"clientId\":\"ssim-client\",\"clientSecret\":\"e829e6a1a87565b56a419c94c7780f4e2774de7ee98d5d0a98a343786b4598dd\",\"scopes\":\"openid profile email fdx:accountdetailed:read fdx:transactions:read\"}]" }
+        { "name": "OIDC_PROVIDERS", "value": "[{\"id\":\"bsim\",\"name\":\"BSIM Bank\",\"issuer\":\"https://auth.banksim.ca\",\"clientId\":\"ssim-client\",\"clientSecret\":\"e829e6a1a87565b56a419c94c7780f4e2774de7ee98d5d0a98a343786b4598dd\",\"scopes\":\"openid profile email fdx:accountdetailed:read fdx:transactions:read\"}]" },
+        { "name": "PAYMENT_API_URL", "value": "https://payment.banksim.ca" },
+        { "name": "PAYMENT_AUTH_URL", "value": "https://auth.banksim.ca" },
+        { "name": "PAYMENT_CLIENT_ID", "value": "ssim-client" },
+        { "name": "PAYMENT_CLIENT_SECRET", "value": "e829e6a1a87565b56a419c94c7780f4e2774de7ee98d5d0a98a343786b4598dd" },
+        { "name": "MERCHANT_ID", "value": "ssim-client" },
+        { "name": "WEBHOOK_SECRET", "value": "ssim-webhook-secret-prod" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
