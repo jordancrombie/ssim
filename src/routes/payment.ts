@@ -88,12 +88,14 @@ router.post('/initiate', async (req: Request, res: Response) => {
     };
 
     // Build authorization URL with payment scope
+    // Use prompt=consent to always show card selection (don't reuse previous card)
     const authUrl = client.authorizationUrl({
       scope: 'openid payment:authorize',
       state,
       nonce,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
+      prompt: 'consent',
     });
 
     console.log('[Payment] Redirecting to payment auth:', authUrl);
@@ -197,11 +199,9 @@ router.get('/callback', async (req: Request, res: Response) => {
       throw new Error('No card token available');
     }
 
-    // Store card token in session
-    req.session.cardToken = cardToken;
-
-    // Clear payment state
+    // Clear payment state (don't store card token - always let user select fresh)
     delete req.session.paymentState;
+    delete req.session.cardToken;
 
     // Authorize payment via NSIM API
     console.log('[Payment] Authorizing payment via NSIM...');
@@ -235,7 +235,10 @@ router.get('/callback', async (req: Request, res: Response) => {
       });
     } else if (authResult.status === 'declined') {
       setOrderDeclined(order.id);
-      res.redirect(`/checkout?error=payment_declined`);
+      // Pass the decline reason to the checkout page
+      const reason = encodeURIComponent(authResult.declineReason || 'Payment declined');
+      console.log('[Payment] Payment declined:', authResult.declineReason);
+      res.redirect(`/checkout?error=payment_declined&reason=${reason}`);
     } else {
       setOrderFailed(order.id);
       res.redirect(`/checkout?error=payment_failed`);
@@ -243,7 +246,8 @@ router.get('/callback', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[Payment] Callback error:', error);
     setOrderFailed(orderId);
-    res.redirect(`/checkout?error=payment_error`);
+    const errorMsg = error instanceof Error ? encodeURIComponent(error.message) : 'payment_error';
+    res.redirect(`/checkout?error=payment_error&reason=${errorMsg}`);
   }
 });
 

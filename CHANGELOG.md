@@ -2,6 +2,19 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.4.1] - 2025-12-03
+
+### Improved
+- **Payment Decline Handling** - Show specific decline reasons (e.g., "Insufficient credit") with clear UI
+- **Card Selection on Retry** - Users now see card selection screen on every payment attempt
+- Payment authorization uses `prompt=consent` to always show BSIM card picker
+- Orange-styled decline messages with "Please try a different payment method" guidance
+- Decline reasons passed from NSIM are displayed to users
+
+### Fixed
+- Payment declines now properly return to checkout with specific error message instead of generic error
+- Users can retry with different card after decline (previously would reuse same card)
+
 ## [1.4.0] - 2025-12-03
 
 ### Added

@@ -273,7 +273,6 @@ ssim/
 
 - [ ] **Persistent storage** - Orders are currently in-memory; add database storage (PostgreSQL/Redis)
 - [ ] **Payment capture UI** - Add UI buttons to capture/void authorized payments from order details page
-- [ ] **Better error handling** - Show specific payment errors to users (e.g., "Insufficient funds", "Card expired")
 - [ ] **Production deployment** - Update production `.env` with proper payment credentials
 - [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period
 - [ ] **Email notifications** - Send order confirmation and status update emails
