@@ -1,23 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getProvider, getAllProviders, generateState, generateNonce, generateCodeVerifier, generateCodeChallenge } from '../config/oidc';
 import { config } from '../config/env';
-
-declare module 'express-session' {
-  interface SessionData {
-    oidcState?: string;
-    oidcNonce?: string;
-    codeVerifier?: string;
-    providerId?: string;
-    userInfo?: Record<string, unknown>;
-    tokenSet?: {
-      access_token?: string;
-      id_token?: string;
-      refresh_token?: string;
-      expires_at?: number;
-      scope?: string;
-    };
-  }
-}
+import '../types/session';
 
 const router = Router();
 

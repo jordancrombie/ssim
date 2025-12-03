@@ -4,6 +4,9 @@ A simple web application that demonstrates OIDC (OpenID Connect) authentication 
 
 ## Features
 
+- **Store & Shopping Cart** - Product catalog with add-to-cart functionality
+- **Payment Integration (NSIM)** - Card payments via BSIM OAuth consent and NSIM payment network
+- **Order Management** - Order history and order details pages
 - Simple login page with OIDC provider selection
 - Supports multiple OIDC providers
 - Displays user claims and token information after authentication
@@ -126,17 +129,48 @@ INSERT INTO oauth_clients (
 
 ## API Endpoints
 
+### Pages
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Home page |
 | `/login` | GET | Login page with provider selection |
 | `/profile` | GET | User profile (after authentication) |
 | `/kenok` | GET | KENOK - Open Banking account access |
+| `/store` | GET | Product catalog |
+| `/checkout` | GET | Shopping cart and checkout |
+| `/orders` | GET | Order history |
+| `/orders/:id` | GET | Order details |
+| `/order-confirmation/:id` | GET | Order confirmation after payment |
+
+### Authentication
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/auth/providers` | GET | List available OIDC providers (JSON) |
 | `/auth/login/:providerId` | GET | Initiate OIDC login flow |
 | `/auth/callback/:providerId` | GET | OIDC callback handler |
 | `/auth/logout` | GET | Logout (RP-Initiated Logout at provider) |
 | `/auth/me` | GET | Get current user info (JSON) |
+
+### Cart
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/cart` | GET | Get cart contents |
+| `/api/cart/add` | POST | Add item to cart |
+| `/api/cart/remove/:productId` | DELETE | Remove item from cart |
+| `/api/cart/clear` | POST | Clear cart |
+
+### Payment (NSIM Integration)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/payment/initiate` | POST | Create order and redirect to BSIM for card selection |
+| `/payment/callback` | GET | OAuth callback, authorize payment via NSIM |
+| `/payment/capture/:orderId` | POST | Capture authorized payment |
+| `/payment/void/:orderId` | POST | Void authorized payment |
+| `/payment/refund/:orderId` | POST | Refund captured payment |
+
+### Other
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/api/accounts` | GET | Fetch accounts from Open Banking API |
 | `/health` | GET | Health check endpoint |
 
@@ -148,13 +182,29 @@ ssim/
 │   ├── config/
 │   │   ├── env.ts          # Environment configuration
 │   │   └── oidc.ts         # OIDC client setup
+│   ├── data/
+│   │   ├── products.ts     # Product catalog
+│   │   └── orders.ts       # Order storage
+│   ├── models/
+│   │   └── order.ts        # Order type definitions
 │   ├── routes/
 │   │   ├── api.ts          # Open Banking API proxy routes
 │   │   ├── auth.ts         # Authentication routes
+│   │   ├── cart.ts         # Shopping cart routes
+│   │   ├── payment.ts      # NSIM payment integration
 │   │   └── pages.ts        # Page routes
+│   ├── services/
+│   │   └── payment.ts      # NSIM Payment API client
+│   ├── types/
+│   │   └── session.ts      # Session type extensions
 │   ├── views/
 │   │   ├── layout.ejs      # Base layout
 │   │   ├── home.ejs        # Home page
+│   │   ├── store.ejs       # Product catalog
+│   │   ├── checkout.ejs    # Shopping cart/checkout
+│   │   ├── orders.ejs      # Order history
+│   │   ├── order-detail.ejs       # Order details
+│   │   ├── order-confirmation.ejs # Payment confirmation
 │   │   ├── kenok.ejs       # KENOK - Open Banking page
 │   │   ├── login.ejs       # Login/provider selection
 │   │   └── profile.ejs     # User profile display
@@ -192,6 +242,24 @@ ssim/
 3. SSIM redirects to the provider's `end_session_endpoint` with the ID token
 4. Provider ends the user's session
 5. Provider redirects back to SSIM's home page
+
+### Payment Flow (NSIM Integration)
+1. User adds products to cart and proceeds to checkout
+2. User clicks "Pay with BSIM Card"
+3. SSIM creates an order and redirects to BSIM auth with `payment:authorize` scope
+4. User selects a card and consents to the payment
+5. BSIM redirects back with authorization code
+6. SSIM exchanges code for tokens containing `card_token` claim
+7. SSIM calls NSIM `/api/v1/payments/authorize` with card token
+8. NSIM processes authorization through BSIM
+9. On success, user sees order confirmation
+
+```
+┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   Customer  │────▶│  SSIM Store  │────▶│  BSIM Auth   │────▶│  NSIM API    │
+│   Browser   │     │  (checkout)  │     │  (consent)   │     │  (payments)  │
+└─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+```
 
 ## License
 

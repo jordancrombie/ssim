@@ -8,6 +8,8 @@ import { initializeProviders } from './config/oidc';
 import authRoutes from './routes/auth';
 import pageRoutes from './routes/pages';
 import apiRoutes from './routes/api';
+import cartRoutes from './routes/cart';
+import paymentRoutes from './routes/payment';
 
 const app = express();
 
@@ -51,6 +53,8 @@ app.use('/logo.png', express.static(path.join(__dirname, 'public', 'logo.png')))
 // Routes
 app.use('/auth', authRoutes);
 app.use('/api', apiRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/payment', paymentRoutes);
 app.use('/', pageRoutes);
 
 // Health check
