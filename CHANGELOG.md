@@ -2,6 +2,18 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.6.1] - 2025-12-03
+
+### Changed
+- **Tailwind CSS Production Build** - Replaced CDN with compiled CSS
+  - Installed Tailwind CSS v4 with CLI for build-time compilation
+  - Added `npm run css:build` and `npm run css:watch` scripts
+  - CSS compiled and minified during Docker build (~30KB)
+  - Added `/css` static route to serve compiled stylesheet
+
+### Fixed
+- CSS MIME type error - Added dedicated `/css` Express static route
+
 ## [1.6.0] - 2025-12-03
 
 ### Added
