@@ -49,6 +49,7 @@ app.use(session({
 
 // Static files
 app.use('/static', express.static(path.join(__dirname, 'public')));
+app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 
 // Serve logo at root for OIDC providers to display during authentication
 app.use('/logo.png', express.static(path.join(__dirname, 'public', 'logo.png')));
