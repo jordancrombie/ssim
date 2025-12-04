@@ -2,6 +2,46 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.6.0] - 2025-12-03
+
+### Added
+- **Admin Dashboard** - Full administrative interface at `/admin`
+  - Dashboard with product and order statistics
+  - Revenue tracking and quick action buttons
+  - Recent orders overview
+  - Shared sidebar partial for consistent navigation
+
+### Admin Features
+- **Product Management** - Full CRUD operations
+  - Add new products with name, description, price, category
+  - Edit existing products
+  - Toggle product active/inactive status
+  - Delete products from catalog
+
+- **Order Management** - View and manage all orders
+  - List all orders with status and details
+  - Capture authorized payments
+  - Void pending authorizations
+  - Process refunds for captured payments
+
+- **Settings Page** - View current configuration
+  - Application settings (Base URL)
+  - Payment settings (NSIM API URL, Merchant ID)
+  - Admin access settings (authorized emails)
+  - Environment information
+
+### Security
+- Admin authentication via BSIM OAuth
+- Email-based access control via `ADMIN_EMAILS` environment variable
+- All admin routes protected by `requireAdmin` middleware
+
+### Fixed
+- EJS template rendering - Rewrote admin views as standalone HTML documents with shared `_sidebar.ejs` partial (fixes "Could not find matching close tag" error from template literals containing EJS tags)
+
+### Environment Variables
+- `ADMIN_ENABLED` - Enable/disable admin dashboard (default: true)
+- `ADMIN_EMAILS` - Comma-separated list of authorized admin email addresses
+
 ## [1.5.0] - 2025-12-03
 
 ### Production Deployment

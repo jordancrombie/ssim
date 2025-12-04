@@ -11,6 +11,7 @@ import apiRoutes from './routes/api';
 import cartRoutes from './routes/cart';
 import paymentRoutes from './routes/payment';
 import webhookRoutes from './routes/webhooks';
+import adminRoutes from './routes/admin';
 import { registerWebhook } from './services/payment';
 
 const app = express();
@@ -58,6 +59,7 @@ app.use('/api', apiRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/webhooks', webhookRoutes);
+app.use('/admin', adminRoutes);
 app.use('/', pageRoutes);
 
 // Health check

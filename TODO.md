@@ -4,31 +4,6 @@ This file tracks planned features and improvements for the Store Simulator.
 
 ## Priority: High
 
-### Admin Dashboard
-- [ ] **Admin Authentication** - Separate admin login flow at `/admin/login`
-  - Use BSIM auth with `admin` scope or role claim
-  - Restrict admin routes to authenticated admin users
-  - Consider basic auth fallback for initial setup
-
-- [ ] **Product Management** - CRUD for product catalog
-  - Add/edit/delete products from admin UI
-  - Set prices, descriptions, images
-  - Enable/disable products
-  - Persist products to database (currently hardcoded in `src/data/products.ts`)
-
-- [ ] **Order Management** - Admin order operations
-  - View all orders (not just user's own)
-  - Capture authorized payments from UI
-  - Void pending authorizations
-  - Process refunds with reason
-  - Filter by status, date, customer
-
-- [ ] **Settings Management** - Configurable store settings
-  - Store name, logo, theme colors
-  - Tax rate configuration
-  - Currency settings
-  - Payment provider settings (toggle between dev/prod NSIM)
-
 ### Persistent Storage
 - [ ] **Database Integration** - Replace in-memory storage
   - PostgreSQL for orders and products
@@ -74,6 +49,12 @@ This file tracks planned features and improvements for the Store Simulator.
 
 ## Completed
 
+- [x] **Admin Dashboard** - Full admin UI at `/admin` (v1.6.0)
+  - Dashboard with stats (products, orders, revenue)
+  - Product management (add/edit/delete/toggle active)
+  - Order management (view all orders, capture/void/refund)
+  - Settings page (read-only config display)
+  - Email-based access control via `ADMIN_EMAILS`
 - [x] **NSIM Payment Integration** - Full payment lifecycle (v1.3.0)
 - [x] **Payment Webhooks** - Real-time status updates (v1.4.0)
 - [x] **Decline Handling** - Clear error messages with retry (v1.4.1)
