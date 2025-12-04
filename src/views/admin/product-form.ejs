@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - SSIM Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-100">
+  <div class="flex h-screen">
+    <%- include('_sidebar', { currentPage: 'products', userInfo: userInfo }) %>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="px-6 py-4">
+          <h1 class="text-2xl font-semibold text-gray-800"><%= title %></h1>
+        </div>
+      </header>
+
+      <main class="flex-1 overflow-y-auto p-6 bg-gray-100">
+        <div class="mb-6">
+          <a href="/admin/products" class="text-purple-600 hover:text-purple-700 flex items-center">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Back to Products
+          </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-6 max-w-2xl">
+          <form action="<%= isEdit ? '/admin/products/' + product.id : '/admin/products' %>" method="POST" class="space-y-6">
+            <!-- Name -->
+            <div>
+              <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+              <input type="text" id="name" name="name" required
+                value="<%= isEdit ? product.name : '' %>"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Enter product name">
+            </div>
+
+            <!-- Description -->
+            <div>
+              <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea id="description" name="description" rows="3" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Enter product description"><%= isEdit ? product.description : '' %></textarea>
+            </div>
+
+            <!-- Price and Currency -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-2 text-gray-500">$</span>
+                  <input type="number" id="price" name="price" step="0.01" min="0" required
+                    value="<%= isEdit ? (product.price / 100).toFixed(2) : '' %>"
+                    class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="0.00">
+                </div>
+              </div>
+              <div>
+                <label for="currency" class="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                <select id="currency" name="currency"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                  <option value="CAD" <%= isEdit && product.currency === 'CAD' ? 'selected' : '' %>>CAD</option>
+                  <option value="USD" <%= isEdit && product.currency === 'USD' ? 'selected' : '' %>>USD</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Category -->
+            <div>
+              <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select id="category" name="category"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                <% categories.forEach(cat => { %>
+                  <option value="<%= cat %>" <%= isEdit && product && product.category === cat ? 'selected' : '' %>><%= cat %></option>
+                <% }); %>
+                <option value="Other" <%= isEdit && product && product.category === 'Other' ? 'selected' : '' %>>Other</option>
+              </select>
+            </div>
+
+            <!-- Image URL -->
+            <div>
+              <label for="image" class="block text-sm font-medium text-gray-700 mb-1">Image URL (optional)</label>
+              <input type="url" id="image" name="image"
+                value="<%= isEdit && product && product.image ? product.image : '' %>"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="https://example.com/image.jpg">
+            </div>
+
+            <!-- Submit -->
+            <div class="flex justify-end space-x-4 pt-4">
+              <a href="/admin/products" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                Cancel
+              </a>
+              <button type="submit" class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                <%= isEdit ? 'Update Product' : 'Create Product' %>
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

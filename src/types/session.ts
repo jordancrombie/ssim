@@ -40,5 +40,7 @@ declare module 'express-session' {
     pendingOrder?: PendingOrder;
     paymentState?: PaymentState;
     cardToken?: string;
+    // Admin fields
+    adminReturnTo?: string;
   }
 }

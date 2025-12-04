@@ -42,4 +42,7 @@ export const config = {
   paymentClientSecret: process.env.PAYMENT_CLIENT_SECRET || '',
   // Webhook configuration
   webhookSecret: process.env.WEBHOOK_SECRET || '',
+  // Admin configuration
+  adminEnabled: process.env.ADMIN_ENABLED !== 'false', // enabled by default
+  adminEmails: process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [],
 };

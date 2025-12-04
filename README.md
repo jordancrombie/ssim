@@ -23,6 +23,12 @@ SSIM is part of the BankSim ecosystem - a suite of applications that simulate re
 - **Order Management** - Order history, details, and confirmation pages
 - **Decline Handling** - Clear error messages with card retry support
 
+### Admin Dashboard
+- **Product Management** - Add, edit, delete, and toggle products
+- **Order Management** - View all orders, capture/void/refund payments
+- **Settings** - View configuration and environment settings
+- **Access Control** - Email-based admin authorization via BSIM auth
+
 ### Authentication & Open Banking
 - **OIDC Authentication** - Login via BSIM identity provider
 - **PKCE Support** - Proof Key for Code Exchange for enhanced security
@@ -188,6 +194,25 @@ INSERT INTO oauth_clients (
 | `/webhooks/payment` | POST | Receive payment status updates from NSIM |
 | `/webhooks/health` | GET | Webhook endpoint health check |
 
+### Admin (Protected)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/admin` | GET | Admin dashboard |
+| `/admin/products` | GET | Product management |
+| `/admin/products/new` | GET | Add new product form |
+| `/admin/products/:id/edit` | GET | Edit product form |
+| `/admin/products` | POST | Create product |
+| `/admin/products/:id` | POST | Update product |
+| `/admin/products/:id/toggle` | POST | Toggle product active status |
+| `/admin/products/:id/delete` | POST | Delete product |
+| `/admin/orders` | GET | Order management |
+| `/admin/orders/:id` | GET | Order details |
+| `/admin/orders/:id/capture` | POST | Capture authorized payment |
+| `/admin/orders/:id/void` | POST | Void authorization |
+| `/admin/orders/:id/refund` | POST | Refund captured payment |
+| `/admin/settings` | GET | View settings |
+| `/admin/api/stats` | GET | Get dashboard statistics (JSON) |
+
 ### Other
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -208,6 +233,7 @@ ssim/
 │   ├── models/
 │   │   └── order.ts        # Order type definitions
 │   ├── routes/
+│   │   ├── admin.ts        # Admin dashboard routes
 │   │   ├── api.ts          # Open Banking API proxy routes
 │   │   ├── auth.ts         # Authentication routes
 │   │   ├── cart.ts         # Shopping cart routes
@@ -219,6 +245,14 @@ ssim/
 │   ├── types/
 │   │   └── session.ts      # Session type extensions
 │   ├── views/
+│   │   ├── admin/          # Admin dashboard views
+│   │   │   ├── layout.ejs         # Admin sidebar layout
+│   │   │   ├── dashboard.ejs      # Dashboard with stats
+│   │   │   ├── products.ejs       # Product list
+│   │   │   ├── product-form.ejs   # Add/edit product
+│   │   │   ├── orders.ejs         # Order list
+│   │   │   ├── order-detail.ejs   # Order detail with actions
+│   │   │   └── settings.ejs       # Settings display
 │   │   ├── layout.ejs      # Base layout
 │   │   ├── home.ejs        # Home page
 │   │   ├── store.ejs       # Product catalog

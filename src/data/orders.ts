@@ -38,6 +38,33 @@ export function getOrderByTransactionId(transactionId: string): Order | undefine
     .find(order => order.paymentDetails?.transactionId === transactionId);
 }
 
+export function getAllOrders(): Order[] {
+  return Array.from(orders.values())
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+export function getOrderStats(): {
+  total: number;
+  pending: number;
+  authorized: number;
+  captured: number;
+  revenue: number;
+} {
+  const all = Array.from(orders.values());
+  const pending = all.filter(o => o.status === 'pending').length;
+  const authorized = all.filter(o => o.status === 'authorized').length;
+  const captured = all.filter(o => o.status === 'captured');
+  const revenue = captured.reduce((sum, o) => sum + (o.paymentDetails?.capturedAmount || o.subtotal), 0);
+
+  return {
+    total: all.length,
+    pending,
+    authorized,
+    captured: captured.length,
+    revenue,
+  };
+}
+
 export function updateOrderStatus(id: string, status: OrderStatus): Order | undefined {
   const order = orders.get(id);
   if (!order) return undefined;
