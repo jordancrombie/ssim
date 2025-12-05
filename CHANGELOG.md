@@ -2,6 +2,25 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.7.1] - 2025-12-05
+
+### Improved
+- **Wallet-Only Authentication Flow** - Users can now pay with wallet without logging into BSIM first
+  - Wallet payments skip BSIM login requirement
+  - WSIM handles both authentication and card selection in a single redirect
+  - User session is created from WSIM identity on wallet callback
+  - Guest users can complete wallet purchases without creating a separate account
+
+### Changed
+- `/payment/initiate` now allows unauthenticated users for wallet payments
+- Wallet callback extracts user identity from WSIM ID token claims
+- Checkout page only redirects to BSIM login for bank payments, not wallet
+
+### Technical Details
+- Orders created by unauthenticated wallet users use 'guest' userId initially
+- Wallet callback updates order with real userId from WSIM identity
+- Session `userInfo` populated from WSIM ID token (sub, name, email, etc.)
+
 ## [1.7.0] - 2025-12-05
 
 ### Added

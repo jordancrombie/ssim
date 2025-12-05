@@ -45,5 +45,7 @@ declare module 'express-session' {
     cardToken?: string;
     // Admin fields
     adminReturnTo?: string;
+    // Login redirect
+    returnTo?: string;
   }
 }

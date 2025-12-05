@@ -43,12 +43,13 @@ async function getWsimClient() {
 
 // Initiate payment - creates order and redirects to BSIM or WSIM auth
 router.post('/initiate', async (req: Request, res: Response) => {
-  // Require authentication
-  if (!req.session.userInfo) {
+  const { provider = 'bank' } = req.body; // 'bank' or 'wallet'
+
+  // For bank payments, require BSIM authentication
+  // For wallet payments, WSIM handles authentication - no BSIM login required
+  if (provider !== 'wallet' && !req.session.userInfo) {
     return res.status(401).json({ error: 'Authentication required' });
   }
-
-  const { provider = 'bank' } = req.body; // 'bank' or 'wallet'
 
   // Validate provider
   if (provider === 'wallet' && !config.wsimEnabled) {
@@ -81,8 +82,8 @@ router.post('/initiate', async (req: Request, res: Response) => {
     subtotal += itemSubtotal;
   }
 
-  // Create order
-  const userId = req.session.userInfo.sub as string;
+  // Create order - for wallet payments, use 'guest' if not authenticated
+  const userId = req.session.userInfo?.sub as string || 'guest';
   const order = createOrder({
     userId,
     items: orderItems,
@@ -408,6 +409,33 @@ router.get('/wallet-callback', async (req: Request, res: Response) => {
 
     if (!walletCardToken || !cardToken) {
       throw new Error('Missing wallet tokens in WSIM response');
+    }
+
+    // Extract user identity from ID token if user is not already authenticated
+    // This allows wallet-only authentication flow
+    if (!req.session.userInfo && tokenSet.id_token) {
+      try {
+        const idTokenClaims = tokenSet.claims();
+        console.log('[Payment] WSIM ID Token claims:', idTokenClaims);
+
+        // Create user session from WSIM identity
+        req.session.userInfo = {
+          sub: idTokenClaims.sub,
+          name: idTokenClaims.name,
+          given_name: idTokenClaims.given_name,
+          family_name: idTokenClaims.family_name,
+          email: idTokenClaims.email,
+          email_verified: idTokenClaims.email_verified,
+        } as Record<string, unknown>;
+
+        // Update the order with the real user ID
+        order.userId = idTokenClaims.sub as string;
+
+        console.log('[Payment] Created user session from WSIM auth for user:', idTokenClaims.sub);
+      } catch (e) {
+        console.warn('[Payment] Could not extract user identity from WSIM ID token:', e);
+        // Continue without user session - payment can still proceed
+      }
     }
 
     // Clear payment state

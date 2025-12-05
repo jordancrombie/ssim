@@ -345,15 +345,18 @@ SSIM supports two payment methods: **Bank Card** (via BSIM) and **Digital Wallet
 └─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
-1. **Checkout** - User adds products to cart and clicks "Pay with Wallet"
-2. **Wallet Card Selection** - SSIM redirects to WSIM auth with `payment:authorize` scope
-3. **User Consent** - User selects an enrolled wallet card
+**Note:** Wallet payments do not require BSIM login. WSIM handles both authentication and card selection in a single flow.
+
+1. **Checkout** - User adds products to cart and clicks "Pay with Wallet" (no login required)
+2. **WSIM Authentication** - SSIM redirects to WSIM auth with `payment:authorize` scope
+3. **User Login & Card Selection** - User logs in to WSIM and selects an enrolled wallet card
 4. **Dual Token Exchange** - WSIM returns two tokens:
    - `wallet_card_token` - Used by NSIM to route to the correct bank
    - `card_token` - Used by BSIM to authorize the payment
-5. **Payment Authorization** - SSIM calls NSIM with both tokens
-6. **Routing & Processing** - NSIM uses wallet token to route to BSIM for authorization
-7. **Result** - On success, order is authorized with payment method tracked as "wallet"
+5. **Session Creation** - SSIM creates a user session from WSIM's ID token
+6. **Payment Authorization** - SSIM calls NSIM with both tokens
+7. **Routing & Processing** - NSIM uses wallet token to route to BSIM for authorization
+8. **Result** - On success, order is authorized with payment method tracked as "wallet"
 
 ### Payment Lifecycle
 
