@@ -13,11 +13,14 @@ export interface PendingOrder {
   createdAt: Date;
 }
 
+export type PaymentProvider = 'bank' | 'wallet';
+
 export interface PaymentState {
   orderId: string;
   state: string;
   nonce: string;
   codeVerifier: string;
+  provider: PaymentProvider;
 }
 
 declare module 'express-session' {

@@ -5,6 +5,7 @@ export interface AuthorizeParams {
   amount: number;
   currency: string;
   cardToken: string;
+  walletCardToken?: string;  // For wallet payments - used by NSIM for routing
   orderId: string;
 }
 
@@ -89,13 +90,20 @@ export async function authorizePayment(params: AuthorizeParams): Promise<Authori
   // Convert amount from cents to dollars (NSIM expects decimal dollars, not cents)
   const amountInDollars = params.amount / 100;
 
-  return makePaymentRequest<AuthorizeResult>('/authorize', 'POST', {
+  const body: Record<string, unknown> = {
     merchantId: params.merchantId,
     amount: amountInDollars,
     currency: params.currency,
     cardToken: params.cardToken,
     orderId: params.orderId,
-  });
+  };
+
+  // Include wallet routing token if present (for wallet payments)
+  if (params.walletCardToken) {
+    body.walletCardToken = params.walletCardToken;
+  }
+
+  return makePaymentRequest<AuthorizeResult>('/authorize', 'POST', body);
 }
 
 export async function capturePayment(

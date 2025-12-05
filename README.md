@@ -13,12 +13,14 @@ SSIM is part of the BankSim ecosystem - a suite of applications that simulate re
 | **BSIM** | Core banking simulator with auth server | https://banksim.ca |
 | **SSIM** | Store/merchant simulator (this repo) | https://ssim.banksim.ca |
 | **NSIM** | Payment network simulator | https://payment.banksim.ca |
+| **WSIM** | Wallet simulator for digital wallet payments | https://wsim.banksim.ca |
 
 ## Features
 
 ### E-Commerce & Payments
 - **Store & Shopping Cart** - Product catalog with add-to-cart functionality
 - **NSIM Payment Integration** - Full payment lifecycle (authorize, capture, void, refund)
+- **WSIM Wallet Payments** - Pay with digital wallet alongside bank card payments
 - **Payment Webhooks** - Real-time payment status updates with HMAC-SHA256 signature verification
 - **Order Management** - Order history, details, and confirmation pages
 - **Decline Handling** - Clear error messages with card retry support
@@ -121,6 +123,20 @@ TRUST_PROXY=true          # Required for secure cookies behind ALB
 APP_BASE_URL=https://ssim.banksim.ca
 ```
 
+### WSIM Wallet Integration
+
+To enable wallet payments via WSIM, configure these environment variables:
+
+```env
+# Enable wallet payments
+WSIM_ENABLED=true
+WSIM_AUTH_URL=https://wsim-auth.banksim.ca
+WSIM_CLIENT_ID=ssim-merchant
+WSIM_CLIENT_SECRET=<your-wsim-client-secret>
+```
+
+When `WSIM_ENABLED=true`, the checkout page displays both "Pay with BSIM" (bank card) and "Pay with Wallet" options.
+
 ## Registering SSIM as an OAuth Client in BSIM
 
 To use SSIM with BSIM's auth server, you need to register it as an OAuth client:
@@ -182,8 +198,9 @@ INSERT INTO oauth_clients (
 ### Payment (NSIM Integration)
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/payment/initiate` | POST | Create order and redirect to BSIM for card selection |
-| `/payment/callback` | GET | OAuth callback, authorize payment via NSIM |
+| `/payment/initiate` | POST | Create order and redirect to BSIM/WSIM for card selection |
+| `/payment/callback` | GET | BSIM OAuth callback, authorize bank payment via NSIM |
+| `/payment/wallet-callback` | GET | WSIM OAuth callback, authorize wallet payment via NSIM |
 | `/payment/capture/:orderId` | POST | Capture authorized payment |
 | `/payment/void/:orderId` | POST | Void authorized payment |
 | `/payment/refund/:orderId` | POST | Refund captured payment |
@@ -300,7 +317,9 @@ ssim/
 
 ### Payment Flow (NSIM Integration)
 
-The payment flow demonstrates a real-world card payment authorization:
+SSIM supports two payment methods: **Bank Card** (via BSIM) and **Digital Wallet** (via WSIM).
+
+#### Bank Card Payment Flow
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
@@ -316,6 +335,25 @@ The payment flow demonstrates a real-world card payment authorization:
 5. **Payment Authorization** - SSIM calls NSIM `/api/v1/payments/authorize` with card token
 6. **Processing** - NSIM validates with BSIM and checks card limits/balance
 7. **Result** - On success, order is authorized; on decline, user sees specific reason
+
+#### Wallet Payment Flow (WSIM)
+
+```
+┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   Customer  │────▶│  SSIM Store  │────▶│  WSIM Auth   │────▶│  NSIM API    │────▶│  BSIM API    │
+│   Browser   │     │  (checkout)  │     │  (wallet)    │     │  (routing)   │     │  (auth)      │
+└─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+```
+
+1. **Checkout** - User adds products to cart and clicks "Pay with Wallet"
+2. **Wallet Card Selection** - SSIM redirects to WSIM auth with `payment:authorize` scope
+3. **User Consent** - User selects an enrolled wallet card
+4. **Dual Token Exchange** - WSIM returns two tokens:
+   - `wallet_card_token` - Used by NSIM to route to the correct bank
+   - `card_token` - Used by BSIM to authorize the payment
+5. **Payment Authorization** - SSIM calls NSIM with both tokens
+6. **Routing & Processing** - NSIM uses wallet token to route to BSIM for authorization
+7. **Result** - On success, order is authorized with payment method tracked as "wallet"
 
 ### Payment Lifecycle
 
@@ -344,6 +382,7 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 
 ### Completed
 - [x] **NSIM Payment Integration** - Full payment flow with authorize, capture, void, refund
+- [x] **WSIM Wallet Integration** - Pay with digital wallet alongside bank card payments
 - [x] **Payment Webhooks** - Real-time status updates with signature verification
 - [x] **Production Deployment** - Deployed to AWS ECS Fargate at https://ssim.banksim.ca
 - [x] **Decline Handling** - Clear error messages with card retry support

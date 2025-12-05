@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getAllProviders } from '../config/oidc';
+import { config } from '../config/env';
 import { getAllProducts, formatPrice } from '../data/products';
 import { getOrderById, getOrdersByUserId } from '../data/orders';
 import '../types/session';
@@ -76,6 +77,7 @@ router.get('/checkout', (req: Request, res: Response) => {
     isAuthenticated,
     userInfo: req.session.userInfo,
     cartCount: getCartCount(req),
+    wsimEnabled: config.wsimEnabled,
   });
 });
 
