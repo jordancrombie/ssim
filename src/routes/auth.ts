@@ -31,6 +31,12 @@ router.get('/login/:providerId', async (req: Request, res: Response) => {
   req.session.codeVerifier = codeVerifier;
   req.session.providerId = providerId;
 
+  // Store returnTo URL if provided
+  const returnTo = req.query.returnTo as string;
+  if (returnTo && returnTo.startsWith('/')) {
+    req.session.returnTo = returnTo;
+  }
+
   const authUrl = provider.client.authorizationUrl({
     scope: provider.config.scopes,
     state,
@@ -114,8 +120,10 @@ router.get('/callback/:providerId', async (req: Request, res: Response) => {
     delete req.session.oidcNonce;
     delete req.session.codeVerifier;
 
-    // Redirect to profile page to display info
-    res.redirect('/profile');
+    // Redirect to returnTo URL if set, otherwise profile page
+    const returnTo = req.session.returnTo;
+    delete req.session.returnTo;
+    res.redirect(returnTo || '/profile');
   } catch (error) {
     console.error('OIDC callback error:', error);
     res.status(500).json({

@@ -25,11 +25,13 @@ router.get('/', (req: Request, res: Response) => {
 // Login page with provider selection
 router.get('/login', (req: Request, res: Response) => {
   if (req.session.userInfo) {
-    return res.redirect('/profile');
+    const returnTo = req.query.returnTo as string;
+    return res.redirect(returnTo && returnTo.startsWith('/') ? returnTo : '/profile');
   }
 
   const providers = getAllProviders();
-  res.render('login', { providers });
+  const returnTo = req.query.returnTo as string;
+  res.render('login', { providers, returnTo: returnTo && returnTo.startsWith('/') ? returnTo : '' });
 });
 
 // Profile page (shows OIDC info after login)

@@ -9,7 +9,7 @@
 
         <div class="space-y-4">
           ${providers && providers.length > 0 ? providers.map(provider => `
-            <a href="/auth/login/${provider.id}"
+            <a href="/auth/login/${provider.id}${returnTo ? '?returnTo=' + encodeURIComponent(returnTo) : ''}"
                class="block w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.02]">
               <div class="flex items-center justify-center space-x-3">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
