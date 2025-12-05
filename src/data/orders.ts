@@ -1,4 +1,4 @@
-import { Order, OrderStatus, CreateOrderParams, PaymentDetails } from '../models/order';
+import { Order, OrderStatus, CreateOrderParams, PaymentDetails, PaymentMethod } from '../models/order';
 import { randomUUID } from 'crypto';
 
 // In-memory order storage (replace with database in production)
@@ -89,7 +89,9 @@ export function setOrderAuthorized(
   id: string,
   transactionId: string,
   authorizationCode: string,
-  cardToken?: string
+  cardToken?: string,
+  paymentMethod: PaymentMethod = 'bank',
+  walletCardToken?: string
 ): Order | undefined {
   const order = orders.get(id);
   if (!order) return undefined;
@@ -99,6 +101,8 @@ export function setOrderAuthorized(
     transactionId,
     authorizationCode,
     cardToken,
+    paymentMethod,
+    walletCardToken,
   };
   order.updatedAt = new Date();
   orders.set(id, order);

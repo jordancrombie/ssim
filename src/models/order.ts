@@ -2,6 +2,8 @@ import { CartItem } from '../types/session';
 
 export type OrderStatus = 'pending' | 'authorized' | 'captured' | 'voided' | 'refunded' | 'declined' | 'expired' | 'failed';
 
+export type PaymentMethod = 'bank' | 'wallet';
+
 export interface OrderItem {
   productId: string;
   productName: string;
@@ -14,6 +16,8 @@ export interface PaymentDetails {
   transactionId: string;
   authorizationCode?: string;
   cardToken?: string;
+  walletCardToken?: string;
+  paymentMethod?: PaymentMethod;
   capturedAmount?: number;
   refundedAmount?: number;
 }

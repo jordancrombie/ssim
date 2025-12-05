@@ -64,6 +64,22 @@
             <h3 class="font-semibold text-purple-800 mb-3">Payment Information</h3>
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
+                <span class="text-purple-600">Payment Method</span>
+                <span class="font-medium text-purple-800 flex items-center">
+                  ${order.paymentDetails.paymentMethod === 'wallet' ? `
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    Digital Wallet
+                  ` : `
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                    </svg>
+                    Bank Card
+                  `}
+                </span>
+              </div>
+              <div class="flex justify-between">
                 <span class="text-purple-600">Transaction ID</span>
                 <span class="font-mono text-purple-800">${order.paymentDetails.transactionId}</span>
               </div>

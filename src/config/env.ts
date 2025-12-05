@@ -45,4 +45,9 @@ export const config = {
   // Admin configuration
   adminEnabled: process.env.ADMIN_ENABLED !== 'false', // enabled by default
   adminEmails: process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [],
+  // WSIM (Wallet) integration
+  wsimEnabled: process.env.WSIM_ENABLED === 'true',
+  wsimAuthUrl: process.env.WSIM_AUTH_URL || '',
+  wsimClientId: process.env.WSIM_CLIENT_ID || 'ssim-merchant',
+  wsimClientSecret: process.env.WSIM_CLIENT_SECRET || '',
 };

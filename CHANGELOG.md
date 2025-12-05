@@ -2,6 +2,37 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.7.0] - 2025-12-05
+
+### Added
+- **WSIM Wallet Payment Integration** - Pay with digital wallet alongside bank payments
+  - "Pay with Wallet" button on checkout (when WSIM_ENABLED=true)
+  - WSIM OIDC client for wallet authorization flow
+  - Wallet callback handler at `/payment/wallet-callback`
+  - Dual token support: `wallet_card_token` (routing) + `card_token` (authorization)
+  - Payment method tracking in order model (`bank` or `wallet`)
+
+### New Features
+- **Payment Provider Selection** - Users can choose between bank card or wallet
+- **Payment Method Display** - Order confirmation and admin show payment method
+- **Admin Orders Enhancement** - Payment method column in orders table
+
+### Technical Details
+- Updated `/payment/initiate` to accept `provider` parameter
+- Added `walletCardToken` support in payment service for NSIM routing
+- Extended `PaymentDetails` with `paymentMethod` and `walletCardToken` fields
+- Updated session types with `provider` field in `PaymentState`
+
+### Environment Variables
+- `WSIM_ENABLED` - Enable wallet payments (default: false)
+- `WSIM_AUTH_URL` - WSIM OIDC provider URL
+- `WSIM_CLIENT_ID` - OAuth client ID for WSIM
+- `WSIM_CLIENT_SECRET` - OAuth client secret for WSIM
+
+### Dependencies
+- Requires WSIM auth server to be available
+- Requires NSIM to accept `walletCardToken` for routing
+
 ## [1.6.1] - 2025-12-03
 
 ### Changed

@@ -9,8 +9,9 @@ import '../types/session';
 
 const router = Router();
 
-// Store payment OIDC client (initialized on first use)
+// Store payment OIDC clients (initialized on first use)
 let paymentClient: Client | null = null;
+let wsimClient: Client | null = null;
 
 async function getPaymentClient() {
   if (!paymentClient) {
@@ -26,11 +27,32 @@ async function getPaymentClient() {
   return paymentClient;
 }
 
-// Initiate payment - creates order and redirects to BSIM auth
+async function getWsimClient() {
+  if (!wsimClient && config.wsimEnabled && config.wsimAuthUrl) {
+    console.log('[Payment] Discovering WSIM issuer:', config.wsimAuthUrl);
+    const issuer = await Issuer.discover(config.wsimAuthUrl);
+    wsimClient = new issuer.Client({
+      client_id: config.wsimClientId,
+      client_secret: config.wsimClientSecret,
+      redirect_uris: [`${config.appBaseUrl}/payment/wallet-callback`],
+      response_types: ['code'],
+    });
+  }
+  return wsimClient;
+}
+
+// Initiate payment - creates order and redirects to BSIM or WSIM auth
 router.post('/initiate', async (req: Request, res: Response) => {
   // Require authentication
   if (!req.session.userInfo) {
     return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const { provider = 'bank' } = req.body; // 'bank' or 'wallet'
+
+  // Validate provider
+  if (provider === 'wallet' && !config.wsimEnabled) {
+    return res.status(400).json({ error: 'Wallet payments are not enabled' });
   }
 
   const cart = req.session.cart || [];
@@ -68,37 +90,70 @@ router.post('/initiate', async (req: Request, res: Response) => {
     currency: 'CAD',
   });
 
-  console.log('[Payment] Created order:', order.id, 'Total:', formatPrice(subtotal));
+  console.log('[Payment] Created order:', order.id, 'Total:', formatPrice(subtotal), 'Provider:', provider);
 
   try {
-    const client = await getPaymentClient();
-
     // Generate PKCE and state
     const state = generators.state();
     const nonce = generators.nonce();
     const codeVerifier = generators.codeVerifier();
     const codeChallenge = generators.codeChallenge(codeVerifier);
 
-    // Store payment state in session
+    // Store payment state in session (including provider)
     req.session.paymentState = {
       orderId: order.id,
       state,
       nonce,
       codeVerifier,
+      provider: provider as 'bank' | 'wallet',
     };
 
-    // Build authorization URL with payment scope
-    // Use prompt=consent to always show card selection (don't reuse previous card)
-    const authUrl = client.authorizationUrl({
-      scope: 'openid payment:authorize',
-      state,
-      nonce,
-      code_challenge: codeChallenge,
-      code_challenge_method: 'S256',
-      prompt: 'consent',
-    });
+    let authUrl: string;
 
-    console.log('[Payment] Redirecting to payment auth:', authUrl);
+    if (provider === 'wallet') {
+      // Use WSIM for wallet payments
+      const client = await getWsimClient();
+      if (!client) {
+        throw new Error('WSIM client not available');
+      }
+
+      // Build authorization URL with payment claims
+      // Include resource parameter to request JWT access token
+      authUrl = client.authorizationUrl({
+        scope: 'openid payment:authorize',
+        state,
+        nonce,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        resource: 'urn:wsim:payment-api',
+        claims: JSON.stringify({
+          payment: {
+            amount: (order.subtotal / 100).toFixed(2),
+            currency: order.currency,
+            merchantId: config.merchantId,
+            orderId: order.id,
+          }
+        }),
+      });
+
+      console.log('[Payment] Redirecting to WSIM auth:', authUrl);
+    } else {
+      // Use BSIM for bank payments (existing flow)
+      const client = await getPaymentClient();
+
+      // Build authorization URL with payment scope
+      // Use prompt=consent to always show card selection (don't reuse previous card)
+      authUrl = client.authorizationUrl({
+        scope: 'openid payment:authorize',
+        state,
+        nonce,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        prompt: 'consent',
+      });
+
+      console.log('[Payment] Redirecting to BSIM auth:', authUrl);
+    }
 
     // Save session before responding
     req.session.save((err) => {
@@ -214,12 +269,13 @@ router.get('/callback', async (req: Request, res: Response) => {
     });
 
     if (authResult.status === 'authorized') {
-      // Update order with payment details
+      // Update order with payment details (bank payment)
       setOrderAuthorized(
         order.id,
         authResult.transactionId,
         authResult.authorizationCode || '',
-        cardToken
+        cardToken,
+        'bank'
       );
 
       // Clear cart after successful payment
@@ -245,6 +301,162 @@ router.get('/callback', async (req: Request, res: Response) => {
     }
   } catch (error) {
     console.error('[Payment] Callback error:', error);
+    setOrderFailed(orderId);
+    const errorMsg = error instanceof Error ? encodeURIComponent(error.message) : 'payment_error';
+    res.redirect(`/checkout?error=payment_error&reason=${errorMsg}`);
+  }
+});
+
+// Wallet payment callback - handles WSIM OAuth response
+router.get('/wallet-callback', async (req: Request, res: Response) => {
+  const paymentState = req.session.paymentState;
+
+  if (!paymentState) {
+    console.error('[Payment] No payment state in session');
+    return res.redirect('/checkout?error=invalid_state');
+  }
+
+  // Verify this is a wallet payment
+  if (paymentState.provider !== 'wallet') {
+    console.error('[Payment] Expected wallet provider, got:', paymentState.provider);
+    return res.redirect('/checkout?error=invalid_state');
+  }
+
+  const { orderId, state, nonce, codeVerifier } = paymentState;
+
+  // Verify state
+  if (req.query.state !== state) {
+    console.error('[Payment] State mismatch');
+    return res.redirect('/checkout?error=state_mismatch');
+  }
+
+  // Check for error from auth server
+  if (req.query.error) {
+    console.error('[Payment] WSIM auth error:', req.query.error, req.query.error_description);
+    const order = getOrderById(orderId);
+    if (order) {
+      setOrderDeclined(orderId);
+    }
+    return res.redirect(`/checkout?error=${req.query.error}`);
+  }
+
+  const order = getOrderById(orderId);
+  if (!order) {
+    console.error('[Payment] Order not found:', orderId);
+    return res.redirect('/checkout?error=order_not_found');
+  }
+
+  try {
+    const client = await getWsimClient();
+    if (!client) {
+      throw new Error('WSIM client not available');
+    }
+
+    // Exchange code for tokens
+    const params = client.callbackParams(req);
+    const redirectUri = `${config.appBaseUrl}/payment/wallet-callback`;
+
+    console.log('[Payment] Exchanging WSIM authorization code for tokens...');
+    const tokenSet = await client.callback(redirectUri, params, {
+      state,
+      nonce,
+      code_verifier: codeVerifier,
+    }, {
+      // Pass resource parameter to token endpoint for JWT access token
+      exchangeBody: {
+        resource: 'urn:wsim:payment-api',
+      },
+    });
+
+    console.log('[Payment] WSIM token exchange successful');
+
+    // Extract tokens from JWT access token
+    const accessToken = tokenSet.access_token;
+    if (!accessToken) {
+      throw new Error('No access token received from WSIM');
+    }
+
+    // Log the token for debugging
+    console.log('[Payment] WSIM access token (first 100 chars):', accessToken.substring(0, 100));
+    console.log('[Payment] WSIM access token parts:', accessToken.split('.').length);
+
+    // Decode JWT to get wallet_card_token and card_token (underscore notation!)
+    let walletCardToken: string | undefined;
+    let cardToken: string | undefined;
+
+    if (accessToken.split('.').length === 3) {
+      try {
+        const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString());
+        console.log('[Payment] WSIM JWT payload:', JSON.stringify(payload, null, 2));
+
+        // Note: WSIM uses underscore notation for token claims
+        walletCardToken = payload.wallet_card_token;
+        cardToken = payload.card_token;
+
+        if (walletCardToken && cardToken) {
+          console.log('[Payment] Extracted wallet_card_token and card_token from WSIM JWT');
+        } else {
+          console.warn('[Payment] Missing tokens in WSIM JWT - wallet_card_token:', !!walletCardToken, 'card_token:', !!cardToken);
+        }
+      } catch (e) {
+        console.error('[Payment] Could not decode WSIM access token as JWT:', e);
+        throw new Error('Invalid token format from WSIM');
+      }
+    } else {
+      throw new Error('WSIM access token is not a valid JWT');
+    }
+
+    if (!walletCardToken || !cardToken) {
+      throw new Error('Missing wallet tokens in WSIM response');
+    }
+
+    // Clear payment state
+    delete req.session.paymentState;
+
+    // Authorize payment via NSIM API with BOTH tokens
+    console.log('[Payment] Authorizing wallet payment via NSIM...');
+    const authResult = await authorizePayment({
+      merchantId: config.merchantId,
+      amount: order.subtotal,
+      currency: order.currency,
+      cardToken,
+      walletCardToken,  // For NSIM routing
+      orderId: order.id,
+    });
+
+    if (authResult.status === 'authorized') {
+      // Update order with payment details (wallet payment)
+      setOrderAuthorized(
+        order.id,
+        authResult.transactionId,
+        authResult.authorizationCode || '',
+        cardToken,
+        'wallet',
+        walletCardToken
+      );
+
+      // Clear cart after successful payment
+      req.session.cart = [];
+
+      console.log('[Payment] Wallet payment authorized:', authResult.transactionId);
+
+      req.session.save((err) => {
+        if (err) {
+          console.error('[Payment] Session save error:', err);
+        }
+        res.redirect(`/order-confirmation/${order.id}`);
+      });
+    } else if (authResult.status === 'declined') {
+      setOrderDeclined(order.id);
+      const reason = encodeURIComponent(authResult.declineReason || 'Payment declined');
+      console.log('[Payment] Wallet payment declined:', authResult.declineReason);
+      res.redirect(`/checkout?error=payment_declined&reason=${reason}`);
+    } else {
+      setOrderFailed(order.id);
+      res.redirect(`/checkout?error=payment_failed`);
+    }
+  } catch (error) {
+    console.error('[Payment] Wallet callback error:', error);
     setOrderFailed(orderId);
     const errorMsg = error instanceof Error ? encodeURIComponent(error.message) : 'payment_error';
     res.redirect(`/checkout?error=payment_error&reason=${errorMsg}`);

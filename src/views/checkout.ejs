@@ -1,8 +1,47 @@
-<%- include('layout', { body: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout - SSIM Store</title>
+  <link rel="stylesheet" href="/css/tailwind.css">
+</head>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+  <!-- Navigation -->
+  <nav class="bg-white shadow-sm border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center">
+          <a href="/" class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <span class="text-white font-bold text-sm">S</span>
+            </div>
+            <span class="font-semibold text-gray-800">SSIM Store</span>
+          </a>
+        </div>
+        <div class="flex items-center space-x-4">
+          <a href="/store" class="text-gray-600 hover:text-gray-800">Store</a>
+          <a href="/checkout" class="text-gray-600 hover:text-gray-800 relative">
+            Cart
+            <% if (cartCount > 0) { %>
+            <span class="absolute -top-2 -right-2 bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"><%= cartCount %></span>
+            <% } %>
+          </a>
+          <% if (isAuthenticated) { %>
+          <a href="/orders" class="text-gray-600 hover:text-gray-800">Orders</a>
+          <a href="/auth/logout" class="text-gray-600 hover:text-gray-800">Logout</a>
+          <% } else { %>
+          <a href="/login" class="text-gray-600 hover:text-gray-800">Login</a>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </nav>
+
   <div class="max-w-4xl mx-auto py-12 px-4">
-    <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
       <!-- Header -->
-      <div class="gradient-bg px-8 py-6">
+      <div class="bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-6">
         <h1 class="text-3xl font-bold text-white">Checkout</h1>
         <p class="text-purple-100 mt-1">Review your order and complete payment</p>
       </div>
@@ -49,7 +88,7 @@
           </div>
 
           <!-- Authentication Required -->
-          ${!isAuthenticated ? `
+          <% if (!isAuthenticated) { %>
           <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
             <div class="flex items-start">
               <svg class="w-6 h-6 text-yellow-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,11 +103,11 @@
               </div>
             </div>
           </div>
-          ` : `
+          <% } else { %>
           <!-- Pay with BSIM Button -->
           <button
-            id="payButton"
-            onclick="initiatePayment()"
+            id="payBankButton"
+            onclick="initiatePayment('bank')"
             class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,10 +115,32 @@
             </svg>
             <span>Pay with BSIM</span>
           </button>
+
+          <% if (wsimEnabled) { %>
+          <!-- Divider -->
+          <div class="flex items-center my-4">
+            <div class="flex-grow border-t border-gray-200"></div>
+            <span class="mx-4 text-gray-400 text-sm">or</span>
+            <div class="flex-grow border-t border-gray-200"></div>
+          </div>
+
+          <!-- Pay with Wallet Button -->
+          <button
+            id="payWalletButton"
+            onclick="initiatePayment('wallet')"
+            class="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-violet-700 hover:to-purple-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            <span>Pay with Wallet</span>
+          </button>
+          <% } %>
+
           <p class="text-center text-sm text-gray-500 mt-4">
-            You will be redirected to BSIM to authorize payment
+            You will be redirected to authorize payment
           </p>
-          `}
+          <% } %>
         </div>
 
         <!-- Error State -->
@@ -144,7 +205,7 @@
 
         // Render cart items
         const cartItemsContainer = document.getElementById('cartItems');
-        cartItemsContainer.innerHTML = cartData.items.map(item => \`
+        cartItemsContainer.innerHTML = cartData.items.map(item => `
           <div class="flex items-center justify-between py-4">
             <div class="flex items-center space-x-4">
               <div class="w-16 h-16 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg flex items-center justify-center">
@@ -153,16 +214,16 @@
                 </svg>
               </div>
               <div>
-                <h3 class="font-semibold text-gray-800">\${item.product.name}</h3>
-                <p class="text-sm text-gray-500">Qty: \${item.quantity}</p>
+                <h3 class="font-semibold text-gray-800">${item.product.name}</h3>
+                <p class="text-sm text-gray-500">Qty: ${item.quantity}</p>
               </div>
             </div>
             <div class="text-right">
-              <p class="font-semibold text-gray-800">\${formatPrice(item.subtotal)}</p>
-              <button onclick="removeItem('\${item.productId}')" class="text-sm text-red-500 hover:text-red-700">Remove</button>
+              <p class="font-semibold text-gray-800">${formatPrice(item.subtotal)}</p>
+              <button onclick="removeItem('${item.productId}')" class="text-sm text-red-500 hover:text-red-700">Remove</button>
             </div>
           </div>
-        \`).join('');
+        `).join('');
 
         document.getElementById('cartTotal').textContent = cartData.formattedTotal;
         cartContents.classList.remove('hidden');
@@ -170,6 +231,7 @@
         console.error('Error loading cart:', error);
         loadingState.classList.add('hidden');
         errorState.classList.remove('hidden');
+        document.getElementById('genericError').classList.remove('hidden');
         document.getElementById('errorMessage').textContent = 'Failed to load cart';
       }
     }
@@ -183,7 +245,7 @@
 
     async function removeItem(productId) {
       try {
-        const response = await fetch(\`/api/cart/remove/\${productId}\`, {
+        const response = await fetch(`/api/cart/remove/${productId}`, {
           method: 'DELETE',
         });
 
@@ -195,45 +257,65 @@
       }
     }
 
-    async function initiatePayment() {
-      const payButton = document.getElementById('payButton');
-      payButton.disabled = true;
-      payButton.innerHTML = \`
-        <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        Processing...
-      \`;
+    async function initiatePayment(provider = 'bank') {
+      const bankButton = document.getElementById('payBankButton');
+      const walletButton = document.getElementById('payWalletButton');
+      const activeButton = provider === 'wallet' ? walletButton : bankButton;
+
+      if (activeButton) {
+        activeButton.disabled = true;
+        activeButton.innerHTML = `
+          <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Processing...
+        `;
+      }
 
       try {
-        // Create order and initiate payment
+        // Create order and initiate payment with selected provider
         const response = await fetch('/payment/initiate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ provider }),
         });
 
         const data = await response.json();
 
         if (response.ok && data.redirectUrl) {
-          // Redirect to BSIM for payment authorization
+          // Redirect to auth for payment authorization
           window.location.href = data.redirectUrl;
         } else {
           throw new Error(data.error || 'Failed to initiate payment');
         }
       } catch (error) {
         console.error('Payment initiation error:', error);
-        payButton.disabled = false;
-        payButton.innerHTML = \`
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
-          </svg>
-          <span>Pay with BSIM</span>
-        \`;
+
+        // Reset button
+        if (activeButton) {
+          activeButton.disabled = false;
+          if (provider === 'wallet') {
+            activeButton.innerHTML = `
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+              <span>Pay with Wallet</span>
+            `;
+          } else {
+            activeButton.innerHTML = `
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+              </svg>
+              <span>Pay with BSIM</span>
+            `;
+          }
+        }
 
         document.getElementById('errorState').classList.remove('hidden');
+        document.getElementById('genericError').classList.remove('hidden');
         document.getElementById('errorMessage').textContent = error.message;
       }
     }
@@ -260,6 +342,8 @@
 
           if (error === 'payment_failed') {
             errorMessage.textContent = 'Payment processing failed. Please try again.';
+          } else if (error === 'access_denied') {
+            errorMessage.textContent = 'Payment was cancelled.';
           } else if (reason) {
             errorMessage.textContent = decodeURIComponent(reason);
           } else {
@@ -276,4 +360,5 @@
     loadCart();
     checkForErrors();
   </script>
-`, isAuthenticated: typeof userInfo !== 'undefined' && userInfo !== null, cartCount: cartCount }) %>
+</body>
+</html>
