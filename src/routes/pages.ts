@@ -81,6 +81,8 @@ router.get('/checkout', (req: Request, res: Response) => {
     cartCount: getCartCount(req),
     wsimEnabled: config.wsimEnabled,
     wsimPopupUrl: config.wsimPopupUrl,
+    wsimApiUrl: config.wsimApiUrl,
+    wsimApiKey: config.wsimApiKey,
   });
 });
 

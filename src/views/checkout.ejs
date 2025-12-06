@@ -108,7 +108,7 @@
           </div>
 
           <!-- Wallet payment options -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
             <!-- Pay with Wallet Popup (Quick checkout) -->
             <button
               id="payWalletPopupButton"
@@ -118,7 +118,19 @@
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
               </svg>
-              <span>Pay with Wallet</span>
+              <span>Popup</span>
+            </button>
+
+            <!-- Pay with Wallet Embed (Inline checkout) -->
+            <button
+              id="payWalletEmbedButton"
+              onclick="toggleWalletEmbed()"
+              class="bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-indigo-700 hover:to-violet-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path>
+              </svg>
+              <span>Inline</span>
             </button>
 
             <!-- Sign in to Wallet (Redirect flow) -->
@@ -130,7 +142,257 @@
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
               </svg>
-              <span>Sign in to Wallet</span>
+              <span>Redirect</span>
+            </button>
+          </div>
+
+          <!-- API Options Row -->
+          <div class="grid grid-cols-3 gap-3">
+            <!-- Original API (Backend proxies WSIM calls) -->
+            <button
+              id="payWalletApiButton"
+              onclick="showApiCardPicker()"
+              class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-emerald-700 hover:to-teal-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+              </svg>
+              <span>API</span>
+            </button>
+
+            <!-- API Direct (Browser calls WSIM directly with CORS) -->
+            <button
+              id="payWalletApiDirectButton"
+              onclick="showApiDirectCardPicker()"
+              class="bg-gradient-to-r from-cyan-600 to-blue-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-cyan-700 hover:to-blue-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              <span>API (Direct)</span>
+            </button>
+
+            <!-- API Proxy (Explicit proxy label for clarity) -->
+            <button
+              id="payWalletApiProxyButton"
+              onclick="showApiProxyCardPicker()"
+              class="bg-gradient-to-r from-amber-600 to-orange-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-amber-700 hover:to-orange-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              <span>API (Proxy)</span>
+            </button>
+          </div>
+
+          <!-- API Direct Card Picker UI -->
+          <div id="apiDirectCardPickerContainer" class="hidden mt-4">
+            <div class="border-2 border-cyan-200 rounded-xl p-6 bg-cyan-50">
+              <div class="flex justify-between items-center mb-4">
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-800">Select a Card</h3>
+                  <p class="text-xs text-cyan-600">Direct API (browser → WSIM)</p>
+                </div>
+                <button onclick="closeApiDirectCardPicker()" class="text-gray-400 hover:text-gray-600">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Loading state -->
+              <div id="apiDirectCardsLoading" class="text-center py-8">
+                <svg class="animate-spin h-8 w-8 text-cyan-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-600 mt-4">Loading wallet...</p>
+              </div>
+
+              <!-- CORS Not Enabled state -->
+              <div id="apiDirectCorsError" class="hidden text-center py-8">
+                <svg class="w-12 h-12 text-orange-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <p class="text-orange-700 font-medium mb-2">CORS Not Enabled</p>
+                <p class="text-gray-600 text-sm mb-4">WSIM needs to enable CORS for direct API calls.<br/>Use "API (Proxy)" or "Inline" instead.</p>
+                <button
+                  onclick="closeApiDirectCardPicker()"
+                  class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Close
+                </button>
+              </div>
+
+              <!-- Not authenticated state -->
+              <div id="apiDirectNotAuthenticated" class="hidden text-center py-8">
+                <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                <p class="text-gray-600 mb-4">Please sign in to your wallet first</p>
+                <button
+                  onclick="openWalletLoginPopupForDirect()"
+                  class="bg-cyan-600 text-white px-6 py-2 rounded-lg hover:bg-cyan-700 transition"
+                >
+                  Sign In to Wallet
+                </button>
+              </div>
+
+              <!-- Cards list -->
+              <div id="apiDirectCardsList" class="hidden space-y-3">
+                <!-- Cards will be rendered here -->
+              </div>
+
+              <!-- Confirm button -->
+              <button
+                id="apiDirectConfirmPayment"
+                onclick="confirmApiDirectPayment()"
+                disabled
+                class="hidden w-full mt-4 bg-cyan-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-cyan-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <span>Confirm with Passkey</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Original API Card Picker UI -->
+          <div id="apiCardPickerContainer" class="hidden mt-4">
+            <div class="border-2 border-emerald-200 rounded-xl p-6 bg-emerald-50">
+              <div class="flex justify-between items-center mb-4">
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-800">Select a Card</h3>
+                  <p class="text-xs text-emerald-600">API Mode (backend proxy)</p>
+                </div>
+                <button onclick="closeApiCardPicker()" class="text-gray-400 hover:text-gray-600">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Loading state -->
+              <div id="apiCardsLoading" class="text-center py-8">
+                <svg class="animate-spin h-8 w-8 text-emerald-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-600 mt-4">Loading wallet...</p>
+              </div>
+
+              <!-- Not authenticated state -->
+              <div id="apiNotAuthenticated" class="hidden text-center py-8">
+                <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                <p class="text-gray-600 mb-4">Please sign in to your wallet first</p>
+                <button
+                  onclick="openWalletLoginPopup()"
+                  class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition"
+                >
+                  Sign In to Wallet
+                </button>
+              </div>
+
+              <!-- Cards list -->
+              <div id="apiCardsList" class="hidden space-y-3">
+                <!-- Cards will be rendered here -->
+              </div>
+
+              <!-- Confirm button -->
+              <button
+                id="apiConfirmPayment"
+                onclick="confirmApiPayment()"
+                disabled
+                class="hidden w-full mt-4 bg-emerald-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <span>Confirm with Passkey</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- API Proxy Card Picker UI (same as original but with different styling) -->
+          <div id="apiProxyCardPickerContainer" class="hidden mt-4">
+            <div class="border-2 border-amber-200 rounded-xl p-6 bg-amber-50">
+              <div class="flex justify-between items-center mb-4">
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-800">Select a Card</h3>
+                  <p class="text-xs text-amber-600">Proxy Mode (browser → SSIM → WSIM)</p>
+                </div>
+                <button onclick="closeApiProxyCardPicker()" class="text-gray-400 hover:text-gray-600">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Loading state -->
+              <div id="apiProxyCardsLoading" class="text-center py-8">
+                <svg class="animate-spin h-8 w-8 text-amber-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-600 mt-4">Loading wallet...</p>
+              </div>
+
+              <!-- Not authenticated state -->
+              <div id="apiProxyNotAuthenticated" class="hidden text-center py-8">
+                <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                <p class="text-gray-600 mb-4">Please sign in to your wallet first</p>
+                <button
+                  onclick="openWalletLoginPopupForProxy()"
+                  class="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition"
+                >
+                  Sign In to Wallet
+                </button>
+              </div>
+
+              <!-- Cards list -->
+              <div id="apiProxyCardsList" class="hidden space-y-3">
+                <!-- Cards will be rendered here -->
+              </div>
+
+              <!-- Confirm button -->
+              <button
+                id="apiProxyConfirmPayment"
+                onclick="confirmApiProxyPayment()"
+                disabled
+                class="hidden w-full mt-4 bg-amber-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-amber-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <span>Confirm with Passkey</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Embedded Wallet iframe container -->
+          <div id="walletEmbedContainer" class="hidden mt-4">
+            <div class="border-2 border-violet-200 rounded-xl overflow-hidden">
+              <iframe
+                id="walletEmbedFrame"
+                src=""
+                class="w-full border-0"
+                style="min-height: 300px; height: 300px;"
+                allow="publickey-credentials-get *; publickey-credentials-create *"
+              ></iframe>
+            </div>
+            <button
+              onclick="closeWalletEmbed()"
+              class="mt-2 text-sm text-gray-500 hover:text-gray-700 flex items-center"
+            >
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+              Close inline wallet
             </button>
           </div>
           <% } %>
@@ -371,9 +633,1106 @@
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
           </svg>
-          <span>Pay with Wallet</span>
+          <span>Popup</span>
         `;
       }
+    }
+
+    // WSIM Embedded iframe Wallet Integration
+    let embedMessageListenerActive = false;
+
+    function toggleWalletEmbed() {
+      const container = document.getElementById('walletEmbedContainer');
+      const iframe = document.getElementById('walletEmbedFrame');
+
+      if (!container.classList.contains('hidden')) {
+        // Already open - close it
+        closeWalletEmbed();
+        return;
+      }
+
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+
+      // Build embed URL with payment details
+      const params = new URLSearchParams({
+        origin: window.location.origin,
+        merchantId: 'ssim-merchant',
+        merchantName: 'SSIM Store',
+        amount: (cartData.total / 100).toString(),
+        currency: 'CAD',
+        orderId: 'order-' + Date.now()
+      });
+
+      const embedUrl = wsimPopupUrl + '/embed/card-picker?' + params;
+
+      // Set up message listener for iframe responses
+      if (!embedMessageListenerActive) {
+        window.addEventListener('message', handleEmbedMessage);
+        embedMessageListenerActive = true;
+      }
+
+      // Load the iframe
+      iframe.src = embedUrl;
+      container.classList.remove('hidden');
+
+      // Scroll to show the embed
+      setTimeout(() => {
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+    }
+
+    function closeWalletEmbed() {
+      const container = document.getElementById('walletEmbedContainer');
+      const iframe = document.getElementById('walletEmbedFrame');
+
+      container.classList.add('hidden');
+      iframe.src = '';
+
+      // Keep the listener active in case they reopen
+    }
+
+    function handleEmbedMessage(event) {
+      // IMPORTANT: Verify the origin
+      if (!wsimPopupUrl || !event.origin.startsWith(wsimPopupUrl.replace(/\/$/, ''))) {
+        return;
+      }
+
+      const { type, ...data } = event.data;
+      console.log('[Checkout] Received embed message:', type, data);
+
+      switch (type) {
+        case 'wsim:ready':
+          console.log('[Checkout] Embed iframe ready');
+          break;
+
+        case 'wsim:resize':
+          // Resize the iframe to fit content
+          const iframe = document.getElementById('walletEmbedFrame');
+          if (iframe && data.height) {
+            iframe.style.height = data.height + 'px';
+          }
+          break;
+
+        case 'wsim:card-selected':
+          // Payment confirmed - process the token
+          handleEmbedSuccess(data);
+          break;
+
+        case 'wsim:cancelled':
+          // User cancelled the payment
+          closeWalletEmbed();
+          break;
+
+        case 'wsim:error':
+          // An error occurred
+          handleEmbedError(data);
+          break;
+
+        case 'wsim:auth-required':
+          // User needs to authenticate (informational)
+          console.log('[Checkout] Embed auth required:', data.message);
+          break;
+      }
+    }
+
+    async function handleEmbedSuccess(data) {
+      // Show loading in place of iframe
+      const container = document.getElementById('walletEmbedContainer');
+      container.innerHTML = `
+        <div class="text-center py-8">
+          <svg class="animate-spin h-8 w-8 text-purple-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="text-gray-600 mt-4">Processing payment...</p>
+        </div>
+      `;
+
+      try {
+        // Send cardToken to our backend to complete the payment
+        const response = await fetch('/payment/popup-complete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            cardToken: data.cardToken,
+            cardLast4: data.cardLast4,
+            cardBrand: data.cardBrand,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.redirectUrl) {
+          // Payment successful - redirect to confirmation
+          window.location.href = result.redirectUrl;
+        } else {
+          throw new Error(result.reason || result.error || 'Payment failed');
+        }
+      } catch (error) {
+        console.error('[Checkout] Embed payment processing error:', error);
+        closeWalletEmbed();
+        // Restore the container HTML
+        location.reload(); // Simple reload to reset state
+      }
+    }
+
+    function handleEmbedError(data) {
+      console.error('[Checkout] Embed error:', data.code, data.message);
+      closeWalletEmbed();
+
+      document.getElementById('errorState').classList.remove('hidden');
+      if (data.code === 'passkey_cancelled') {
+        document.getElementById('genericError').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = 'Authentication was cancelled. Please try again.';
+      } else {
+        document.getElementById('genericError').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = data.message || 'An error occurred with the wallet';
+      }
+    }
+
+    // WSIM Merchant API Integration
+    let selectedApiCardId = null;
+    let apiPaymentId = null;
+    let apiPasskeyOptions = null;
+    let walletLoginPopup = null;
+
+    async function showApiCardPicker() {
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+
+      const container = document.getElementById('apiCardPickerContainer');
+      const loading = document.getElementById('apiCardsLoading');
+      const notAuth = document.getElementById('apiNotAuthenticated');
+      const cardsList = document.getElementById('apiCardsList');
+      const confirmBtn = document.getElementById('apiConfirmPayment');
+
+      // Show container and loading state
+      container.classList.remove('hidden');
+      loading.classList.remove('hidden');
+      notAuth.classList.add('hidden');
+      cardsList.classList.add('hidden');
+      confirmBtn.classList.add('hidden');
+
+      // Scroll to show the picker
+      setTimeout(() => {
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+
+      try {
+        // Check if user is authenticated with WSIM
+        const authResponse = await fetch('/api/wsim/auth-check');
+        const authData = await authResponse.json();
+
+        loading.classList.add('hidden');
+
+        if (!authData.authenticated) {
+          notAuth.classList.remove('hidden');
+          return;
+        }
+
+        // Fetch user's cards
+        const cardsResponse = await fetch('/api/wsim/cards');
+        if (!cardsResponse.ok) {
+          const error = await cardsResponse.json();
+          throw new Error(error.message || error.error || 'Failed to fetch cards');
+        }
+
+        const cardsData = await cardsResponse.json();
+        const cards = cardsData.cards || [];
+
+        if (cards.length === 0) {
+          cardsList.innerHTML = `
+            <div class="text-center py-4 text-gray-500">
+              No cards enrolled in your wallet.
+            </div>
+          `;
+          cardsList.classList.remove('hidden');
+          return;
+        }
+
+        // Render cards
+        cardsList.innerHTML = cards.map(card => `
+          <div
+            class="card-option p-4 border-2 rounded-lg cursor-pointer transition ${card.isDefault ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300'}"
+            onclick="selectApiCard('${card.id}')"
+            data-card-id="${card.id}"
+          >
+            <div class="flex items-center">
+              <div class="w-12 h-8 bg-gradient-to-r ${card.cardType === 'VISA' ? 'from-blue-600 to-blue-800' : 'from-orange-500 to-red-600'} rounded flex items-center justify-center mr-3">
+                <span class="text-white text-xs font-bold">${card.cardType}</span>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-800">${card.cardType} •••• ${card.lastFour}</div>
+                <div class="text-sm text-gray-500">${card.cardholderName}</div>
+              </div>
+              ${card.isDefault ? '<span class="text-emerald-600 text-sm font-medium">Default</span>' : ''}
+            </div>
+          </div>
+        `).join('');
+
+        cardsList.classList.remove('hidden');
+        confirmBtn.classList.remove('hidden');
+
+        // Auto-select default card
+        const defaultCard = cards.find(c => c.isDefault);
+        if (defaultCard) {
+          selectApiCard(defaultCard.id);
+        }
+
+      } catch (error) {
+        console.error('[Checkout] API card picker error:', error);
+        loading.classList.add('hidden');
+        cardsList.innerHTML = `
+          <div class="text-center py-4 text-red-500">
+            ${error.message || 'Failed to load wallet cards'}
+          </div>
+        `;
+        cardsList.classList.remove('hidden');
+      }
+    }
+
+    function selectApiCard(cardId) {
+      selectedApiCardId = cardId;
+
+      // Update UI
+      document.querySelectorAll('#apiCardsList .card-option').forEach(el => {
+        if (el.dataset.cardId === cardId) {
+          el.classList.remove('border-gray-200', 'hover:border-emerald-300');
+          el.classList.add('border-emerald-500', 'bg-emerald-50');
+        } else {
+          el.classList.remove('border-emerald-500', 'bg-emerald-50');
+          el.classList.add('border-gray-200', 'hover:border-emerald-300');
+        }
+      });
+
+      document.getElementById('apiConfirmPayment').disabled = false;
+    }
+
+    function closeApiCardPicker() {
+      document.getElementById('apiCardPickerContainer').classList.add('hidden');
+      selectedApiCardId = null;
+      apiPaymentId = null;
+      apiPasskeyOptions = null;
+    }
+
+    async function confirmApiPayment() {
+      if (!selectedApiCardId) {
+        alert('Please select a card');
+        return;
+      }
+
+      const button = document.getElementById('apiConfirmPayment');
+      button.disabled = true;
+      button.innerHTML = `
+        <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Initiating payment...
+      `;
+
+      try {
+        // Step 1: Initiate payment to get passkey challenge
+        const initiateResponse = await fetch('/api/wsim/payment/initiate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardId: selectedApiCardId,
+            amount: (cartData.total / 100).toFixed(2),
+            currency: 'CAD',
+          }),
+        });
+
+        if (!initiateResponse.ok) {
+          const error = await initiateResponse.json();
+          throw new Error(error.message || error.error || 'Failed to initiate payment');
+        }
+
+        const initiateData = await initiateResponse.json();
+        apiPaymentId = initiateData.paymentId;
+        apiPasskeyOptions = initiateData.passkeyOptions;
+
+        button.innerHTML = `
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+          Waiting for passkey...
+        `;
+
+        // Step 2: Trigger browser passkey authentication
+        // Use the simplewebauthn browser library
+        const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.es5.min.js');
+
+        const passkeyResponse = await startAuthentication(apiPasskeyOptions);
+
+        button.innerHTML = `
+          <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Verifying...
+        `;
+
+        // Step 3: Confirm payment with passkey response
+        const confirmResponse = await fetch('/api/wsim/payment/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentId: apiPaymentId,
+            passkeyResponse: passkeyResponse,
+          }),
+        });
+
+        if (!confirmResponse.ok) {
+          const error = await confirmResponse.json();
+          throw new Error(error.message || error.error || 'Passkey verification failed');
+        }
+
+        const confirmData = await confirmResponse.json();
+
+        button.innerHTML = `
+          <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Processing payment...
+        `;
+
+        // Step 4: Complete payment via NSIM
+        const completeResponse = await fetch('/api/wsim/payment/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletCardToken: confirmData.walletCardToken,
+            cardToken: confirmData.bsimCardToken,
+          }),
+        });
+
+        const completeData = await completeResponse.json();
+
+        if (completeData.success && completeData.redirectUrl) {
+          window.location.href = completeData.redirectUrl;
+        } else {
+          throw new Error(completeData.reason || completeData.error || 'Payment failed');
+        }
+
+      } catch (error) {
+        console.error('[Checkout] API payment error:', error);
+
+        // Reset button
+        button.disabled = false;
+        button.innerHTML = `
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+          <span>Confirm with Passkey</span>
+        `;
+
+        // Show error
+        if (error.name === 'NotAllowedError') {
+          // User cancelled passkey prompt
+          document.getElementById('errorState').classList.remove('hidden');
+          document.getElementById('genericError').classList.remove('hidden');
+          document.getElementById('errorMessage').textContent = 'Passkey authentication was cancelled.';
+        } else {
+          document.getElementById('errorState').classList.remove('hidden');
+          document.getElementById('genericError').classList.remove('hidden');
+          document.getElementById('errorMessage').textContent = error.message || 'Payment failed';
+        }
+      }
+    }
+
+    function openWalletLoginPopup() {
+      // Calculate center position for popup
+      const width = 420;
+      const height = 620;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+
+      // Build popup URL for login
+      const params = new URLSearchParams({
+        origin: window.location.origin,
+        merchantId: 'ssim-merchant',
+        merchantName: 'SSIM Store',
+      });
+
+      const popupUrl = wsimPopupUrl + '/popup/card-picker?' + params;
+
+      walletLoginPopup = window.open(
+        popupUrl,
+        'wsim-login',
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+      );
+
+      // Listen for login completion
+      const loginListener = async (event) => {
+        if (!wsimPopupUrl || !event.origin.startsWith(wsimPopupUrl.replace(/\/$/, ''))) {
+          return;
+        }
+
+        const { type } = event.data;
+        if (type === 'wsim:card-selected' || type === 'wsim:cancelled') {
+          window.removeEventListener('message', loginListener);
+          if (walletLoginPopup && !walletLoginPopup.closed) {
+            walletLoginPopup.close();
+          }
+          // Refresh the card picker
+          await showApiCardPicker();
+        }
+      };
+
+      window.addEventListener('message', loginListener);
+
+      // Monitor for popup being closed
+      const checkInterval = setInterval(() => {
+        if (walletLoginPopup && walletLoginPopup.closed) {
+          clearInterval(checkInterval);
+          window.removeEventListener('message', loginListener);
+          // Refresh the card picker
+          showApiCardPicker();
+        }
+      }, 500);
+    }
+
+    // ==============================================================
+    // WSIM API Proxy Integration (browser → SSIM → WSIM)
+    // Same as original API but with explicit naming
+    // ==============================================================
+    let selectedApiProxyCardId = null;
+    let apiProxyPaymentId = null;
+    let apiProxyPasskeyOptions = null;
+
+    async function showApiProxyCardPicker() {
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+
+      const container = document.getElementById('apiProxyCardPickerContainer');
+      const loading = document.getElementById('apiProxyCardsLoading');
+      const notAuth = document.getElementById('apiProxyNotAuthenticated');
+      const cardsList = document.getElementById('apiProxyCardsList');
+      const confirmBtn = document.getElementById('apiProxyConfirmPayment');
+
+      // Show container and loading state
+      container.classList.remove('hidden');
+      loading.classList.remove('hidden');
+      notAuth.classList.add('hidden');
+      cardsList.classList.add('hidden');
+      confirmBtn.classList.add('hidden');
+
+      // Scroll to show the picker
+      setTimeout(() => {
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+
+      try {
+        // Check if user is authenticated with WSIM via proxy
+        const authResponse = await fetch('/api/wsim/auth-check');
+        const authData = await authResponse.json();
+
+        loading.classList.add('hidden');
+
+        if (!authData.authenticated) {
+          notAuth.classList.remove('hidden');
+          return;
+        }
+
+        // Fetch user's cards via proxy
+        const cardsResponse = await fetch('/api/wsim/cards');
+        if (!cardsResponse.ok) {
+          const error = await cardsResponse.json();
+          throw new Error(error.message || error.error || 'Failed to fetch cards');
+        }
+
+        const cardsData = await cardsResponse.json();
+        const cards = cardsData.cards || [];
+
+        if (cards.length === 0) {
+          cardsList.innerHTML = `
+            <div class="text-center py-4 text-gray-500">
+              No cards enrolled in your wallet.
+            </div>
+          `;
+          cardsList.classList.remove('hidden');
+          return;
+        }
+
+        // Render cards
+        cardsList.innerHTML = cards.map(card => `
+          <div
+            class="card-option-proxy p-4 border-2 rounded-lg cursor-pointer transition ${card.isDefault ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'}"
+            onclick="selectApiProxyCard('${card.id}')"
+            data-card-id="${card.id}"
+          >
+            <div class="flex items-center">
+              <div class="w-12 h-8 bg-gradient-to-r ${card.cardType === 'VISA' ? 'from-blue-600 to-blue-800' : 'from-orange-500 to-red-600'} rounded flex items-center justify-center mr-3">
+                <span class="text-white text-xs font-bold">${card.cardType}</span>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-800">${card.cardType} •••• ${card.lastFour}</div>
+                <div class="text-sm text-gray-500">${card.cardholderName}</div>
+              </div>
+              ${card.isDefault ? '<span class="text-amber-600 text-sm font-medium">Default</span>' : ''}
+            </div>
+          </div>
+        `).join('');
+
+        cardsList.classList.remove('hidden');
+        confirmBtn.classList.remove('hidden');
+
+        // Auto-select default card
+        const defaultCard = cards.find(c => c.isDefault);
+        if (defaultCard) {
+          selectApiProxyCard(defaultCard.id);
+        }
+
+      } catch (error) {
+        console.error('[Checkout] API Proxy card picker error:', error);
+        loading.classList.add('hidden');
+        cardsList.innerHTML = `
+          <div class="text-center py-4 text-red-500">
+            ${error.message || 'Failed to load wallet cards'}
+          </div>
+        `;
+        cardsList.classList.remove('hidden');
+      }
+    }
+
+    function selectApiProxyCard(cardId) {
+      selectedApiProxyCardId = cardId;
+
+      // Update UI
+      document.querySelectorAll('#apiProxyCardsList .card-option-proxy').forEach(el => {
+        if (el.dataset.cardId === cardId) {
+          el.classList.remove('border-gray-200', 'hover:border-amber-300');
+          el.classList.add('border-amber-500', 'bg-amber-50');
+        } else {
+          el.classList.remove('border-amber-500', 'bg-amber-50');
+          el.classList.add('border-gray-200', 'hover:border-amber-300');
+        }
+      });
+
+      document.getElementById('apiProxyConfirmPayment').disabled = false;
+    }
+
+    function closeApiProxyCardPicker() {
+      document.getElementById('apiProxyCardPickerContainer').classList.add('hidden');
+      selectedApiProxyCardId = null;
+      apiProxyPaymentId = null;
+      apiProxyPasskeyOptions = null;
+    }
+
+    async function confirmApiProxyPayment() {
+      if (!selectedApiProxyCardId) {
+        alert('Please select a card');
+        return;
+      }
+
+      const button = document.getElementById('apiProxyConfirmPayment');
+      button.disabled = true;
+      button.innerHTML = `
+        <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Initiating payment...
+      `;
+
+      try {
+        // Step 1: Initiate payment to get passkey challenge via proxy
+        const initiateResponse = await fetch('/api/wsim/payment/initiate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardId: selectedApiProxyCardId,
+            amount: (cartData.total / 100).toFixed(2),
+            currency: 'CAD',
+          }),
+        });
+
+        if (!initiateResponse.ok) {
+          const error = await initiateResponse.json();
+          throw new Error(error.message || error.error || 'Failed to initiate payment');
+        }
+
+        const initiateData = await initiateResponse.json();
+        apiProxyPaymentId = initiateData.paymentId;
+        apiProxyPasskeyOptions = initiateData.passkeyOptions;
+
+        button.innerHTML = `
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+          Waiting for passkey...
+        `;
+
+        // Step 2: Trigger browser passkey authentication
+        const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.es5.min.js');
+
+        const passkeyResponse = await startAuthentication(apiProxyPasskeyOptions);
+
+        button.innerHTML = `
+          <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Verifying...
+        `;
+
+        // Step 3: Confirm payment with passkey response via proxy
+        const confirmResponse = await fetch('/api/wsim/payment/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentId: apiProxyPaymentId,
+            passkeyResponse: passkeyResponse,
+          }),
+        });
+
+        if (!confirmResponse.ok) {
+          const error = await confirmResponse.json();
+          throw new Error(error.message || error.error || 'Passkey verification failed');
+        }
+
+        const confirmData = await confirmResponse.json();
+
+        button.innerHTML = `
+          <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Processing payment...
+        `;
+
+        // Step 4: Complete payment via NSIM
+        const completeResponse = await fetch('/api/wsim/payment/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletCardToken: confirmData.walletCardToken,
+            cardToken: confirmData.bsimCardToken,
+          }),
+        });
+
+        const completeData = await completeResponse.json();
+
+        if (completeData.success && completeData.redirectUrl) {
+          window.location.href = completeData.redirectUrl;
+        } else {
+          throw new Error(completeData.reason || completeData.error || 'Payment failed');
+        }
+
+      } catch (error) {
+        console.error('[Checkout] API Proxy payment error:', error);
+
+        // Reset button
+        button.disabled = false;
+        button.innerHTML = `
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+          <span>Confirm with Passkey</span>
+        `;
+
+        // Show error
+        if (error.name === 'NotAllowedError') {
+          document.getElementById('errorState').classList.remove('hidden');
+          document.getElementById('genericError').classList.remove('hidden');
+          document.getElementById('errorMessage').textContent = 'Passkey authentication was cancelled.';
+        } else {
+          document.getElementById('errorState').classList.remove('hidden');
+          document.getElementById('genericError').classList.remove('hidden');
+          document.getElementById('errorMessage').textContent = error.message || 'Payment failed';
+        }
+      }
+    }
+
+    function openWalletLoginPopupForProxy() {
+      // Calculate center position for popup
+      const width = 420;
+      const height = 620;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+
+      const params = new URLSearchParams({
+        origin: window.location.origin,
+        merchantId: 'ssim-merchant',
+        merchantName: 'SSIM Store',
+      });
+
+      const popupUrl = wsimPopupUrl + '/popup/card-picker?' + params;
+
+      const loginPopup = window.open(
+        popupUrl,
+        'wsim-login-proxy',
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+      );
+
+      const loginListener = async (event) => {
+        if (!wsimPopupUrl || !event.origin.startsWith(wsimPopupUrl.replace(/\/$/, ''))) {
+          return;
+        }
+
+        const { type } = event.data;
+        if (type === 'wsim:card-selected' || type === 'wsim:cancelled') {
+          window.removeEventListener('message', loginListener);
+          if (loginPopup && !loginPopup.closed) {
+            loginPopup.close();
+          }
+          await showApiProxyCardPicker();
+        }
+      };
+
+      window.addEventListener('message', loginListener);
+
+      const checkInterval = setInterval(() => {
+        if (loginPopup && loginPopup.closed) {
+          clearInterval(checkInterval);
+          window.removeEventListener('message', loginListener);
+          showApiProxyCardPicker();
+        }
+      }, 500);
+    }
+
+    // ==============================================================
+    // WSIM API Direct Integration (browser calls WSIM directly)
+    // ==============================================================
+    let selectedApiDirectCardId = null;
+    let apiDirectPaymentId = null;
+    const wsimApiUrl = '<%= wsimApiUrl || "https://wsim-dev.banksim.ca/api/merchant" %>';
+    const wsimApiKey = '<%= wsimApiKey || "" %>';
+
+    async function showApiDirectCardPicker() {
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+
+      const container = document.getElementById('apiDirectCardPickerContainer');
+      const loading = document.getElementById('apiDirectCardsLoading');
+      const corsError = document.getElementById('apiDirectCorsError');
+      const notAuth = document.getElementById('apiDirectNotAuthenticated');
+      const cardsList = document.getElementById('apiDirectCardsList');
+      const confirmBtn = document.getElementById('apiDirectConfirmPayment');
+
+      // Show container and loading state
+      container.classList.remove('hidden');
+      loading.classList.remove('hidden');
+      corsError.classList.add('hidden');
+      notAuth.classList.add('hidden');
+      cardsList.classList.add('hidden');
+      confirmBtn.classList.add('hidden');
+
+      // Scroll to show the picker
+      setTimeout(() => {
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+
+      try {
+        // Direct call to WSIM with credentials (requires CORS)
+        const authResponse = await fetch(`${wsimApiUrl}/user`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'X-API-Key': wsimApiKey,
+          },
+        });
+
+        loading.classList.add('hidden');
+
+        const authData = await authResponse.json();
+
+        if (!authData.authenticated) {
+          notAuth.classList.remove('hidden');
+          return;
+        }
+
+        // Fetch user's cards directly from WSIM
+        const cardsResponse = await fetch(`${wsimApiUrl}/cards`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'X-API-Key': wsimApiKey,
+          },
+        });
+
+        if (!cardsResponse.ok) {
+          const error = await cardsResponse.json();
+          throw new Error(error.message || error.error || 'Failed to fetch cards');
+        }
+
+        const cardsData = await cardsResponse.json();
+        const cards = cardsData.cards || [];
+
+        if (cards.length === 0) {
+          cardsList.innerHTML = `
+            <div class="text-center py-4 text-gray-500">
+              No cards enrolled in your wallet.
+            </div>
+          `;
+          cardsList.classList.remove('hidden');
+          return;
+        }
+
+        // Render cards
+        cardsList.innerHTML = cards.map(card => `
+          <div
+            class="card-option-direct p-4 border-2 rounded-lg cursor-pointer transition ${card.isDefault ? 'border-cyan-500 bg-cyan-50' : 'border-gray-200 hover:border-cyan-300'}"
+            onclick="selectApiDirectCard('${card.id}')"
+            data-card-id="${card.id}"
+          >
+            <div class="flex items-center">
+              <div class="w-12 h-8 bg-gradient-to-r ${card.cardType === 'VISA' ? 'from-blue-600 to-blue-800' : 'from-orange-500 to-red-600'} rounded flex items-center justify-center mr-3">
+                <span class="text-white text-xs font-bold">${card.cardType}</span>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-800">${card.cardType} •••• ${card.lastFour}</div>
+                <div class="text-sm text-gray-500">${card.cardholderName}</div>
+              </div>
+              ${card.isDefault ? '<span class="text-cyan-600 text-sm font-medium">Default</span>' : ''}
+            </div>
+          </div>
+        `).join('');
+
+        cardsList.classList.remove('hidden');
+        confirmBtn.classList.remove('hidden');
+
+        // Auto-select default card
+        const defaultCard = cards.find(c => c.isDefault);
+        if (defaultCard) {
+          selectApiDirectCard(defaultCard.id);
+        }
+
+      } catch (error) {
+        console.error('[Checkout] API Direct card picker error:', error);
+        loading.classList.add('hidden');
+
+        // Check if it's a CORS error
+        if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+          corsError.classList.remove('hidden');
+        } else {
+          cardsList.innerHTML = `
+            <div class="text-center py-4 text-red-500">
+              ${error.message || 'Failed to load wallet cards'}
+            </div>
+          `;
+          cardsList.classList.remove('hidden');
+        }
+      }
+    }
+
+    function selectApiDirectCard(cardId) {
+      selectedApiDirectCardId = cardId;
+
+      // Update UI
+      document.querySelectorAll('#apiDirectCardsList .card-option-direct').forEach(el => {
+        if (el.dataset.cardId === cardId) {
+          el.classList.remove('border-gray-200', 'hover:border-cyan-300');
+          el.classList.add('border-cyan-500', 'bg-cyan-50');
+        } else {
+          el.classList.remove('border-cyan-500', 'bg-cyan-50');
+          el.classList.add('border-gray-200', 'hover:border-cyan-300');
+        }
+      });
+
+      document.getElementById('apiDirectConfirmPayment').disabled = false;
+    }
+
+    function closeApiDirectCardPicker() {
+      document.getElementById('apiDirectCardPickerContainer').classList.add('hidden');
+      selectedApiDirectCardId = null;
+      apiDirectPaymentId = null;
+    }
+
+    async function confirmApiDirectPayment() {
+      if (!selectedApiDirectCardId) {
+        alert('Please select a card');
+        return;
+      }
+
+      const button = document.getElementById('apiDirectConfirmPayment');
+      button.disabled = true;
+      button.innerHTML = `
+        <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Initiating payment...
+      `;
+
+      try {
+        // Step 1: Initiate payment directly with WSIM (requires CORS)
+        const initiateResponse = await fetch(`${wsimApiUrl}/payment/initiate`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'X-API-Key': wsimApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            cardId: selectedApiDirectCardId,
+            amount: (cartData.total / 100).toFixed(2),
+            currency: 'CAD',
+            merchantName: 'SSIM Store',
+          }),
+        });
+
+        if (!initiateResponse.ok) {
+          const error = await initiateResponse.json();
+          throw new Error(error.message || error.error || 'Failed to initiate payment');
+        }
+
+        const initiateData = await initiateResponse.json();
+        apiDirectPaymentId = initiateData.paymentId;
+
+        button.innerHTML = `
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+          Waiting for passkey...
+        `;
+
+        // Step 2: Trigger browser passkey authentication
+        const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.es5.min.js');
+        const passkeyResponse = await startAuthentication(initiateData.passkeyOptions);
+
+        button.innerHTML = `
+          <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Verifying...
+        `;
+
+        // Step 3: Confirm payment directly with WSIM
+        const confirmResponse = await fetch(`${wsimApiUrl}/payment/confirm`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'X-API-Key': wsimApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentId: apiDirectPaymentId,
+            passkeyResponse: passkeyResponse,
+          }),
+        });
+
+        if (!confirmResponse.ok) {
+          const error = await confirmResponse.json();
+          throw new Error(error.message || error.error || 'Passkey verification failed');
+        }
+
+        const confirmData = await confirmResponse.json();
+
+        button.innerHTML = `
+          <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Processing payment...
+        `;
+
+        // Step 4: Complete payment via SSIM backend (for NSIM authorization)
+        const completeResponse = await fetch('/api/wsim/payment/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletCardToken: confirmData.walletCardToken,
+            cardToken: confirmData.bsimCardToken,
+          }),
+        });
+
+        const completeData = await completeResponse.json();
+
+        if (completeData.success && completeData.redirectUrl) {
+          window.location.href = completeData.redirectUrl;
+        } else {
+          throw new Error(completeData.reason || completeData.error || 'Payment failed');
+        }
+
+      } catch (error) {
+        console.error('[Checkout] API Direct payment error:', error);
+
+        // Reset button
+        button.disabled = false;
+        button.innerHTML = `
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+          <span>Confirm with Passkey</span>
+        `;
+
+        // Show error
+        if (error.name === 'NotAllowedError') {
+          document.getElementById('errorState').classList.remove('hidden');
+          document.getElementById('genericError').classList.remove('hidden');
+          document.getElementById('errorMessage').textContent = 'Passkey authentication was cancelled.';
+        } else if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+          document.getElementById('errorState').classList.remove('hidden');
+          document.getElementById('genericError').classList.remove('hidden');
+          document.getElementById('errorMessage').textContent = 'CORS error: WSIM needs to enable cross-origin requests.';
+        } else {
+          document.getElementById('errorState').classList.remove('hidden');
+          document.getElementById('genericError').classList.remove('hidden');
+          document.getElementById('errorMessage').textContent = error.message || 'Payment failed';
+        }
+      }
+    }
+
+    function openWalletLoginPopupForDirect() {
+      // Calculate center position for popup
+      const width = 420;
+      const height = 620;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+
+      const params = new URLSearchParams({
+        origin: window.location.origin,
+        merchantId: 'ssim-merchant',
+        merchantName: 'SSIM Store',
+      });
+
+      const popupUrl = wsimPopupUrl + '/popup/card-picker?' + params;
+
+      const loginPopup = window.open(
+        popupUrl,
+        'wsim-login-direct',
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+      );
+
+      const loginListener = async (event) => {
+        if (!wsimPopupUrl || !event.origin.startsWith(wsimPopupUrl.replace(/\/$/, ''))) {
+          return;
+        }
+
+        const { type } = event.data;
+        if (type === 'wsim:card-selected' || type === 'wsim:cancelled') {
+          window.removeEventListener('message', loginListener);
+          if (loginPopup && !loginPopup.closed) {
+            loginPopup.close();
+          }
+          await showApiDirectCardPicker();
+        }
+      };
+
+      window.addEventListener('message', loginListener);
+
+      const checkInterval = setInterval(() => {
+        if (loginPopup && loginPopup.closed) {
+          clearInterval(checkInterval);
+          window.removeEventListener('message', loginListener);
+          showApiDirectCardPicker();
+        }
+      }, 500);
     }
 
     async function loadCart() {

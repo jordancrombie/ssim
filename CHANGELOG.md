@@ -2,6 +2,39 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.8.0] - 2025-12-06
+
+### Added
+- **WSIM Merchant API Integration** - Multiple API-based checkout options
+  - **API** button - Original backend proxy for WSIM Merchant API
+  - **API (Direct)** button - Browser calls WSIM API directly (requires CORS)
+  - **API (Proxy)** button - Explicit proxy variant with clear labeling
+  - Custom card selection UI with passkey authentication
+  - WebAuthn/Passkey integration for secure payment confirmation
+
+### New Environment Variables
+- `WSIM_API_KEY` - API key for WSIM Merchant API
+- `WSIM_API_URL` - WSIM Merchant API endpoint URL
+
+### New Routes
+- `GET /api/wsim/auth-check` - Check WSIM authentication status
+- `GET /api/wsim/cards` - Fetch user's enrolled wallet cards
+- `POST /api/wsim/payment/initiate` - Start payment and get WebAuthn challenge
+- `POST /api/wsim/payment/confirm` - Verify passkey and get payment tokens
+- `POST /api/wsim/payment/complete` - Complete payment via NSIM
+
+### Documentation
+- Added [WSIM-API-Integration-Plan.md](docs/WSIM-API-Integration-Plan.md) for WSIM team
+  - CORS requirements for API (Direct) option
+  - Implementation details for both proxy and direct modes
+  - Security considerations for cross-origin requests
+
+### Technical Details
+- Six wallet checkout options now available: Popup, Inline, Redirect, API, API (Direct), API (Proxy)
+- API (Direct) requires WSIM to enable CORS headers for `ssim-dev.banksim.ca`
+- Passkey authentication handled via `@simplewebauthn/browser` library
+- CORS error detection with user-friendly fallback messaging
+
 ## [1.7.1] - 2025-12-05
 
 ### Improved

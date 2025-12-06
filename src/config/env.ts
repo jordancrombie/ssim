@@ -52,4 +52,7 @@ export const config = {
   wsimClientSecret: process.env.WSIM_CLIENT_SECRET || '',
   // WSIM Popup URL (for embedded wallet payment flow)
   wsimPopupUrl: process.env.WSIM_POPUP_URL || 'https://wsim-auth-dev.banksim.ca',
+  // WSIM Merchant API (for custom card selection UI)
+  wsimApiKey: process.env.WSIM_API_KEY || '',
+  wsimApiUrl: process.env.WSIM_API_URL || 'https://wsim-dev.banksim.ca/api/merchant',
 };
