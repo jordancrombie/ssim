@@ -241,20 +241,115 @@ aws logs tail /ecs/bsim-ssim --follow --region ca-central-1
 
 ---
 
-## WSIM Prerequisites
+## WSIM Prerequisites (Database Setup Required)
 
-Before deploying, ensure the WSIM team has:
+**The `ssim-merchant` OAuth client must be registered in WSIM's database before SSIM can use wallet payments.**
 
-1. **Created the OAuth client** for SSIM in WSIM's auth server:
-   - Client ID: `ssim-merchant`
-   - Redirect URIs: `https://ssim.banksim.ca/payment/wallet-callback`
-   - Scopes: `openid profile wallet:pay`
+### Step 1: Generate Secrets
 
-2. **Created the API key** for the WSIM Merchant API
+```bash
+# Generate WSIM_CLIENT_SECRET (use this in both SQL and SSIM env var)
+openssl rand -base64 32
+# Example output: K7mN9pQ2rS5tV8wX1yZ4aB7cD0eF3gH6
 
-3. **Configured CORS** (if using API Direct mode):
-   - Allow origin: `https://ssim.banksim.ca`
-   - Allow credentials: `true`
+# Generate WSIM_API_KEY (use this in both SQL and SSIM env var)
+echo "wsim_api_$(openssl rand -hex 16)"
+# Example output: wsim_api_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+```
+
+**Save these values!** You'll need them for both the SQL INSERT and SSIM's environment variables.
+
+### Step 2: Register OAuth Client in WSIM Database (via ECS Task)
+
+**Remember: No direct psql access in production.** Use an ECS run-task to execute the SQL.
+
+Create a file `register-ssim-oauth-client.json`:
+
+```json
+{
+  "cluster": "bsim-cluster",
+  "taskDefinition": "wsim-auth-server",
+  "launchType": "FARGATE",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": ["subnet-xxx", "subnet-yyy"],
+      "securityGroups": ["sg-zzz"],
+      "assignPublicIp": "ENABLED"
+    }
+  },
+  "overrides": {
+    "containerOverrides": [
+      {
+        "name": "wsim-auth-server",
+        "command": [
+          "node", "-e",
+          "const{PrismaClient}=require('@prisma/client');const p=new PrismaClient();p.oAuthClient.create({data:{clientId:'ssim-merchant',clientSecret:'<HASHED_CLIENT_SECRET>',clientName:'SSIM Store Simulator',redirectUris:['https://ssim.banksim.ca/payment/wallet-callback'],grantTypes:['authorization_code'],responseTypes:['code'],scope:'openid profile wallet:pay',isActive:true}}).then(c=>console.log('Created:',c.clientId)).catch(e=>console.error(e)).finally(()=>p.$disconnect());"
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Important:** The `clientSecret` in the database should be bcrypt-hashed. If WSIM uses plain secrets, use the generated value directly. If it uses bcrypt:
+
+```bash
+# Hash the secret (run locally or in a Node container)
+node -e "const bcrypt=require('bcrypt');bcrypt.hash('<YOUR_GENERATED_SECRET>',10).then(h=>console.log(h))"
+```
+
+Run the task:
+
+```bash
+aws ecs run-task \
+  --cli-input-json file://register-ssim-oauth-client.json \
+  --region ca-central-1
+
+# Monitor the task output
+aws logs tail /ecs/wsim-auth-server --follow --region ca-central-1
+```
+
+### Step 3: Register API Key in WSIM Database (via ECS Task)
+
+If WSIM uses an `api_keys` table, register the API key similarly:
+
+```bash
+aws ecs run-task \
+  --cluster bsim-cluster \
+  --task-definition wsim-auth-server \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-zzz],assignPublicIp=ENABLED}" \
+  --overrides '{
+    "containerOverrides": [
+      {
+        "name": "wsim-auth-server",
+        "command": ["node", "-e", "const{PrismaClient}=require(\"@prisma/client\");const p=new PrismaClient();p.apiKey.create({data:{key:\"<YOUR_WSIM_API_KEY>\",clientId:\"ssim-merchant\",isActive:true}}).then(k=>console.log(\"Created API key for:\",k.clientId)).catch(e=>console.error(e)).finally(()=>p.$disconnect());"]
+      }
+    ]
+  }' \
+  --region ca-central-1
+```
+
+### Step 4: Configure CORS (if using API Direct mode)
+
+If SSIM will use the "API (Direct)" button (browser → WSIM directly), WSIM needs CORS headers:
+
+- Allow origin: `https://ssim.banksim.ca`
+- Allow credentials: `true`
+- Allow headers: `Content-Type, Authorization`
+
+### Summary: Values to Use in SSIM Task Definition
+
+After completing the above steps, update SSIM's task definition with:
+
+| Environment Variable | Value |
+|---------------------|-------|
+| `WSIM_CLIENT_ID` | `ssim-merchant` |
+| `WSIM_CLIENT_SECRET` | The plain-text secret you generated in Step 1 |
+| `WSIM_API_KEY` | The API key you generated in Step 1 |
+| `WSIM_AUTH_URL` | `https://wsim-auth.banksim.ca` |
+| `WSIM_POPUP_URL` | `https://wsim-auth.banksim.ca` |
+| `WSIM_API_URL` | `https://wsim.banksim.ca/api/merchant` |
 
 ---
 
