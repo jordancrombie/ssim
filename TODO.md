@@ -49,6 +49,12 @@ This file tracks planned features and improvements for the Store Simulator.
 
 ## Completed
 
+- [x] **WSIM Merchant API Integration** - Multiple API checkout options (v1.8.0)
+  - API, API (Direct), API (Proxy) buttons
+  - Custom card selection with passkey authentication
+  - Backend proxy routes for WSIM API
+  - CORS-ready frontend for direct browser-to-WSIM calls
+  - Integration plan documented for WSIM team
 - [x] **Admin Dashboard** - Full admin UI at `/admin` (v1.6.0)
   - Dashboard with stats (products, orders, revenue)
   - Product management (add/edit/delete/toggle active)

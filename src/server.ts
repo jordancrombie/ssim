@@ -12,6 +12,7 @@ import cartRoutes from './routes/cart';
 import paymentRoutes from './routes/payment';
 import webhookRoutes from './routes/webhooks';
 import adminRoutes from './routes/admin';
+import wsimApiRoutes from './routes/wsim-api';
 import { registerWebhook } from './services/payment';
 
 const app = express();
@@ -61,6 +62,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/webhooks', webhookRoutes);
 app.use('/admin', adminRoutes);
+app.use('/api/wsim', wsimApiRoutes);
 app.use('/', pageRoutes);
 
 // Health check

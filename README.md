@@ -133,9 +133,25 @@ WSIM_ENABLED=true
 WSIM_AUTH_URL=https://wsim-auth.banksim.ca
 WSIM_CLIENT_ID=ssim-merchant
 WSIM_CLIENT_SECRET=<your-wsim-client-secret>
+WSIM_POPUP_URL=https://wsim-auth.banksim.ca
+
+# WSIM Merchant API (for API-based checkout)
+WSIM_API_KEY=<your-wsim-api-key>
+WSIM_API_URL=https://wsim.banksim.ca/api/merchant
 ```
 
-When `WSIM_ENABLED=true`, the checkout page displays both "Pay with BSIM" (bank card) and "Pay with Wallet" options.
+When `WSIM_ENABLED=true`, the checkout page displays both "Pay with BSIM" (bank card) and multiple wallet payment options:
+
+| Option | Description |
+|--------|-------------|
+| **Popup** | Opens WSIM in a popup window |
+| **Inline** | Embeds WSIM in an iframe |
+| **Redirect** | Full-page OAuth redirect to WSIM |
+| **API** | Backend proxy to WSIM Merchant API |
+| **API (Direct)** | Browser calls WSIM directly (requires CORS) |
+| **API (Proxy)** | Same as API with explicit labeling |
+
+See [docs/WSIM-API-Integration-Plan.md](docs/WSIM-API-Integration-Plan.md) for implementation details.
 
 ## Registering SSIM as an OAuth Client in BSIM
 
