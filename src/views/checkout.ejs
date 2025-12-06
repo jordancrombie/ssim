@@ -103,21 +103,36 @@
           <!-- Divider -->
           <div class="flex items-center my-4">
             <div class="flex-grow border-t border-gray-200"></div>
-            <span class="mx-4 text-gray-400 text-sm">or</span>
+            <span class="mx-4 text-gray-400 text-sm">or pay with wallet</span>
             <div class="flex-grow border-t border-gray-200"></div>
           </div>
 
-          <!-- Pay with Wallet Button -->
-          <button
-            id="payWalletButton"
-            onclick="initiatePayment('wallet')"
-            class="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-violet-700 hover:to-purple-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-            </svg>
-            <span>Pay with Wallet</span>
-          </button>
+          <!-- Wallet payment options -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Pay with Wallet Popup (Quick checkout) -->
+            <button
+              id="payWalletPopupButton"
+              onclick="openWalletPopup()"
+              class="bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-violet-700 hover:to-purple-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+              <span>Pay with Wallet</span>
+            </button>
+
+            <!-- Sign in to Wallet (Redirect flow) -->
+            <button
+              id="payWalletButton"
+              onclick="initiatePayment('wallet')"
+              class="bg-white border-2 border-violet-600 text-violet-600 py-4 px-6 rounded-xl font-semibold text-center hover:bg-violet-50 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+              </svg>
+              <span>Sign in to Wallet</span>
+            </button>
+          </div>
           <% } %>
 
           <p class="text-center text-sm text-gray-500 mt-4">
@@ -167,6 +182,199 @@
 
   <script>
     let cartData = null;
+    let walletPopup = null;
+    let popupCheckInterval = null;
+    const wsimPopupUrl = '<%= wsimPopupUrl || "" %>';
+
+    // WSIM Popup Wallet Integration
+    function openWalletPopup() {
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+
+      const button = document.getElementById('payWalletPopupButton');
+      button.disabled = true;
+      button.innerHTML = `
+        <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Opening Wallet...
+      `;
+
+      // Calculate center position for popup
+      const width = 420;
+      const height = 620;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+
+      // Build popup URL with payment details
+      const params = new URLSearchParams({
+        origin: window.location.origin,
+        merchantId: 'ssim-merchant',
+        merchantName: 'SSIM Store',
+        amount: (cartData.total / 100).toString(),
+        currency: 'CAD',
+        orderId: 'order-' + Date.now()
+      });
+
+      const popupUrl = wsimPopupUrl + '/popup/card-picker?' + params;
+
+      // Open popup window centered on screen
+      walletPopup = window.open(
+        popupUrl,
+        'wsim-wallet',
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+      );
+
+      // Check if popup was blocked
+      if (!walletPopup || walletPopup.closed || typeof walletPopup.closed === 'undefined') {
+        resetWalletPopupButton();
+        document.getElementById('errorState').classList.remove('hidden');
+        document.getElementById('genericError').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = 'Popup was blocked. Please allow popups for this site or use "Sign in to Wallet" instead.';
+        return;
+      }
+
+      // Set up message listener for popup responses
+      window.addEventListener('message', handleWalletMessage);
+
+      // Monitor for popup being closed without response
+      popupCheckInterval = setInterval(() => {
+        if (walletPopup && walletPopup.closed) {
+          clearInterval(popupCheckInterval);
+          window.removeEventListener('message', handleWalletMessage);
+          resetWalletPopupButton();
+        }
+      }, 500);
+    }
+
+    function handleWalletMessage(event) {
+      // IMPORTANT: Verify the origin
+      if (!wsimPopupUrl || !event.origin.startsWith(wsimPopupUrl.replace(/\/$/, ''))) {
+        return;
+      }
+
+      const { type, ...data } = event.data;
+      console.log('[Checkout] Received wallet message:', type, data);
+
+      switch (type) {
+        case 'wsim:card-selected':
+          // Payment confirmed - process the token
+          handleWalletSuccess(data);
+          break;
+
+        case 'wsim:cancelled':
+          // User cancelled the payment
+          handleWalletCancel(data.reason);
+          break;
+
+        case 'wsim:error':
+          // An error occurred
+          handleWalletError(data);
+          break;
+
+        case 'wsim:auth-required':
+          // User needs to authenticate (informational)
+          console.log('[Checkout] Wallet auth required:', data.message);
+          break;
+      }
+    }
+
+    async function handleWalletSuccess(data) {
+      // Clean up
+      clearInterval(popupCheckInterval);
+      window.removeEventListener('message', handleWalletMessage);
+      if (walletPopup && !walletPopup.closed) {
+        walletPopup.close();
+      }
+
+      const button = document.getElementById('payWalletPopupButton');
+      button.innerHTML = `
+        <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Processing Payment...
+      `;
+
+      try {
+        // Send cardToken to our backend to complete the payment
+        const response = await fetch('/payment/popup-complete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            cardToken: data.cardToken,
+            cardLast4: data.cardLast4,
+            cardBrand: data.cardBrand,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.redirectUrl) {
+          // Payment successful - redirect to confirmation
+          window.location.href = result.redirectUrl;
+        } else {
+          throw new Error(result.reason || result.error || 'Payment failed');
+        }
+      } catch (error) {
+        console.error('[Checkout] Payment processing error:', error);
+        resetWalletPopupButton();
+        document.getElementById('errorState').classList.remove('hidden');
+        document.getElementById('genericError').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = error.message || 'Payment processing failed';
+      }
+    }
+
+    function handleWalletCancel(reason) {
+      // Clean up
+      clearInterval(popupCheckInterval);
+      window.removeEventListener('message', handleWalletMessage);
+      if (walletPopup && !walletPopup.closed) {
+        walletPopup.close();
+      }
+
+      console.log('[Checkout] Wallet payment cancelled:', reason);
+      resetWalletPopupButton();
+    }
+
+    function handleWalletError(data) {
+      // Clean up
+      clearInterval(popupCheckInterval);
+      window.removeEventListener('message', handleWalletMessage);
+      if (walletPopup && !walletPopup.closed) {
+        walletPopup.close();
+      }
+
+      console.error('[Checkout] Wallet error:', data.code, data.message);
+      resetWalletPopupButton();
+
+      document.getElementById('errorState').classList.remove('hidden');
+      if (data.code === 'passkey_cancelled') {
+        document.getElementById('genericError').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = 'Authentication was cancelled. Please try again.';
+      } else {
+        document.getElementById('genericError').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = data.message || 'An error occurred with the wallet';
+      }
+    }
+
+    function resetWalletPopupButton() {
+      const button = document.getElementById('payWalletPopupButton');
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = `
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+          </svg>
+          <span>Pay with Wallet</span>
+        `;
+      }
+    }
 
     async function loadCart() {
       const loadingState = document.getElementById('loadingState');

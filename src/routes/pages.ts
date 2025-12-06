@@ -80,15 +80,12 @@ router.get('/checkout', (req: Request, res: Response) => {
     userInfo: req.session.userInfo,
     cartCount: getCartCount(req),
     wsimEnabled: config.wsimEnabled,
+    wsimPopupUrl: config.wsimPopupUrl,
   });
 });
 
 // Order confirmation page
 router.get('/order-confirmation/:orderId', (req: Request, res: Response) => {
-  if (!req.session.userInfo) {
-    return res.redirect('/login');
-  }
-
   const { orderId } = req.params;
   const order = getOrderById(orderId);
 
@@ -96,15 +93,26 @@ router.get('/order-confirmation/:orderId', (req: Request, res: Response) => {
     return res.status(404).render('error', { message: 'Order not found' });
   }
 
-  // Verify the order belongs to this user
-  if (order.userId !== req.session.userInfo.sub) {
+  const isAuthenticated = !!req.session.userInfo;
+
+  // Allow viewing if:
+  // 1. User is authenticated and owns the order, OR
+  // 2. Order was a guest wallet payment (userId === 'guest')
+  const isGuestOrder = order.userId === 'guest';
+  const isOwner = req.session.userInfo?.sub === order.userId;
+
+  if (!isGuestOrder && !isOwner) {
+    // Not a guest order and user doesn't own it - require login
+    if (!req.session.userInfo) {
+      return res.redirect('/login');
+    }
     return res.status(403).render('error', { message: 'Not authorized' });
   }
 
   res.render('order-confirmation', {
     order,
     formatPrice,
-    isAuthenticated: true,
+    isAuthenticated,
     cartCount: getCartCount(req),
   });
 });
