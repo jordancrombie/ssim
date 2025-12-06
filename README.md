@@ -109,9 +109,16 @@ docker run -p 3005:3005 --env-file .env ssim
 
 ## AWS Deployment
 
-SSIM is deployed to AWS ECS Fargate as part of the BSIM infrastructure. See [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for complete deployment instructions.
+SSIM is deployed to AWS ECS Fargate as part of the BSIM infrastructure.
 
 **Production URL:** https://ssim.banksim.ca
+
+### Deployment Documentation
+
+| Document | Description |
+|----------|-------------|
+| [SSIM-Production-Deployment-v1.8.md](docs/SSIM-Production-Deployment-v1.8.md) | **For BSIM Team** - Step-by-step deployment guide for v1.8.x |
+| [ssim-task-definition.json](ssim-task-definition.json) | ECS task definition with all environment variables |
 
 ### Key Configuration for Production
 

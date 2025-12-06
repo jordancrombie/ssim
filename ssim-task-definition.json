@@ -29,7 +29,16 @@
         { "name": "PAYMENT_CLIENT_ID", "value": "ssim-client" },
         { "name": "PAYMENT_CLIENT_SECRET", "value": "e829e6a1a87565b56a419c94c7780f4e2774de7ee98d5d0a98a343786b4598dd" },
         { "name": "MERCHANT_ID", "value": "ssim-client" },
-        { "name": "WEBHOOK_SECRET", "value": "ssim-webhook-secret-prod" }
+        { "name": "WEBHOOK_SECRET", "value": "ssim-webhook-secret-prod" },
+        { "name": "ADMIN_ENABLED", "value": "true" },
+        { "name": "ADMIN_EMAILS", "value": "ssim.adminuser@banksim.ca" },
+        { "name": "WSIM_ENABLED", "value": "true" },
+        { "name": "WSIM_AUTH_URL", "value": "https://wsim-auth.banksim.ca" },
+        { "name": "WSIM_CLIENT_ID", "value": "ssim-merchant" },
+        { "name": "WSIM_CLIENT_SECRET", "value": "REPLACE_WITH_WSIM_SECRET" },
+        { "name": "WSIM_POPUP_URL", "value": "https://wsim-auth.banksim.ca" },
+        { "name": "WSIM_API_KEY", "value": "REPLACE_WITH_WSIM_API_KEY" },
+        { "name": "WSIM_API_URL", "value": "https://wsim.banksim.ca/api/merchant" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
