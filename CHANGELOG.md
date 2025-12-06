@@ -2,6 +2,15 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.8.2] - 2025-12-06
+
+### Fixed
+- **API (Direct) and API (Proxy) Checkout Flows** - Applied same fixes from v1.8.1 to remaining API checkout options
+  - Both `openWalletLoginPopupForDirect()` and `openWalletLoginPopupForProxy()` now handle WSIM messages correctly
+  - Added `paymentCompleted` flag to prevent race conditions with popup close detection
+  - Fixed message data structure parsing (flat object, not nested)
+  - All three API checkout options (API, API Direct, API Proxy) now work correctly
+
 ## [1.8.1] - 2025-12-06
 
 ### Fixed
