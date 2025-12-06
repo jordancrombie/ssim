@@ -491,6 +491,116 @@ router.get('/wallet-callback', async (req: Request, res: Response) => {
   }
 });
 
+// Popup payment completion - receives cardToken from WSIM popup
+router.post('/popup-complete', async (req: Request, res: Response) => {
+  const { cardToken, cardLast4, cardBrand } = req.body;
+
+  if (!cardToken) {
+    return res.status(400).json({ error: 'Card token is required' });
+  }
+
+  const cart = req.session.cart || [];
+  if (cart.length === 0) {
+    return res.status(400).json({ error: 'Cart is empty' });
+  }
+
+  // Build order items from cart
+  const orderItems: OrderItem[] = [];
+  let subtotal = 0;
+
+  for (const cartItem of cart) {
+    const product = getProductById(cartItem.productId);
+    if (!product) {
+      return res.status(400).json({ error: `Product ${cartItem.productId} not found` });
+    }
+
+    const itemSubtotal = product.price * cartItem.quantity;
+    orderItems.push({
+      productId: product.id,
+      productName: product.name,
+      quantity: cartItem.quantity,
+      unitPrice: product.price,
+      subtotal: itemSubtotal,
+    });
+    subtotal += itemSubtotal;
+  }
+
+  // Create order - use 'guest' if not authenticated (wallet-only flow)
+  const userId = req.session.userInfo?.sub as string || 'guest';
+  const order = createOrder({
+    userId,
+    items: orderItems,
+    subtotal,
+    currency: 'CAD',
+  });
+
+  console.log('[Payment] Popup flow - Created order:', order.id, 'Total:', formatPrice(subtotal));
+  console.log('[Payment] Popup flow - Card:', cardBrand, '****' + cardLast4);
+
+  try {
+    // Authorize payment via NSIM API with cardToken only (no walletCardToken for popup flow)
+    console.log('[Payment] Popup flow - Authorizing payment via NSIM...');
+    const authResult = await authorizePayment({
+      merchantId: config.merchantId,
+      amount: order.subtotal,
+      currency: order.currency,
+      cardToken,
+      orderId: order.id,
+    });
+
+    if (authResult.status === 'authorized') {
+      // Update order with payment details (popup wallet payment)
+      setOrderAuthorized(
+        order.id,
+        authResult.transactionId,
+        authResult.authorizationCode || '',
+        cardToken,
+        'wallet' // Mark as wallet payment
+      );
+
+      // Clear cart after successful payment
+      req.session.cart = [];
+
+      console.log('[Payment] Popup payment authorized:', authResult.transactionId);
+
+      req.session.save((err) => {
+        if (err) {
+          console.error('[Payment] Session save error:', err);
+        }
+        res.json({
+          success: true,
+          orderId: order.id,
+          transactionId: authResult.transactionId,
+          redirectUrl: `/order-confirmation/${order.id}`,
+        });
+      });
+    } else if (authResult.status === 'declined') {
+      setOrderDeclined(order.id);
+      console.log('[Payment] Popup payment declined:', authResult.declineReason);
+      res.status(400).json({
+        success: false,
+        error: 'payment_declined',
+        reason: authResult.declineReason || 'Payment declined',
+      });
+    } else {
+      setOrderFailed(order.id);
+      res.status(500).json({
+        success: false,
+        error: 'payment_failed',
+        reason: 'Payment processing failed',
+      });
+    }
+  } catch (error) {
+    console.error('[Payment] Popup payment error:', error);
+    setOrderFailed(order.id);
+    res.status(500).json({
+      success: false,
+      error: 'payment_error',
+      reason: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // Capture payment (for authorized orders)
 router.post('/capture/:orderId', async (req: Request, res: Response) => {
   if (!req.session.userInfo) {
