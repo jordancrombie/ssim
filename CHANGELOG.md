@@ -2,6 +2,15 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.8.3] - 2025-12-06
+
+### Fixed
+- **Card Picker Display** - Fixed "undefined" showing in cardholder name field for API checkout card pickers
+  - WSIM Merchant API returns different field names than expected
+  - Added fallback field name resolution (`cardholderName`, `holderName`, `name`, `ownerName`)
+  - Added debug logging to identify WSIM API response structure
+  - Affects API, API (Direct), and API (Proxy) card selection UIs
+
 ## [1.8.2] - 2025-12-06
 
 ### Fixed
