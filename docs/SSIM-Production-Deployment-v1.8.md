@@ -31,8 +31,71 @@ This document provides step-by-step instructions for deploying SSIM v1.8.2 to pr
 | `ADMIN_ENABLED` | Optional | Enable admin dashboard (default: true) | `true` |
 | `ADMIN_EMAILS` | Optional | Authorized admin email addresses | `admin@banksim.ca` |
 
-### No Database Changes Required
-SSIM uses in-memory storage for orders and products. No database migrations needed.
+---
+
+## Database Requirements
+
+### This Release: No Database Changes Required
+
+**SSIM v1.8.x does NOT require any database migrations or schema changes.**
+
+SSIM uses in-memory storage for:
+- Orders
+- Products
+- Shopping carts
+
+There is no PostgreSQL database to migrate. Simply deploy the new Docker image with the updated environment variables.
+
+> **Note for BSIM Team:** Unlike other services in the ecosystem (BSIM auth-server, NSIM), SSIM does not connect to the shared RDS PostgreSQL database. You can skip any database-related steps for this deployment.
+
+### For Future Reference: Running Database Migrations via ECS Tasks
+
+If a future SSIM release DOES require database changes, **do NOT use psql directly** - production RDS is not publicly accessible. Instead, use ECS run-task to execute migrations:
+
+```bash
+# Example: Running a Prisma migration via ECS task
+# (NOT needed for v1.8.x - this is for future reference only)
+
+aws ecs run-task \
+  --cluster bsim-cluster \
+  --task-definition bsim-ssim \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-zzz],assignPublicIp=ENABLED}" \
+  --overrides '{
+    "containerOverrides": [
+      {
+        "name": "ssim",
+        "command": ["npx", "prisma", "migrate", "deploy"]
+      }
+    ]
+  }' \
+  --region ca-central-1
+
+# Monitor the migration task
+aws logs tail /ecs/bsim-ssim --follow --region ca-central-1
+```
+
+For SQL-based migrations (not Prisma), create a one-off task definition that runs the migration script:
+
+```bash
+# Example: Running raw SQL migration
+aws ecs run-task \
+  --cluster bsim-cluster \
+  --task-definition bsim-ssim \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx,subnet-yyy],securityGroups=[sg-zzz],assignPublicIp=ENABLED}" \
+  --overrides '{
+    "containerOverrides": [
+      {
+        "name": "ssim",
+        "command": ["node", "-e", "const sql = require(\"./migrations/v1.9.0.js\"); sql.run();"]
+      }
+    ]
+  }' \
+  --region ca-central-1
+```
+
+**Important:** Always run migrations BEFORE deploying the new application version to avoid schema mismatches.
 
 ---
 
