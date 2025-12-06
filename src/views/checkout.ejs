@@ -922,6 +922,41 @@
       apiPasskeyOptions = null;
     }
 
+    // Complete payment using tokens received from popup
+    // This uses the same endpoint as the regular Popup flow since it's the same WSIM popup
+    async function completeApiPaymentWithTokens(tokenData) {
+      console.log('[Checkout] Completing API payment with tokens:', tokenData);
+
+      // Hide the card picker UI
+      document.getElementById('apiCardPickerContainer').classList.add('hidden');
+
+      try {
+        // Use the same popup-complete endpoint that the regular Popup flow uses
+        // The WSIM popup sends cardToken, cardLast4, cardBrand
+        const response = await fetch('/payment/popup-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardToken: tokenData.cardToken,
+            cardLast4: tokenData.cardLast4,
+            cardBrand: tokenData.cardBrand,
+          }),
+        });
+
+        const result = await response.json();
+        console.log('[Checkout] Payment complete response:', result);
+
+        if (result.success && result.redirectUrl) {
+          window.location.href = result.redirectUrl;
+        } else {
+          throw new Error(result.reason || result.error || 'Payment failed');
+        }
+      } catch (error) {
+        console.error('[Checkout] API payment with tokens error:', error);
+        alert('Payment failed: ' + error.message);
+      }
+    }
+
     async function confirmApiPayment() {
       if (!selectedApiCardId) {
         alert('Please select a card');
@@ -996,6 +1031,7 @@
         }
 
         const confirmData = await confirmResponse.json();
+        console.log('[Checkout] API confirm response:', JSON.stringify(confirmData));
 
         button.innerHTML = `
           <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1006,12 +1042,16 @@
         `;
 
         // Step 4: Complete payment via NSIM
+        // WSIM returns bsimCardToken or cardToken - handle both
+        const cardTokenValue = confirmData.bsimCardToken || confirmData.cardToken;
+        console.log('[Checkout] Using cardToken:', cardTokenValue, 'walletCardToken:', confirmData.walletCardToken);
+
         const completeResponse = await fetch('/api/wsim/payment/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             walletCardToken: confirmData.walletCardToken,
-            cardToken: confirmData.bsimCardToken,
+            cardToken: cardTokenValue,
           }),
         });
 
@@ -1071,32 +1111,66 @@
         `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
       );
 
-      // Listen for login completion
+      // Track if payment flow completed via message
+      let paymentCompleted = false;
+
+      // Listen for login/card-selection completion
       const loginListener = async (event) => {
+        // Debug: log all messages received
+        console.log('[Checkout] API popup received message from origin:', event.origin);
+        console.log('[Checkout] API popup expected origin starts with:', wsimPopupUrl.replace(/\/$/, ''));
+        console.log('[Checkout] API popup message data:', event.data);
+
         if (!wsimPopupUrl || !event.origin.startsWith(wsimPopupUrl.replace(/\/$/, ''))) {
+          console.log('[Checkout] API popup origin mismatch, ignoring');
           return;
         }
 
-        const { type } = event.data;
-        if (type === 'wsim:card-selected' || type === 'wsim:cancelled') {
+        // WSIM sends data directly as event.data with type as a property
+        // Structure: {type: 'wsim:card-selected', cardToken: '...', cardLast4: '...', ...}
+        const messageData = event.data;
+        const type = messageData.type;
+        console.log('[Checkout] API login popup message:', type, messageData);
+
+        if (type === 'wsim:card-selected') {
+          paymentCompleted = true; // Mark as completed BEFORE processing
           window.removeEventListener('message', loginListener);
           if (walletLoginPopup && !walletLoginPopup.closed) {
             walletLoginPopup.close();
           }
-          // Refresh the card picker
-          await showApiCardPicker();
+          // The popup already did the full flow - process the tokens
+          // WSIM popup sends: cardToken, cardLast4, cardBrand directly in messageData
+          if (messageData.cardToken) {
+            console.log('[Checkout] Got cardToken from popup, completing payment');
+            await completeApiPaymentWithTokens(messageData);
+          } else {
+            console.log('[Checkout] No cardToken in popup data, showing card picker. Data:', messageData);
+            // Fallback: refresh the card picker to show cards
+            await showApiCardPicker();
+          }
+        } else if (type === 'wsim:cancelled') {
+          paymentCompleted = true; // Also mark as handled
+          window.removeEventListener('message', loginListener);
+          if (walletLoginPopup && !walletLoginPopup.closed) {
+            walletLoginPopup.close();
+          }
+          // Hide the card picker
+          document.getElementById('apiCardPickerContainer').classList.add('hidden');
         }
       };
 
       window.addEventListener('message', loginListener);
 
-      // Monitor for popup being closed
+      // Monitor for popup being closed WITHOUT completing the flow
       const checkInterval = setInterval(() => {
         if (walletLoginPopup && walletLoginPopup.closed) {
           clearInterval(checkInterval);
           window.removeEventListener('message', loginListener);
-          // Refresh the card picker
-          showApiCardPicker();
+          // Only refresh card picker if payment wasn't completed via message
+          if (!paymentCompleted) {
+            console.log('[Checkout] Popup closed without completing flow, showing card picker');
+            showApiCardPicker();
+          }
         }
       }, 500);
     }
@@ -1303,6 +1377,7 @@
         }
 
         const confirmData = await confirmResponse.json();
+        console.log('[Checkout] API Proxy confirm response:', JSON.stringify(confirmData));
 
         button.innerHTML = `
           <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1313,12 +1388,16 @@
         `;
 
         // Step 4: Complete payment via NSIM
+        // WSIM returns bsimCardToken or cardToken - handle both
+        const cardTokenValue = confirmData.bsimCardToken || confirmData.cardToken;
+        console.log('[Checkout] API Proxy using cardToken:', cardTokenValue, 'walletCardToken:', confirmData.walletCardToken);
+
         const completeResponse = await fetch('/api/wsim/payment/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             walletCardToken: confirmData.walletCardToken,
-            cardToken: confirmData.bsimCardToken,
+            cardToken: cardTokenValue,
           }),
         });
 
@@ -1632,6 +1711,7 @@
         }
 
         const confirmData = await confirmResponse.json();
+        console.log('[Checkout] API Direct confirm response:', JSON.stringify(confirmData));
 
         button.innerHTML = `
           <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1642,12 +1722,16 @@
         `;
 
         // Step 4: Complete payment via SSIM backend (for NSIM authorization)
+        // WSIM returns bsimCardToken or cardToken - handle both
+        const cardTokenValue = confirmData.bsimCardToken || confirmData.cardToken;
+        console.log('[Checkout] API Direct using cardToken:', cardTokenValue, 'walletCardToken:', confirmData.walletCardToken);
+
         const completeResponse = await fetch('/api/wsim/payment/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             walletCardToken: confirmData.walletCardToken,
-            cardToken: confirmData.bsimCardToken,
+            cardToken: cardTokenValue,
           }),
         });
 

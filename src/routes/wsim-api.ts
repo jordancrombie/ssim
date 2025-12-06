@@ -23,11 +23,14 @@ const router = Router();
  * Check if user is authenticated with WSIM
  */
 router.get('/auth-check', async (req: Request, res: Response) => {
+  console.log('[WSIM API] GET /auth-check called');
   try {
     if (!config.wsimApiKey) {
+      console.log('[WSIM API] WSIM API not configured');
       return res.json({ authenticated: false, error: 'WSIM API not configured' });
     }
 
+    console.log(`[WSIM API] Calling WSIM ${config.wsimApiUrl}/user`);
     const response = await fetch(`${config.wsimApiUrl}/user`, {
       headers: {
         'x-api-key': config.wsimApiKey,
@@ -36,6 +39,7 @@ router.get('/auth-check', async (req: Request, res: Response) => {
     });
 
     const data = await response.json();
+    console.log('[WSIM API] Auth check response:', JSON.stringify(data, null, 2));
     res.json(data);
   } catch (error) {
     console.error('[WSIM API] Auth check error:', error);
@@ -48,6 +52,7 @@ router.get('/auth-check', async (req: Request, res: Response) => {
  * Get user's enrolled wallet cards
  */
 router.get('/cards', async (req: Request, res: Response) => {
+  console.log('[WSIM API] GET /cards called');
   try {
     if (!config.wsimApiKey) {
       return res.status(503).json({ error: 'WSIM API not configured' });
@@ -62,10 +67,13 @@ router.get('/cards', async (req: Request, res: Response) => {
 
     if (!response.ok) {
       const error = await response.json();
+      console.log('[WSIM API] Cards error response:', error);
       return res.status(response.status).json(error);
     }
 
-    res.json(await response.json());
+    const data = await response.json();
+    console.log('[WSIM API] Cards response:', JSON.stringify(data, null, 2));
+    res.json(data);
   } catch (error) {
     console.error('[WSIM API] Cards error:', error);
     res.status(500).json({ error: 'Failed to fetch cards' });
@@ -77,9 +85,11 @@ router.get('/cards', async (req: Request, res: Response) => {
  * Start payment and get WebAuthn challenge for passkey authentication
  */
 router.post('/payment/initiate', async (req: Request, res: Response) => {
+  console.log('[WSIM API] POST /payment/initiate called with body:', JSON.stringify(req.body, null, 2));
   const { cardId, amount, currency = 'CAD' } = req.body;
 
   if (!cardId || !amount) {
+    console.log('[WSIM API] Missing cardId or amount');
     return res.status(400).json({ error: 'Missing cardId or amount' });
   }
 
@@ -88,6 +98,7 @@ router.post('/payment/initiate', async (req: Request, res: Response) => {
       return res.status(503).json({ error: 'WSIM API not configured' });
     }
 
+    console.log(`[WSIM API] Calling WSIM ${config.wsimApiUrl}/payment/initiate`);
     const response = await fetch(`${config.wsimApiUrl}/payment/initiate`, {
       method: 'POST',
       headers: {
@@ -105,15 +116,15 @@ router.post('/payment/initiate', async (req: Request, res: Response) => {
 
     if (!response.ok) {
       const error = await response.json();
-      console.error('[WSIM API] Payment initiate error:', error);
+      console.error('[WSIM API] Payment initiate error response:', error);
       return res.status(response.status).json(error);
     }
 
-    const data = await response.json() as { paymentId: string };
-    console.log(`[WSIM API] Payment initiated: ${data.paymentId}`);
+    const data = await response.json() as { paymentId: string; passkeyOptions?: unknown };
+    console.log(`[WSIM API] Payment initiated successfully:`, JSON.stringify(data, null, 2));
     res.json(data);
   } catch (error) {
-    console.error('[WSIM API] Payment initiate error:', error);
+    console.error('[WSIM API] Payment initiate exception:', error);
     res.status(500).json({ error: 'Failed to initiate payment' });
   }
 });
@@ -123,9 +134,13 @@ router.post('/payment/initiate', async (req: Request, res: Response) => {
  * Verify passkey and get payment tokens
  */
 router.post('/payment/confirm', async (req: Request, res: Response) => {
+  console.log('[WSIM API] POST /payment/confirm called');
   const { paymentId, passkeyResponse } = req.body;
+  console.log('[WSIM API] paymentId:', paymentId);
+  console.log('[WSIM API] passkeyResponse received:', passkeyResponse ? 'yes' : 'no');
 
   if (!paymentId || !passkeyResponse) {
+    console.log('[WSIM API] Missing paymentId or passkeyResponse');
     return res.status(400).json({ error: 'Missing paymentId or passkeyResponse' });
   }
 
@@ -134,6 +149,7 @@ router.post('/payment/confirm', async (req: Request, res: Response) => {
       return res.status(503).json({ error: 'WSIM API not configured' });
     }
 
+    console.log(`[WSIM API] Calling WSIM ${config.wsimApiUrl}/payment/confirm`);
     const response = await fetch(`${config.wsimApiUrl}/payment/confirm`, {
       method: 'POST',
       headers: {
@@ -147,17 +163,19 @@ router.post('/payment/confirm', async (req: Request, res: Response) => {
       }),
     });
 
+    console.log('[WSIM API] WSIM confirm response status:', response.status);
+
     if (!response.ok) {
       const error = await response.json();
-      console.error('[WSIM API] Payment confirm error:', error);
+      console.error('[WSIM API] Payment confirm error response:', JSON.stringify(error, null, 2));
       return res.status(response.status).json(error);
     }
 
     const data = await response.json();
-    console.log(`[WSIM API] Payment confirmed, tokens received`);
+    console.log(`[WSIM API] Payment confirmed successfully, tokens received:`, JSON.stringify(data, null, 2));
     res.json(data);
   } catch (error) {
-    console.error('[WSIM API] Payment confirm error:', error);
+    console.error('[WSIM API] Payment confirm exception:', error);
     res.status(500).json({ error: 'Passkey verification failed' });
   }
 });
@@ -167,9 +185,12 @@ router.post('/payment/confirm', async (req: Request, res: Response) => {
  * Complete payment with NSIM using the tokens from WSIM
  */
 router.post('/payment/complete', async (req: Request, res: Response) => {
+  console.log(`[WSIM API] Payment complete request body:`, JSON.stringify(req.body, null, 2));
+
   const { walletCardToken, cardToken, cardLast4, cardBrand } = req.body;
 
   if (!cardToken) {
+    console.log(`[WSIM API] Missing cardToken in request`);
     return res.status(400).json({ error: 'Missing cardToken' });
   }
 
