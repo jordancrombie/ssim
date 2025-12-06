@@ -1455,18 +1455,40 @@
         `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
       );
 
+      // Track if payment flow completed via message
+      let paymentCompleted = false;
+
       const loginListener = async (event) => {
         if (!wsimPopupUrl || !event.origin.startsWith(wsimPopupUrl.replace(/\/$/, ''))) {
           return;
         }
 
-        const { type } = event.data;
-        if (type === 'wsim:card-selected' || type === 'wsim:cancelled') {
+        // WSIM sends data directly as event.data with type as a property
+        const messageData = event.data;
+        const type = messageData.type;
+        console.log('[Checkout] API Proxy popup message:', type, messageData);
+
+        if (type === 'wsim:card-selected') {
+          paymentCompleted = true;
           window.removeEventListener('message', loginListener);
           if (loginPopup && !loginPopup.closed) {
             loginPopup.close();
           }
-          await showApiProxyCardPicker();
+          // Check if we have tokens from the popup
+          if (messageData.cardToken) {
+            console.log('[Checkout] API Proxy got cardToken from popup, completing payment');
+            await completeApiPaymentWithTokens(messageData);
+          } else {
+            // Fallback: show card picker
+            await showApiProxyCardPicker();
+          }
+        } else if (type === 'wsim:cancelled') {
+          paymentCompleted = true;
+          window.removeEventListener('message', loginListener);
+          if (loginPopup && !loginPopup.closed) {
+            loginPopup.close();
+          }
+          document.getElementById('apiProxyCardPickerContainer').classList.add('hidden');
         }
       };
 
@@ -1476,7 +1498,11 @@
         if (loginPopup && loginPopup.closed) {
           clearInterval(checkInterval);
           window.removeEventListener('message', loginListener);
-          showApiProxyCardPicker();
+          // Only show card picker if payment wasn't completed via message
+          if (!paymentCompleted) {
+            console.log('[Checkout] API Proxy popup closed without completing, showing card picker');
+            showApiProxyCardPicker();
+          }
         }
       }, 500);
     }
@@ -1793,18 +1819,40 @@
         `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
       );
 
+      // Track if payment flow completed via message
+      let paymentCompleted = false;
+
       const loginListener = async (event) => {
         if (!wsimPopupUrl || !event.origin.startsWith(wsimPopupUrl.replace(/\/$/, ''))) {
           return;
         }
 
-        const { type } = event.data;
-        if (type === 'wsim:card-selected' || type === 'wsim:cancelled') {
+        // WSIM sends data directly as event.data with type as a property
+        const messageData = event.data;
+        const type = messageData.type;
+        console.log('[Checkout] API Direct popup message:', type, messageData);
+
+        if (type === 'wsim:card-selected') {
+          paymentCompleted = true;
           window.removeEventListener('message', loginListener);
           if (loginPopup && !loginPopup.closed) {
             loginPopup.close();
           }
-          await showApiDirectCardPicker();
+          // Check if we have tokens from the popup
+          if (messageData.cardToken) {
+            console.log('[Checkout] API Direct got cardToken from popup, completing payment');
+            await completeApiPaymentWithTokens(messageData);
+          } else {
+            // Fallback: show card picker
+            await showApiDirectCardPicker();
+          }
+        } else if (type === 'wsim:cancelled') {
+          paymentCompleted = true;
+          window.removeEventListener('message', loginListener);
+          if (loginPopup && !loginPopup.closed) {
+            loginPopup.close();
+          }
+          document.getElementById('apiDirectCardPickerContainer').classList.add('hidden');
         }
       };
 
@@ -1814,7 +1862,11 @@
         if (loginPopup && loginPopup.closed) {
           clearInterval(checkInterval);
           window.removeEventListener('message', loginListener);
-          showApiDirectCardPicker();
+          // Only show card picker if payment wasn't completed via message
+          if (!paymentCompleted) {
+            console.log('[Checkout] API Direct popup closed without completing, showing card picker');
+            showApiDirectCardPicker();
+          }
         }
       }, 500);
     }
