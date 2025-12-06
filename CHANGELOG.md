@@ -2,6 +2,20 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.8.1] - 2025-12-06
+
+### Fixed
+- **API Checkout Flow** - Fixed critical bug where passkey authentication completed but payment didn't finalize
+  - Fixed race condition between popup close detection and message handling
+  - Fixed WSIM message data structure parsing (flat object, not nested)
+  - API checkout now correctly redirects to order confirmation after passkey auth
+
+### Documentation
+- Added [API-Integration-Troubleshooting.md](docs/API-Integration-Troubleshooting.md)
+  - Detailed debugging steps for postMessage issues
+  - Race condition prevention patterns
+  - Testing checklist for API checkout flow
+
 ## [1.8.0] - 2025-12-06
 
 ### Added
