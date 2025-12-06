@@ -11,6 +11,13 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Fixed message data structure parsing (flat object, not nested)
   - All three API checkout options (API, API Direct, API Proxy) now work correctly
 
+### Documentation
+- Added [SSIM-Production-Deployment-v1.8.md](docs/SSIM-Production-Deployment-v1.8.md) for BSIM team
+  - Step-by-step deployment instructions for AWS ECS
+  - New environment variables for WSIM integration
+  - Updated task definition with all required variables
+  - Verification checklist and rollback procedures
+
 ## [1.8.1] - 2025-12-06
 
 ### Fixed
