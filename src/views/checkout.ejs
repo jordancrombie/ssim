@@ -845,6 +845,7 @@
         }
 
         const cardsData = await cardsResponse.json();
+        console.log('[Checkout] API - Raw cards response:', JSON.stringify(cardsData, null, 2));
         const cards = cardsData.cards || [];
 
         if (cards.length === 0) {
@@ -857,8 +858,16 @@
           return;
         }
 
-        // Render cards
-        cardsList.innerHTML = cards.map(card => `
+        // Log first card to see available fields
+        if (cards.length > 0) {
+          console.log('[Checkout] API - First card fields:', Object.keys(cards[0]));
+        }
+
+        // Render cards - use fallback field names for cardholder
+        cardsList.innerHTML = cards.map(card => {
+          // Try multiple possible field names for cardholder name
+          const cardholderName = card.cardholderName || card.holderName || card.name || card.ownerName || '';
+          return `
           <div
             class="card-option p-4 border-2 rounded-lg cursor-pointer transition ${card.isDefault ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-emerald-300'}"
             onclick="selectApiCard('${card.id}')"
@@ -870,12 +879,12 @@
               </div>
               <div class="flex-1">
                 <div class="font-medium text-gray-800">${card.cardType} •••• ${card.lastFour}</div>
-                <div class="text-sm text-gray-500">${card.cardholderName}</div>
+                <div class="text-sm text-gray-500">${cardholderName}</div>
               </div>
               ${card.isDefault ? '<span class="text-emerald-600 text-sm font-medium">Default</span>' : ''}
             </div>
           </div>
-        `).join('');
+        `}).join('');
 
         cardsList.classList.remove('hidden');
         confirmBtn.classList.remove('hidden');
@@ -1227,6 +1236,7 @@
         }
 
         const cardsData = await cardsResponse.json();
+        console.log('[Checkout] API Proxy - Raw cards response:', JSON.stringify(cardsData, null, 2));
         const cards = cardsData.cards || [];
 
         if (cards.length === 0) {
@@ -1239,8 +1249,16 @@
           return;
         }
 
-        // Render cards
-        cardsList.innerHTML = cards.map(card => `
+        // Log first card to see available fields
+        if (cards.length > 0) {
+          console.log('[Checkout] API Proxy - First card fields:', Object.keys(cards[0]));
+        }
+
+        // Render cards - use fallback field names for cardholder
+        cardsList.innerHTML = cards.map(card => {
+          // Try multiple possible field names for cardholder name
+          const cardholderName = card.cardholderName || card.holderName || card.name || card.ownerName || '';
+          return `
           <div
             class="card-option-proxy p-4 border-2 rounded-lg cursor-pointer transition ${card.isDefault ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300'}"
             onclick="selectApiProxyCard('${card.id}')"
@@ -1252,12 +1270,12 @@
               </div>
               <div class="flex-1">
                 <div class="font-medium text-gray-800">${card.cardType} •••• ${card.lastFour}</div>
-                <div class="text-sm text-gray-500">${card.cardholderName}</div>
+                <div class="text-sm text-gray-500">${cardholderName}</div>
               </div>
               ${card.isDefault ? '<span class="text-amber-600 text-sm font-medium">Default</span>' : ''}
             </div>
           </div>
-        `).join('');
+        `}).join('');
 
         cardsList.classList.remove('hidden');
         confirmBtn.classList.remove('hidden');
@@ -1575,6 +1593,7 @@
         }
 
         const cardsData = await cardsResponse.json();
+        console.log('[Checkout] API Direct - Raw cards response:', JSON.stringify(cardsData, null, 2));
         const cards = cardsData.cards || [];
 
         if (cards.length === 0) {
@@ -1587,8 +1606,17 @@
           return;
         }
 
-        // Render cards
-        cardsList.innerHTML = cards.map(card => `
+        // Log first card to see available fields
+        if (cards.length > 0) {
+          console.log('[Checkout] API Direct - First card fields:', Object.keys(cards[0]));
+          console.log('[Checkout] API Direct - First card data:', JSON.stringify(cards[0], null, 2));
+        }
+
+        // Render cards - use fallback field names for cardholder
+        cardsList.innerHTML = cards.map(card => {
+          // Try multiple possible field names for cardholder name
+          const cardholderName = card.cardholderName || card.holderName || card.name || card.ownerName || '';
+          return `
           <div
             class="card-option-direct p-4 border-2 rounded-lg cursor-pointer transition ${card.isDefault ? 'border-cyan-500 bg-cyan-50' : 'border-gray-200 hover:border-cyan-300'}"
             onclick="selectApiDirectCard('${card.id}')"
@@ -1600,12 +1628,12 @@
               </div>
               <div class="flex-1">
                 <div class="font-medium text-gray-800">${card.cardType} •••• ${card.lastFour}</div>
-                <div class="text-sm text-gray-500">${card.cardholderName}</div>
+                <div class="text-sm text-gray-500">${cardholderName}</div>
               </div>
               ${card.isDefault ? '<span class="text-cyan-600 text-sm font-medium">Default</span>' : ''}
             </div>
           </div>
-        `).join('');
+        `}).join('');
 
         cardsList.classList.remove('hidden');
         confirmBtn.classList.remove('hidden');
