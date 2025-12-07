@@ -34,3 +34,6 @@ certs/
 *.pem
 *.key
 *.crt
+
+# Local deployment plans (shared via filesystem, not repo)
+LOCAL_DEPLOYMENT_PLANS/
