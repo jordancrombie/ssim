@@ -2,6 +2,38 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.8.4] - 2025-12-07
+
+### Documentation
+- **AWS Deployment Guide** - Added [AWS-Deployment-Guide.md](docs/AWS-Deployment-Guide.md)
+  - General AWS ECS Fargate deployment instructions for external developers
+  - Architecture overview with diagram
+  - Step-by-step ECR, task definition, and ECS service setup
+  - Environment variables reference (required, payment, wallet, admin)
+  - Deployment commands, troubleshooting, cost estimates, security considerations
+
+- **Wallet Integration Guide** - Added [Wallet-Integration-Guide.md](docs/Wallet-Integration-Guide.md)
+  - Comprehensive guide for integrating wallet payments
+  - Token architecture explanation (`wallet_card_token` for routing, `card_token` for authorization)
+  - OIDC flow implementation (popup/inline/redirect)
+  - Merchant API implementation with code examples
+  - Error codes reference table with recommended actions
+  - CORS configuration for API Direct mode
+  - Security considerations and testing checklist
+
+- **WSIM API Integration Plan** - Updated [WSIM-API-Integration-Plan.md](docs/WSIM-API-Integration-Plan.md)
+  - Added error codes reference table
+  - Added card data structure documentation
+  - Documented field name fallback for cardholderName (from v1.8.3 fix)
+  - Added links to related documentation
+
+- **README Updates**
+  - Updated deployment documentation table to link to new AWS-Deployment-Guide.md
+
+### Internal
+- Moved internal deployment plans to `LOCAL_DEPLOYMENT_PLANS/` directory (excluded from repo via `.gitignore`)
+- Internal plans shared via filesystem for team integrations
+
 ## [1.8.3] - 2025-12-06
 
 ### Fixed
