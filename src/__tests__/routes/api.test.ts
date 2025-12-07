@@ -1,6 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { createMockSession, createAuthenticatedSession } from '../mocks/mockSession';
+import { config } from '../../config/env';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -73,7 +74,7 @@ describe('API Routes', () => {
       await request(app).get('/api/accounts');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://openbanking.banksim.ca/users/user-123/accounts',
+        `${config.openbankingBaseUrl}/users/user-123/accounts`,
         expect.any(Object)
       );
     });
