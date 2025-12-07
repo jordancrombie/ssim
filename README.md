@@ -117,8 +117,9 @@ SSIM is deployed to AWS ECS Fargate as part of the BSIM infrastructure.
 
 | Document | Description |
 |----------|-------------|
-| [SSIM-Production-Deployment-v1.8.md](docs/SSIM-Production-Deployment-v1.8.md) | **For BSIM Team** - Step-by-step deployment guide for v1.8.x |
-| [ssim-task-definition.json](ssim-task-definition.json) | ECS task definition with all environment variables |
+| [AWS-Deployment-Guide.md](docs/AWS-Deployment-Guide.md) | General AWS ECS deployment guide for developers |
+| [SSIM-Production-Deployment-v1.8.md](docs/SSIM-Production-Deployment-v1.8.md) | **For BSIM Team** - Production-specific deployment for v1.8.x |
+| [ssim-task-definition.json](ssim-task-definition.json) | ECS task definition template |
 
 ### Key Configuration for Production
 
