@@ -34,6 +34,11 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 - Moved internal deployment plans to `LOCAL_DEPLOYMENT_PLANS/` directory (excluded from repo via `.gitignore`)
 - Internal plans shared via filesystem for team integrations
 
+### Fixed
+- **API Test Environment Compatibility** - Fixed `api.test.ts` to use `config.openbankingBaseUrl` instead of hardcoded URL
+  - Test now works in both development and production environments
+  - All 75 tests passing
+
 ## [1.8.3] - 2025-12-06
 
 ### Fixed
