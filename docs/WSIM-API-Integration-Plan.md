@@ -175,6 +175,67 @@ Only if direct API calls prove problematic:
 
 ---
 
+## Error Codes Reference
+
+When calling WSIM Merchant API endpoints, handle these error responses:
+
+| HTTP Status | Error Code | Description | Recommended Action |
+|-------------|------------|-------------|-------------------|
+| 401 | `missing_api_key` | No `X-API-Key` header | Check environment config |
+| 401 | `invalid_api_key` | API key not found/invalid | Contact wallet provider |
+| 401 | `not_authenticated` | User not logged in | Show login prompt |
+| 400 | `no_cards` | User has no enrolled cards | Show enrollment link |
+| 400 | `card_not_found` | Selected card doesn't exist | Refresh card list |
+| 400 | `no_passkey` | User has no passkeys registered | Show passkey setup |
+| 400 | `passkey_verification_failed` | Passkey authentication failed | Allow retry |
+| 404 | `payment_not_found` | Payment session expired | Restart payment flow |
+| 500 | `payment_failed` | Payment processing error | Show error, allow retry |
+
+### Error Handling Example
+
+```javascript
+try {
+  const result = await confirmPayment(cardId, amount);
+} catch (error) {
+  if (error.code === 'not_authenticated') {
+    openWalletLoginPopup();
+  } else if (error.code === 'passkey_verification_failed') {
+    showMessage('Passkey verification failed. Please try again.');
+  } else if (error.code === 'payment_failed') {
+    showMessage('Payment could not be processed. Please try a different card.');
+  } else {
+    showMessage('An error occurred. Please try again.');
+  }
+}
+```
+
+---
+
+## Card Data Structure
+
+When fetching cards from the Merchant API, expect this structure:
+
+```typescript
+interface WalletCard {
+  id: string;           // Unique card identifier
+  cardType: string;     // "VISA", "MC", "AMEX", etc.
+  lastFour: string;     // Last 4 digits
+  cardholderName: string; // Or: holderName, name, ownerName (varies by provider)
+  expiryMonth?: number;
+  expiryYear?: number;
+  isDefault: boolean;
+  bankName?: string;
+}
+```
+
+**Note:** Field names may vary between wallet providers. Use fallbacks:
+
+```javascript
+const cardholderName = card.cardholderName || card.holderName || card.name || card.ownerName || '';
+```
+
+---
+
 ## Testing Plan
 
 1. **CORS Preflight**: Verify OPTIONS requests return correct headers
@@ -182,6 +243,13 @@ Only if direct API calls prove problematic:
 3. **Card Retrieval**: Verify cards are returned without re-authentication
 4. **Payment Flow**: Verify full payment with passkey works
 5. **Cross-Browser**: Test on Chrome, Firefox, Safari
+
+---
+
+## Related Documentation
+
+- [Wallet-Integration-Guide.md](Wallet-Integration-Guide.md) - Comprehensive wallet integration guide
+- [AWS-Deployment-Guide.md](AWS-Deployment-Guide.md) - Deployment instructions
 
 ---
 
