@@ -12,7 +12,15 @@
     "start": "node dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "e2e": "cd e2e && npm test",
+    "e2e:headed": "cd e2e && npm run test:headed",
+    "e2e:ui": "cd e2e && npm run test:ui",
+    "e2e:debug": "cd e2e && npm run test:debug",
+    "e2e:dev": "cd e2e && TEST_ENV=dev npm test",
+    "e2e:prod": "cd e2e && TEST_ENV=prod npm test",
+    "e2e:install": "cd e2e && npm install && npx playwright install chromium webkit",
+    "e2e:report": "cd e2e && npm run report"
   },
   "keywords": [
     "store",
