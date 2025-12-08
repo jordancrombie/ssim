@@ -107,6 +107,21 @@
             <div class="flex-grow border-t border-gray-200"></div>
           </div>
 
+          <!-- Quick Checkout (JWT) - shown only for returning users with stored token -->
+          <div id="quickCheckoutContainer" class="mb-4 hidden">
+            <button
+              id="quickCheckoutButton"
+              onclick="showJwtApiCheckout()"
+              class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-yellow-600 hover:to-orange-600 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3 shadow-lg"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              <span>Quick Checkout</span>
+              <span class="text-xs opacity-75">(Returning User)</span>
+            </button>
+          </div>
+
           <!-- Wallet payment options -->
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
             <!-- Pay with Wallet Popup (Quick checkout) -->
@@ -255,6 +270,73 @@
                 </svg>
                 <span>Confirm with Passkey</span>
               </button>
+            </div>
+          </div>
+
+          <!-- JWT Quick Checkout Card Picker UI -->
+          <div id="jwtCardPickerContainer" class="hidden mt-4">
+            <div class="border-2 border-yellow-300 rounded-xl p-6 bg-yellow-50">
+              <div class="flex justify-between items-center mb-4">
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-800">Quick Checkout</h3>
+                  <p class="text-xs text-yellow-600">JWT API (instant access)</p>
+                </div>
+                <button onclick="closeJwtCardPicker()" class="text-gray-400 hover:text-gray-600">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Loading state -->
+              <div id="jwtCardsLoading" class="text-center py-8">
+                <svg class="animate-spin h-8 w-8 text-yellow-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-600 mt-4">Loading your cards...</p>
+              </div>
+
+              <!-- Error state -->
+              <div id="jwtError" class="hidden text-center py-8">
+                <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <p id="jwtErrorMessage" class="text-red-600 mb-4">An error occurred</p>
+                <button
+                  onclick="closeJwtCardPicker()"
+                  class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Close
+                </button>
+              </div>
+
+              <!-- Cards list -->
+              <div id="jwtCardsList" class="hidden space-y-3">
+                <!-- Cards will be rendered here -->
+              </div>
+
+              <!-- Confirm button -->
+              <button
+                id="jwtConfirmPayment"
+                onclick="confirmJwtPayment()"
+                disabled
+                class="hidden w-full mt-4 bg-yellow-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-yellow-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <span>Confirm with Passkey</span>
+              </button>
+
+              <!-- Passkey prompt state -->
+              <div id="jwtPasskeyPrompt" class="hidden text-center py-8">
+                <svg class="animate-pulse w-16 h-16 text-yellow-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path>
+                </svg>
+                <p class="text-gray-700 font-medium mb-2">Confirm with your passkey</p>
+                <p class="text-gray-500 text-sm">Use your fingerprint or face to authorize payment</p>
+              </div>
             </div>
           </div>
 
@@ -552,6 +634,15 @@
         walletPopup.close();
       }
 
+      // Store WSIM session token for future JWT API calls (Quick Checkout)
+      if (data.sessionToken) {
+        localStorage.setItem('wsim_session_token', data.sessionToken);
+        localStorage.setItem('wsim_session_expires',
+          String(Date.now() + (data.sessionTokenExpiresIn || 2592000) * 1000));
+        console.log('[Checkout] Stored WSIM session token for Quick Checkout');
+        updateQuickCheckoutVisibility();
+      }
+
       const button = document.getElementById('payWalletPopupButton');
       button.innerHTML = `
         <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -739,6 +830,15 @@
     }
 
     async function handleEmbedSuccess(data) {
+      // Store WSIM session token for future JWT API calls (Quick Checkout)
+      if (data.sessionToken) {
+        localStorage.setItem('wsim_session_token', data.sessionToken);
+        localStorage.setItem('wsim_session_expires',
+          String(Date.now() + (data.sessionTokenExpiresIn || 2592000) * 1000));
+        console.log('[Checkout] Stored WSIM session token for Quick Checkout (embed)');
+        updateQuickCheckoutVisibility();
+      }
+
       // Show loading in place of iframe
       const container = document.getElementById('walletEmbedContainer');
       container.innerHTML = `
@@ -1147,6 +1247,16 @@
           if (walletLoginPopup && !walletLoginPopup.closed) {
             walletLoginPopup.close();
           }
+
+          // Store WSIM session token for future JWT API calls (Quick Checkout)
+          if (messageData.sessionToken) {
+            localStorage.setItem('wsim_session_token', messageData.sessionToken);
+            localStorage.setItem('wsim_session_expires',
+              String(Date.now() + (messageData.sessionTokenExpiresIn || 2592000) * 1000));
+            console.log('[Checkout] Stored WSIM session token for Quick Checkout (API popup)');
+            updateQuickCheckoutVisibility();
+          }
+
           // The popup already did the full flow - process the tokens
           // WSIM popup sends: cardToken, cardLast4, cardBrand directly in messageData
           if (messageData.cardToken) {
@@ -1492,6 +1602,16 @@
           if (loginPopup && !loginPopup.closed) {
             loginPopup.close();
           }
+
+          // Store WSIM session token for future JWT API calls (Quick Checkout)
+          if (messageData.sessionToken) {
+            localStorage.setItem('wsim_session_token', messageData.sessionToken);
+            localStorage.setItem('wsim_session_expires',
+              String(Date.now() + (messageData.sessionTokenExpiresIn || 2592000) * 1000));
+            console.log('[Checkout] Stored WSIM session token for Quick Checkout (API Proxy popup)');
+            updateQuickCheckoutVisibility();
+          }
+
           // Check if we have tokens from the popup
           if (messageData.cardToken) {
             console.log('[Checkout] API Proxy got cardToken from popup, completing payment');
@@ -1526,12 +1646,355 @@
     }
 
     // ==============================================================
+    // WSIM API Configuration (shared by JWT and API Direct flows)
+    // ==============================================================
+    const wsimApiUrl = '<%= wsimApiUrl || "https://wsim-dev.banksim.ca/api/merchant" %>';
+    const wsimApiKey = '<%= wsimApiKey || "" %>';
+
+    // ==============================================================
+    // JWT Quick Checkout Integration (fast path for returning users)
+    // ==============================================================
+    let selectedJwtCardId = null;
+    let jwtPaymentId = null;
+    let jwtPaymentOptions = null;
+
+    // Check if user has a valid stored JWT token
+    function hasValidJwtToken() {
+      const token = localStorage.getItem('wsim_session_token');
+      const expiresAt = localStorage.getItem('wsim_session_expires');
+      return token && expiresAt && Date.now() < parseInt(expiresAt);
+    }
+
+    // Update Quick Checkout button visibility based on token status
+    function updateQuickCheckoutVisibility() {
+      const container = document.getElementById('quickCheckoutContainer');
+      if (container) {
+        container.classList.toggle('hidden', !hasValidJwtToken());
+      }
+    }
+
+    // Clear stored token (on 401 or logout)
+    function clearStoredToken() {
+      localStorage.removeItem('wsim_session_token');
+      localStorage.removeItem('wsim_session_expires');
+      updateQuickCheckoutVisibility();
+    }
+
+    // Helper function for WebAuthn - convert buffer to base64url
+    function bufferToBase64url(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let str = '';
+      for (const byte of bytes) {
+        str += String.fromCharCode(byte);
+      }
+      return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    // Show JWT Quick Checkout card picker
+    async function showJwtApiCheckout() {
+      const sessionToken = localStorage.getItem('wsim_session_token');
+      const expiresAt = localStorage.getItem('wsim_session_expires');
+
+      // Check if token exists and is not expired
+      if (!sessionToken || Date.now() > parseInt(expiresAt)) {
+        console.log('[Checkout] No valid JWT token, falling back to popup...');
+        clearStoredToken();
+        return openWalletPopup(); // Fall back to popup flow
+      }
+
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+
+      const container = document.getElementById('jwtCardPickerContainer');
+      const loading = document.getElementById('jwtCardsLoading');
+      const errorDiv = document.getElementById('jwtError');
+      const cardsList = document.getElementById('jwtCardsList');
+      const confirmBtn = document.getElementById('jwtConfirmPayment');
+      const passkeyPrompt = document.getElementById('jwtPasskeyPrompt');
+
+      // Show container and loading state
+      container.classList.remove('hidden');
+      loading.classList.remove('hidden');
+      errorDiv.classList.add('hidden');
+      cardsList.classList.add('hidden');
+      confirmBtn.classList.add('hidden');
+      passkeyPrompt.classList.add('hidden');
+
+      // Scroll to show the picker
+      setTimeout(() => {
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+
+      try {
+        // Check if user is authenticated using JWT
+        const authResponse = await fetch(`${wsimApiUrl}/user`, {
+          method: 'GET',
+          headers: {
+            'X-API-Key': wsimApiKey,
+            'Authorization': `Bearer ${sessionToken}`,
+          },
+        });
+
+        if (authResponse.status === 401) {
+          console.log('[Checkout] JWT token expired or invalid, falling back to popup');
+          clearStoredToken();
+          closeJwtCardPicker();
+          return openWalletPopup();
+        }
+
+        const authData = await authResponse.json();
+
+        if (!authData.authenticated) {
+          console.log('[Checkout] JWT user not authenticated, falling back to popup');
+          clearStoredToken();
+          closeJwtCardPicker();
+          return openWalletPopup();
+        }
+
+        // Fetch user's cards using JWT
+        const cardsResponse = await fetch(`${wsimApiUrl}/cards`, {
+          method: 'GET',
+          headers: {
+            'X-API-Key': wsimApiKey,
+            'Authorization': `Bearer ${sessionToken}`,
+          },
+        });
+
+        if (!cardsResponse.ok) {
+          const error = await cardsResponse.json();
+          throw new Error(error.message || error.error || 'Failed to fetch cards');
+        }
+
+        const cardsData = await cardsResponse.json();
+        console.log('[Checkout] JWT Quick Checkout - Cards loaded:', cardsData.cards?.length);
+        const cards = cardsData.cards || [];
+
+        loading.classList.add('hidden');
+
+        if (cards.length === 0) {
+          cardsList.innerHTML = `
+            <div class="text-center py-4 text-gray-500">
+              No cards enrolled in your wallet.
+            </div>
+          `;
+          cardsList.classList.remove('hidden');
+          return;
+        }
+
+        // Render cards
+        cardsList.innerHTML = cards.map(card => {
+          const cardholderName = card.cardholderName || card.holderName || card.name || card.ownerName || '';
+          return `
+          <div
+            class="card-option-jwt p-4 border-2 rounded-lg cursor-pointer transition ${card.isDefault ? 'border-yellow-500 bg-yellow-100' : 'border-gray-200 hover:border-yellow-300'}"
+            onclick="selectJwtCard('${card.id}')"
+            data-card-id="${card.id}"
+          >
+            <div class="flex items-center">
+              <div class="w-12 h-8 bg-gradient-to-r ${card.cardType === 'VISA' ? 'from-blue-600 to-blue-800' : 'from-orange-500 to-red-600'} rounded flex items-center justify-center mr-3">
+                <span class="text-white text-xs font-bold">${card.cardType}</span>
+              </div>
+              <div class="flex-1">
+                <div class="font-medium text-gray-800">${card.cardType} •••• ${card.lastFour}</div>
+                <div class="text-sm text-gray-500">${cardholderName}</div>
+              </div>
+              ${card.isDefault ? '<span class="text-yellow-600 text-sm font-medium">Default</span>' : ''}
+            </div>
+          </div>
+        `}).join('');
+
+        cardsList.classList.remove('hidden');
+        confirmBtn.classList.remove('hidden');
+
+        // Auto-select default card
+        const defaultCard = cards.find(c => c.isDefault);
+        if (defaultCard) {
+          selectJwtCard(defaultCard.id);
+        }
+
+      } catch (error) {
+        console.error('[Checkout] JWT Quick Checkout error:', error);
+        loading.classList.add('hidden');
+
+        // Check if it's a network/CORS error
+        if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+          // Fall back to popup flow
+          closeJwtCardPicker();
+          return openWalletPopup();
+        }
+
+        // Show error
+        document.getElementById('jwtErrorMessage').textContent = error.message || 'Failed to load cards';
+        errorDiv.classList.remove('hidden');
+      }
+    }
+
+    function selectJwtCard(cardId) {
+      selectedJwtCardId = cardId;
+
+      // Update UI
+      document.querySelectorAll('#jwtCardsList .card-option-jwt').forEach(el => {
+        if (el.dataset.cardId === cardId) {
+          el.classList.remove('border-gray-200', 'hover:border-yellow-300');
+          el.classList.add('border-yellow-500', 'bg-yellow-100');
+        } else {
+          el.classList.remove('border-yellow-500', 'bg-yellow-100');
+          el.classList.add('border-gray-200', 'hover:border-yellow-300');
+        }
+      });
+
+      document.getElementById('jwtConfirmPayment').disabled = false;
+    }
+
+    function closeJwtCardPicker() {
+      document.getElementById('jwtCardPickerContainer').classList.add('hidden');
+      selectedJwtCardId = null;
+      jwtPaymentId = null;
+      jwtPaymentOptions = null;
+    }
+
+    async function confirmJwtPayment() {
+      if (!selectedJwtCardId) {
+        alert('Please select a card');
+        return;
+      }
+
+      const sessionToken = localStorage.getItem('wsim_session_token');
+      if (!sessionToken) {
+        closeJwtCardPicker();
+        return openWalletPopup();
+      }
+
+      const button = document.getElementById('jwtConfirmPayment');
+      const cardsList = document.getElementById('jwtCardsList');
+      const passkeyPrompt = document.getElementById('jwtPasskeyPrompt');
+
+      button.disabled = true;
+      button.innerHTML = `
+        <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Initiating payment...
+      `;
+
+      try {
+        // Step 1: Initiate payment with WSIM using JWT
+        const initiateResponse = await fetch(`${wsimApiUrl}/payment/initiate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': wsimApiKey,
+            'Authorization': `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({
+            cardId: selectedJwtCardId,
+            amount: (cartData.total / 100).toFixed(2),
+            currency: 'CAD',
+            merchantName: 'SSIM Store',
+          }),
+        });
+
+        if (initiateResponse.status === 401) {
+          clearStoredToken();
+          closeJwtCardPicker();
+          return openWalletPopup();
+        }
+
+        if (!initiateResponse.ok) {
+          const error = await initiateResponse.json();
+          throw new Error(error.message || error.error || 'Failed to initiate payment');
+        }
+
+        const initiateData = await initiateResponse.json();
+        jwtPaymentId = initiateData.paymentId;
+        jwtPaymentOptions = initiateData.passkeyOptions;
+
+        // Step 2: Show passkey prompt and request WebAuthn authentication
+        cardsList.classList.add('hidden');
+        button.classList.add('hidden');
+        passkeyPrompt.classList.remove('hidden');
+
+        console.log('[Checkout] JWT - Requesting passkey authentication...');
+
+        // WebAuthn authentication
+        const credential = await navigator.credentials.get({
+          publicKey: jwtPaymentOptions,
+        });
+
+        console.log('[Checkout] JWT - Passkey authentication successful');
+
+        // Step 3: Confirm payment with passkey response
+        passkeyPrompt.querySelector('p.text-gray-700').textContent = 'Confirming payment...';
+
+        const confirmResponse = await fetch(`${wsimApiUrl}/payment/confirm`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': wsimApiKey,
+          },
+          body: JSON.stringify({
+            paymentId: jwtPaymentId,
+            passkeyResponse: {
+              id: credential.id,
+              rawId: bufferToBase64url(credential.rawId),
+              response: {
+                authenticatorData: bufferToBase64url(credential.response.authenticatorData),
+                clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                signature: bufferToBase64url(credential.response.signature),
+              },
+              type: credential.type,
+            },
+          }),
+        });
+
+        if (!confirmResponse.ok) {
+          const error = await confirmResponse.json();
+          throw new Error(error.message || error.error || 'Payment confirmation failed');
+        }
+
+        const confirmData = await confirmResponse.json();
+        console.log('[Checkout] JWT - Payment confirmed:', confirmData);
+
+        // Step 4: Complete payment with our backend
+        closeJwtCardPicker();
+        await completeApiPaymentWithTokens({
+          cardToken: confirmData.cardToken,
+          cardLast4: confirmData.cardLast4 || confirmData.card?.lastFour,
+          cardBrand: confirmData.cardBrand || confirmData.card?.cardType,
+        });
+
+      } catch (error) {
+        console.error('[Checkout] JWT payment error:', error);
+
+        if (error.name === 'NotAllowedError') {
+          // User cancelled passkey prompt
+          closeJwtCardPicker();
+          return;
+        }
+
+        // Show error
+        const errorDiv = document.getElementById('jwtError');
+        const passkeyPrompt = document.getElementById('jwtPasskeyPrompt');
+        passkeyPrompt.classList.add('hidden');
+        document.getElementById('jwtErrorMessage').textContent = error.message || 'Payment failed';
+        errorDiv.classList.remove('hidden');
+      }
+    }
+
+    // Initialize: check for stored token on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      updateQuickCheckoutVisibility();
+    });
+
+    // ==============================================================
     // WSIM API Direct Integration (browser calls WSIM directly)
     // ==============================================================
     let selectedApiDirectCardId = null;
     let apiDirectPaymentId = null;
-    const wsimApiUrl = '<%= wsimApiUrl || "https://wsim-dev.banksim.ca/api/merchant" %>';
-    const wsimApiKey = '<%= wsimApiKey || "" %>';
+    // wsimApiUrl and wsimApiKey are defined in the JWT section above
 
     async function showApiDirectCardPicker() {
       if (!cartData || !cartData.items || cartData.items.length === 0) {
