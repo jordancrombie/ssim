@@ -5,9 +5,13 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY prisma ./prisma/
 
 # Install all dependencies (including dev)
 RUN npm ci
+
+# Generate Prisma client
+RUN npx prisma generate
 
 # Copy source code
 COPY . .
@@ -24,11 +28,15 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 ssim
 
-# Copy package files
+# Copy package files and prisma schema
 COPY package*.json ./
+COPY prisma ./prisma/
 
 # Install production dependencies only
 RUN npm ci --only=production && npm cache clean --force
+
+# Generate Prisma client for production (needs schema)
+RUN npx prisma generate
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
