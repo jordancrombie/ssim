@@ -162,4 +162,13 @@ router.get('/orders/:orderId', (req: Request, res: Response) => {
   });
 });
 
+// WSIM API Diagnostic page - for debugging CORS/session issues
+router.get('/wsim-diagnostic', (req: Request, res: Response) => {
+  res.render('wsim-diagnostic', {
+    wsimEnabled: config.wsimEnabled,
+    wsimApiUrl: config.wsimApiUrl,
+    wsimApiKey: config.wsimApiKey,
+  });
+});
+
 export default router;
