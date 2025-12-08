@@ -1,11 +1,23 @@
 import { Router, Request, Response } from 'express';
 import { getAllProviders } from '../config/oidc';
 import { config } from '../config/env';
-import { getAllProducts, formatPrice } from '../data/products';
-import { getOrderById, getOrdersByUserId } from '../data/orders';
+import { getOrCreateStore } from '../services/store';
+import * as productService from '../services/product';
+import * as orderService from '../services/order';
+import type { Store } from '@prisma/client';
 import '../types/session';
 
 const router = Router();
+
+// Store reference (cached for request lifecycle)
+let currentStore: Store | null = null;
+
+async function ensureStore(): Promise<Store> {
+  if (!currentStore) {
+    currentStore = await getOrCreateStore();
+  }
+  return currentStore;
+}
 
 // Helper to get cart count
 function getCartCount(req: Request): number {
@@ -60,16 +72,22 @@ router.get('/kenok', (req: Request, res: Response) => {
 });
 
 // Store page
-router.get('/store', (req: Request, res: Response) => {
-  const products = getAllProducts();
-  const isAuthenticated = !!req.session.userInfo;
-  res.render('store', {
-    products,
-    formatPrice,
-    isAuthenticated,
-    userInfo: req.session.userInfo,
-    cartCount: getCartCount(req),
-  });
+router.get('/store', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const products = await productService.getAllProducts(store.id);
+    const isAuthenticated = !!req.session.userInfo;
+    res.render('store', {
+      products,
+      formatPrice: productService.formatPrice,
+      isAuthenticated,
+      userInfo: req.session.userInfo,
+      cartCount: getCartCount(req),
+    });
+  } catch (error) {
+    console.error('[Pages] Store error:', error);
+    res.status(500).render('error', { message: 'Failed to load store' });
+  }
 });
 
 // Checkout page
@@ -87,79 +105,103 @@ router.get('/checkout', (req: Request, res: Response) => {
 });
 
 // Order confirmation page
-router.get('/order-confirmation/:orderId', (req: Request, res: Response) => {
-  const { orderId } = req.params;
-  const order = getOrderById(orderId);
+router.get('/order-confirmation/:orderId', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const { orderId } = req.params;
+    const order = await orderService.getOrderById(store.id, orderId);
 
-  if (!order) {
-    return res.status(404).render('error', { message: 'Order not found' });
-  }
-
-  const isAuthenticated = !!req.session.userInfo;
-
-  // Allow viewing if:
-  // 1. User is authenticated and owns the order, OR
-  // 2. Order was a guest wallet payment (userId === 'guest')
-  const isGuestOrder = order.userId === 'guest';
-  const isOwner = req.session.userInfo?.sub === order.userId;
-
-  if (!isGuestOrder && !isOwner) {
-    // Not a guest order and user doesn't own it - require login
-    if (!req.session.userInfo) {
-      return res.redirect('/login');
+    if (!order) {
+      return res.status(404).render('error', { message: 'Order not found' });
     }
-    return res.status(403).render('error', { message: 'Not authorized' });
-  }
 
-  res.render('order-confirmation', {
-    order,
-    formatPrice,
-    isAuthenticated,
-    cartCount: getCartCount(req),
-  });
+    const isAuthenticated = !!req.session.userInfo;
+
+    // Allow viewing if:
+    // 1. User is authenticated and owns the order, OR
+    // 2. Order was a guest wallet payment (bsimUserId === 'guest')
+    const isGuestOrder = order.bsimUserId === 'guest';
+    const isOwner = req.session.userInfo?.sub === order.bsimUserId;
+
+    if (!isGuestOrder && !isOwner) {
+      // Not a guest order and user doesn't own it - require login
+      if (!req.session.userInfo) {
+        return res.redirect('/login');
+      }
+      return res.status(403).render('error', { message: 'Not authorized' });
+    }
+
+    res.render('order-confirmation', {
+      order,
+      formatPrice: productService.formatPrice,
+      getOrderItems: orderService.getOrderItems,
+      getOrderPaymentDetails: orderService.getOrderPaymentDetails,
+      isAuthenticated,
+      cartCount: getCartCount(req),
+    });
+  } catch (error) {
+    console.error('[Pages] Order confirmation error:', error);
+    res.status(500).render('error', { message: 'Failed to load order' });
+  }
 });
 
 // Order history page
-router.get('/orders', (req: Request, res: Response) => {
+router.get('/orders', async (req: Request, res: Response) => {
   if (!req.session.userInfo) {
     return res.redirect('/login');
   }
 
-  const userId = req.session.userInfo.sub as string;
-  const orders = getOrdersByUserId(userId);
+  try {
+    const store = await ensureStore();
+    const bsimUserId = req.session.userInfo.sub as string;
+    const orders = await orderService.getOrdersByUserId(store.id, bsimUserId);
 
-  res.render('orders', {
-    orders,
-    formatPrice,
-    isAuthenticated: true,
-    cartCount: getCartCount(req),
-  });
+    res.render('orders', {
+      orders,
+      formatPrice: productService.formatPrice,
+      getOrderItems: orderService.getOrderItems,
+      getOrderPaymentDetails: orderService.getOrderPaymentDetails,
+      isAuthenticated: true,
+      cartCount: getCartCount(req),
+    });
+  } catch (error) {
+    console.error('[Pages] Orders error:', error);
+    res.status(500).render('error', { message: 'Failed to load orders' });
+  }
 });
 
 // Order detail page
-router.get('/orders/:orderId', (req: Request, res: Response) => {
+router.get('/orders/:orderId', async (req: Request, res: Response) => {
   if (!req.session.userInfo) {
     return res.redirect('/login');
   }
 
-  const { orderId } = req.params;
-  const order = getOrderById(orderId);
+  try {
+    const store = await ensureStore();
+    const { orderId } = req.params;
+    const order = await orderService.getOrderById(store.id, orderId);
 
-  if (!order) {
-    return res.status(404).render('error', { message: 'Order not found' });
+    if (!order) {
+      return res.status(404).render('error', { message: 'Order not found' });
+    }
+
+    // Verify the order belongs to this user
+    if (order.bsimUserId !== req.session.userInfo.sub) {
+      return res.status(403).render('error', { message: 'Not authorized' });
+    }
+
+    res.render('order-detail', {
+      order,
+      formatPrice: productService.formatPrice,
+      getOrderItems: orderService.getOrderItems,
+      getOrderPaymentDetails: orderService.getOrderPaymentDetails,
+      isAuthenticated: true,
+      cartCount: getCartCount(req),
+    });
+  } catch (error) {
+    console.error('[Pages] Order detail error:', error);
+    res.status(500).render('error', { message: 'Failed to load order' });
   }
-
-  // Verify the order belongs to this user
-  if (order.userId !== req.session.userInfo.sub) {
-    return res.status(403).render('error', { message: 'Not authorized' });
-  }
-
-  res.render('order-detail', {
-    order,
-    formatPrice,
-    isAuthenticated: true,
-    cartCount: getCartCount(req),
-  });
 });
 
 // WSIM API Diagnostic page - for debugging CORS/session issues

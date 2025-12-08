@@ -1,0 +1,165 @@
+// Prisma schema for SSIM Store Simulator
+// Multi-tenant design: multiple SSIM instances can share this database
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Multi-Tenant Store Configuration
+// ============================================
+
+// Each SSIM deployment is a "Store" identified by its domain
+model Store {
+  id        String   @id @default(uuid())
+  domain    String   @unique // e.g., "ssim.banksim.ca", "acme-store.banksim.ca"
+  name      String            // Display name, e.g., "SSIM Store", "ACME Electronics"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users    StoreUser[]
+  products Product[]
+  orders   Order[]
+  admins   StoreAdmin[]
+
+  @@map("stores")
+}
+
+// ============================================
+// Store Users (per-store user records)
+// ============================================
+
+// A user's record at a specific store
+// Same BSIM user can have different records at different stores
+model StoreUser {
+  id        String   @id @default(uuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  // BSIM Identity (from OIDC)
+  bsimUserId String  // BSIM user 'sub' claim from OIDC
+  email      String
+  name       String?
+
+  // WSIM Wallet Integration
+  wsimJwt       String?   // Stored WSIM session token for Quick Checkout
+  wsimJwtExp    DateTime? // Token expiry
+
+  // OIDC Consent Tracking
+  // Scopes the user has already approved for this store
+  // Used to skip consent screen on subsequent logins
+  consentedScopes String[] @default([])
+
+  // Timestamps
+  firstLoginAt DateTime  @default(now())
+  lastLoginAt  DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  orders Order[]
+
+  @@unique([storeId, bsimUserId]) // One record per user per store
+  @@index([bsimUserId])
+  @@index([storeId])
+  @@map("store_users")
+}
+
+// ============================================
+// Products (per-store product catalog)
+// ============================================
+
+model Product {
+  id          String   @id @default(uuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String
+  price       Int      // Price in cents
+  currency    String   @default("CAD")
+  image       String?  // Optional image URL
+  category    String
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId])
+  @@index([storeId, isActive])
+  @@index([storeId, category])
+  @@map("products")
+}
+
+// ============================================
+// Orders (per-store order history)
+// ============================================
+
+model Order {
+  id          String   @id @default(uuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  // Link to store user (optional - guest checkout possible)
+  storeUserId String?
+  storeUser   StoreUser? @relation(fields: [storeUserId], references: [id], onDelete: SetNull)
+
+  // BSIM user ID (always stored, even if storeUser deleted)
+  bsimUserId  String
+
+  // Order details
+  items       Json     // Array of OrderItem: [{productId, productName, quantity, unitPrice, subtotal}]
+  subtotal    Int      // Total in cents
+  currency    String   @default("CAD")
+
+  // Order status
+  status      String   @default("pending") // pending, authorized, captured, voided, refunded, declined, expired, failed
+
+  // Payment details (stored as JSON for flexibility)
+  paymentDetails Json? // {transactionId, authorizationCode, cardToken, walletCardToken, paymentMethod, capturedAmount, refundedAmount}
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId])
+  @@index([storeId, status])
+  @@index([storeId, bsimUserId])
+  @@index([storeUserId])
+  @@map("orders")
+}
+
+// ============================================
+// Store Admins (per-store admin roles)
+// ============================================
+
+// Admin role assignments for a store
+// Allows runtime management of who has admin access
+model StoreAdmin {
+  id        String   @id @default(uuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  // Admin identity (email from OIDC)
+  email     String
+
+  // Role-based access
+  role      String   @default("admin") // admin, product_editor, order_manager, viewer
+
+  isActive  Boolean  @default(true)
+
+  // Audit trail
+  createdBy String?  // Email of admin who added this admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, email]) // One role per email per store
+  @@index([storeId])
+  @@index([email])
+  @@map("store_admins")
+}

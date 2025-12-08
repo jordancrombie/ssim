@@ -636,11 +636,13 @@
 
       // Store WSIM session token for future JWT API calls (Quick Checkout)
       if (data.sessionToken) {
+        const expiresIn = data.sessionTokenExpiresIn || 2592000;
         localStorage.setItem('wsim_session_token', data.sessionToken);
-        localStorage.setItem('wsim_session_expires',
-          String(Date.now() + (data.sessionTokenExpiresIn || 2592000) * 1000));
+        localStorage.setItem('wsim_session_expires', String(Date.now() + expiresIn * 1000));
         console.log('[Checkout] Stored WSIM session token for Quick Checkout');
         updateQuickCheckoutVisibility();
+        // Also persist to server for cross-session use
+        persistTokenToServer(data.sessionToken, expiresIn);
       }
 
       const button = document.getElementById('payWalletPopupButton');
@@ -832,11 +834,13 @@
     async function handleEmbedSuccess(data) {
       // Store WSIM session token for future JWT API calls (Quick Checkout)
       if (data.sessionToken) {
+        const expiresIn = data.sessionTokenExpiresIn || 2592000;
         localStorage.setItem('wsim_session_token', data.sessionToken);
-        localStorage.setItem('wsim_session_expires',
-          String(Date.now() + (data.sessionTokenExpiresIn || 2592000) * 1000));
+        localStorage.setItem('wsim_session_expires', String(Date.now() + expiresIn * 1000));
         console.log('[Checkout] Stored WSIM session token for Quick Checkout (embed)');
         updateQuickCheckoutVisibility();
+        // Also persist to server for cross-session use
+        persistTokenToServer(data.sessionToken, expiresIn);
       }
 
       // Show loading in place of iframe
@@ -1114,7 +1118,7 @@
         // Use the simplewebauthn browser library
         const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.es5.min.js');
 
-        const passkeyResponse = await startAuthentication(apiPasskeyOptions);
+        const passkeyResponse = await startAuthentication({ optionsJSON: apiPasskeyOptions });
 
         button.innerHTML = `
           <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1250,11 +1254,13 @@
 
           // Store WSIM session token for future JWT API calls (Quick Checkout)
           if (messageData.sessionToken) {
+            const expiresIn = messageData.sessionTokenExpiresIn || 2592000;
             localStorage.setItem('wsim_session_token', messageData.sessionToken);
-            localStorage.setItem('wsim_session_expires',
-              String(Date.now() + (messageData.sessionTokenExpiresIn || 2592000) * 1000));
+            localStorage.setItem('wsim_session_expires', String(Date.now() + expiresIn * 1000));
             console.log('[Checkout] Stored WSIM session token for Quick Checkout (API popup)');
             updateQuickCheckoutVisibility();
+            // Also persist to server for cross-session use
+            persistTokenToServer(messageData.sessionToken, expiresIn);
           }
 
           // The popup already did the full flow - process the tokens
@@ -1479,7 +1485,7 @@
         // Step 2: Trigger browser passkey authentication
         const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.es5.min.js');
 
-        const passkeyResponse = await startAuthentication(apiProxyPasskeyOptions);
+        const passkeyResponse = await startAuthentication({ optionsJSON: apiProxyPasskeyOptions });
 
         button.innerHTML = `
           <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1605,11 +1611,13 @@
 
           // Store WSIM session token for future JWT API calls (Quick Checkout)
           if (messageData.sessionToken) {
+            const expiresIn = messageData.sessionTokenExpiresIn || 2592000;
             localStorage.setItem('wsim_session_token', messageData.sessionToken);
-            localStorage.setItem('wsim_session_expires',
-              String(Date.now() + (messageData.sessionTokenExpiresIn || 2592000) * 1000));
+            localStorage.setItem('wsim_session_expires', String(Date.now() + expiresIn * 1000));
             console.log('[Checkout] Stored WSIM session token for Quick Checkout (API Proxy popup)');
             updateQuickCheckoutVisibility();
+            // Also persist to server for cross-session use
+            persistTokenToServer(messageData.sessionToken, expiresIn);
           }
 
           // Check if we have tokens from the popup
@@ -1678,6 +1686,24 @@
       localStorage.removeItem('wsim_session_token');
       localStorage.removeItem('wsim_session_expires');
       updateQuickCheckoutVisibility();
+      // Also clear from server
+      fetch('/api/user/wsim-token', { method: 'DELETE' }).catch(() => {});
+    }
+
+    // Persist token to server for cross-session persistence
+    async function persistTokenToServer(token, expiresInSeconds) {
+      try {
+        const response = await fetch('/api/user/wsim-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, expiresIn: expiresInSeconds }),
+        });
+        if (response.ok) {
+          console.log('[Checkout] WSIM token persisted to server');
+        }
+      } catch (err) {
+        console.warn('[Checkout] Failed to persist token to server:', err);
+      }
     }
 
     // Helper function for WebAuthn - convert buffer to base64url
@@ -1984,9 +2010,35 @@
       }
     }
 
+    // Restore token from server if not in localStorage
+    async function restoreTokenFromServer() {
+      if (hasValidJwtToken()) {
+        return; // Already have a valid local token
+      }
+      try {
+        const response = await fetch('/api/user/wsim-token');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.token && data.expiresAt) {
+            const expiresAtMs = new Date(data.expiresAt).getTime();
+            if (expiresAtMs > Date.now()) {
+              localStorage.setItem('wsim_session_token', data.token);
+              localStorage.setItem('wsim_session_expires', String(expiresAtMs));
+              console.log('[Checkout] Restored WSIM token from server');
+              updateQuickCheckoutVisibility();
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Checkout] Could not restore token from server:', err);
+      }
+    }
+
     // Initialize: check for stored token on page load
     document.addEventListener('DOMContentLoaded', function() {
       updateQuickCheckoutVisibility();
+      // Try to restore from server if no local token
+      restoreTokenFromServer();
     });
 
     // ==============================================================
@@ -2198,7 +2250,7 @@
 
         // Step 2: Trigger browser passkey authentication
         const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.es5.min.js');
-        const passkeyResponse = await startAuthentication(initiateData.passkeyOptions);
+        const passkeyResponse = await startAuthentication({ optionsJSON: initiateData.passkeyOptions });
 
         button.innerHTML = `
           <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

@@ -1,68 +1,97 @@
 import { Router, Request, Response } from 'express';
-import { getProductById, formatPrice } from '../data/products';
+import { getOrCreateStore } from '../services/store';
+import * as productService from '../services/product';
+import type { Store } from '@prisma/client';
 import '../types/session';
 
 const router = Router();
 
+// Store reference (cached for request lifecycle)
+let currentStore: Store | null = null;
+
+async function ensureStore(): Promise<Store> {
+  if (!currentStore) {
+    currentStore = await getOrCreateStore();
+  }
+  return currentStore;
+}
+
 // Get cart contents
-router.get('/', (req: Request, res: Response) => {
-  const cart = req.session.cart || [];
-  const items = cart.map(item => {
-    const product = getProductById(item.productId);
-    return {
-      ...item,
-      product,
-      subtotal: product ? product.price * item.quantity : 0,
-    };
-  }).filter(item => item.product);
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const cart = req.session.cart || [];
 
-  const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+    // Fetch products for all cart items
+    const itemsWithProducts = await Promise.all(
+      cart.map(async (item) => {
+        const product = await productService.getProductById(store.id, item.productId);
+        return {
+          ...item,
+          product,
+          subtotal: product ? product.price * item.quantity : 0,
+        };
+      })
+    );
 
-  res.json({
-    items,
-    itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-    total,
-    formattedTotal: formatPrice(total),
-  });
+    const items = itemsWithProducts.filter(item => item.product);
+    const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+
+    res.json({
+      items,
+      itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
+      total,
+      formattedTotal: productService.formatPrice(total),
+    });
+  } catch (error) {
+    console.error('[Cart] Get error:', error);
+    res.status(500).json({ error: 'Failed to get cart' });
+  }
 });
 
 // Add item to cart
-router.post('/add', (req: Request, res: Response) => {
+router.post('/add', async (req: Request, res: Response) => {
   const { productId, quantity = 1 } = req.body;
 
   if (!productId) {
     return res.status(400).json({ error: 'Product ID is required' });
   }
 
-  const product = getProductById(productId);
-  if (!product) {
-    return res.status(404).json({ error: 'Product not found' });
-  }
-
-  const cart = req.session.cart || [];
-  const existingItem = cart.find(item => item.productId === productId);
-
-  if (existingItem) {
-    existingItem.quantity += quantity;
-  } else {
-    cart.push({ productId, quantity });
-  }
-
-  req.session.cart = cart;
-
-  req.session.save((err) => {
-    if (err) {
-      console.error('Session save error:', err);
-      return res.status(500).json({ error: 'Failed to save cart' });
+  try {
+    const store = await ensureStore();
+    const product = await productService.getProductById(store.id, productId);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
     }
 
-    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-    res.json({
-      success: true,
-      message: `${product.name} added to cart`,
-      itemCount,
+    const cart = req.session.cart || [];
+    const existingItem = cart.find(item => item.productId === productId);
+
+    if (existingItem) {
+      existingItem.quantity += quantity;
+    } else {
+      cart.push({ productId, quantity });
+    }
+
+    req.session.cart = cart;
+
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).json({ error: 'Failed to save cart' });
+      }
+
+      const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+      res.json({
+        success: true,
+        message: `${product.name} added to cart`,
+        itemCount,
+      });
     });
-  });
+  } catch (error) {
+    console.error('[Cart] Add error:', error);
+    res.status(500).json({ error: 'Failed to add to cart' });
+  }
 });
 
 // Update item quantity
