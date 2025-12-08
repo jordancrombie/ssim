@@ -2,6 +2,27 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.8.5] - 2025-12-07
+
+### Fixed
+- **E2E Test Suite** - Fixed all checkout payment flow E2E tests
+  - Bank payment (Pay with BSIM) - OIDC flow session handling fixed
+  - Wallet API payment - CDP virtual authenticator credential copying for popups
+  - Wallet OIDC Popup - Passkey credential sharing between main page and popup
+  - Wallet OIDC Inline - Iframe passkey authentication with emoji button text handling
+  - Wallet OIDC Redirect - Email entry flow and smart passkey detection
+
+### E2E Test Improvements
+- **WebAuthn helpers** - Added `addCredential()` and `copyCredentials()` functions for sharing passkey credentials between CDP authenticator instances (required for popup windows)
+- **Consolidated test structure** - Combined setup and checkout into single tests because CDP virtual authenticators are page-scoped (credentials don't persist between tests)
+- **Skipped CORS-blocked tests** - API Direct, API Proxy, and Combined Flow tests properly skipped with clear reason (WSIM CORS configuration required)
+
+### Technical Details
+- CDP (Chrome DevTools Protocol) virtual authenticators are bound to their page context
+- Popup windows and iframes need their own authenticator with credentials copied from the main page
+- WSIM redirect flow uses email-first authentication (different from popup/inline flows)
+- Some WSIM confirm buttons don't require passkey (simple submit), handled with smart detection
+
 ## [1.8.4] - 2025-12-07
 
 ### Documentation
