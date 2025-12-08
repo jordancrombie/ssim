@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WSIM API Diagnostic - SSIM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .log-entry { font-family: monospace; font-size: 12px; }
+    .log-info { color: #3b82f6; }
+    .log-success { color: #22c55e; }
+    .log-error { color: #ef4444; }
+    .log-warn { color: #f59e0b; }
+    .log-header { color: #8b5cf6; font-weight: bold; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">WSIM API Diagnostic</h1>
+    <p class="text-gray-600 mb-6">Test CORS and session configuration for WSIM Merchant API</p>
+
+    <!-- Configuration -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Configuration</h2>
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <span class="font-medium text-gray-600">WSIM API URL:</span>
+          <code class="ml-2 bg-gray-100 px-2 py-1 rounded" id="wsimApiUrl"><%= wsimApiUrl %></code>
+        </div>
+        <div>
+          <span class="font-medium text-gray-600">SSIM Origin:</span>
+          <code class="ml-2 bg-gray-100 px-2 py-1 rounded" id="ssimOrigin"></code>
+        </div>
+        <div>
+          <span class="font-medium text-gray-600">API Key Set:</span>
+          <code class="ml-2 bg-gray-100 px-2 py-1 rounded"><%= wsimApiKey ? 'Yes (' + wsimApiKey.substring(0, 8) + '...)' : 'No' %></code>
+        </div>
+        <div>
+          <span class="font-medium text-gray-600">WSIM Enabled:</span>
+          <code class="ml-2 bg-gray-100 px-2 py-1 rounded"><%= wsimEnabled ? 'Yes' : 'No' %></code>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Controls -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Tests</h2>
+      <div class="flex flex-wrap gap-3">
+        <button onclick="runAllTests()" class="bg-violet-600 text-white px-6 py-2 rounded-lg hover:bg-violet-700 transition">
+          Run All Tests
+        </button>
+        <button onclick="testCorsPreflightOnly()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+          Test CORS Preflight
+        </button>
+        <button onclick="testUserEndpoint()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+          Test /user Endpoint
+        </button>
+        <button onclick="testCardsEndpoint()" class="bg-cyan-600 text-white px-4 py-2 rounded-lg hover:bg-cyan-700 transition">
+          Test /cards Endpoint
+        </button>
+        <button onclick="clearLog()" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">
+          Clear Log
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Log -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-semibold mb-4">Results Log</h2>
+      <div id="logContainer" class="bg-gray-900 text-gray-100 p-4 rounded-lg min-h-[400px] max-h-[600px] overflow-y-auto">
+        <div class="log-entry log-info">Click "Run All Tests" to begin diagnostic...</div>
+      </div>
+    </div>
+
+    <!-- Quick Reference -->
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-6">
+      <h3 class="font-semibold text-amber-800 mb-2">What to Look For</h3>
+      <ul class="text-sm text-amber-700 space-y-1">
+        <li><strong>CORS Error:</strong> Preflight fails → WSIM needs to add SSIM origin to CORS_ORIGINS</li>
+        <li><strong>401 not_authenticated:</strong> User not logged into WSIM → Need to login/enroll first</li>
+        <li><strong>401 missing_api_key:</strong> X-API-Key header not being sent</li>
+        <li><strong>401 invalid_api_key:</strong> API key doesn't match WSIM's OAuth client</li>
+        <li><strong>Success with empty cards:</strong> User authenticated but no cards enrolled</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const wsimApiUrl = '<%= wsimApiUrl || "https://wsim-dev.banksim.ca/api/merchant" %>';
+    const wsimApiKey = '<%= wsimApiKey || "" %>';
+    const logContainer = document.getElementById('logContainer');
+
+    // Set origin display
+    document.getElementById('ssimOrigin').textContent = window.location.origin;
+
+    function log(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+      entry.textContent = `[${timestamp}] ${message}`;
+      logContainer.appendChild(entry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function logHeader(message) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry log-header';
+      entry.textContent = `\n=== ${message} ===`;
+      logContainer.appendChild(entry);
+    }
+
+    function logObject(label, obj) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="text-gray-400">${label}:</span> <pre class="inline text-xs">${JSON.stringify(obj, null, 2)}</pre>`;
+      logContainer.appendChild(entry);
+    }
+
+    function clearLog() {
+      logContainer.innerHTML = '<div class="log-entry log-info">Log cleared. Click a test button to begin.</div>';
+    }
+
+    async function testCorsPreflightOnly() {
+      logHeader('CORS PREFLIGHT TEST');
+      log(`Testing preflight to: ${wsimApiUrl}/user`);
+      log(`Origin: ${window.location.origin}`);
+
+      try {
+        // Send an OPTIONS request manually (browser does this automatically for CORS)
+        const response = await fetch(`${wsimApiUrl}/user`, {
+          method: 'OPTIONS',
+          headers: {
+            'Origin': window.location.origin,
+            'Access-Control-Request-Method': 'GET',
+            'Access-Control-Request-Headers': 'x-api-key',
+          },
+        });
+
+        log(`Preflight Status: ${response.status}`, response.ok ? 'success' : 'error');
+
+        // Log relevant headers
+        const corsHeaders = {
+          'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+          'access-control-allow-methods': response.headers.get('access-control-allow-methods'),
+          'access-control-allow-headers': response.headers.get('access-control-allow-headers'),
+          'access-control-allow-credentials': response.headers.get('access-control-allow-credentials'),
+        };
+
+        logObject('CORS Headers', corsHeaders);
+
+        if (corsHeaders['access-control-allow-origin']) {
+          if (corsHeaders['access-control-allow-origin'] === window.location.origin ||
+              corsHeaders['access-control-allow-origin'] === '*') {
+            log('CORS Origin: ALLOWED', 'success');
+          } else {
+            log(`CORS Origin mismatch: Expected ${window.location.origin}, got ${corsHeaders['access-control-allow-origin']}`, 'error');
+          }
+        } else {
+          log('No Access-Control-Allow-Origin header - CORS may be blocked', 'warn');
+        }
+
+        if (corsHeaders['access-control-allow-credentials'] === 'true') {
+          log('Credentials: ALLOWED', 'success');
+        } else {
+          log('Credentials not allowed - session cookies won\'t be sent', 'warn');
+        }
+
+      } catch (error) {
+        log(`Preflight Error: ${error.message}`, 'error');
+        log('This usually means CORS is completely blocked or the server is unreachable', 'warn');
+      }
+    }
+
+    async function testUserEndpoint() {
+      logHeader('USER ENDPOINT TEST');
+      log(`GET ${wsimApiUrl}/user`);
+      log(`With credentials: include`);
+      log(`X-API-Key: ${wsimApiKey ? wsimApiKey.substring(0, 8) + '...' : '(not set)'}`);
+
+      try {
+        const startTime = performance.now();
+        const response = await fetch(`${wsimApiUrl}/user`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'X-API-Key': wsimApiKey,
+          },
+        });
+        const elapsed = Math.round(performance.now() - startTime);
+
+        log(`Response: ${response.status} ${response.statusText} (${elapsed}ms)`, response.ok ? 'success' : 'warn');
+
+        // Try to get JSON response
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          logObject('Response Body', data);
+
+          if (data.authenticated) {
+            log('User is AUTHENTICATED in WSIM', 'success');
+            log(`User ID: ${data.userId}`, 'info');
+          } else if (data.error === 'not_authenticated') {
+            log('User NOT authenticated - needs to login to WSIM first', 'warn');
+          } else if (data.error === 'missing_api_key') {
+            log('API Key not received by server', 'error');
+          } else if (data.error === 'invalid_api_key') {
+            log('API Key is invalid - check WSIM OAuth client config', 'error');
+          }
+        } else {
+          const text = await response.text();
+          log(`Non-JSON response: ${text.substring(0, 200)}`, 'warn');
+        }
+
+      } catch (error) {
+        log(`Fetch Error: ${error.name} - ${error.message}`, 'error');
+
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+          log('DIAGNOSIS: CORS is blocking the request', 'error');
+          log('The preflight (OPTIONS) request was rejected', 'error');
+          log('SOLUTION: Add this origin to WSIM CORS_ORIGINS env var', 'warn');
+        }
+      }
+    }
+
+    async function testCardsEndpoint() {
+      logHeader('CARDS ENDPOINT TEST');
+      log(`GET ${wsimApiUrl}/cards`);
+
+      try {
+        const startTime = performance.now();
+        const response = await fetch(`${wsimApiUrl}/cards`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'X-API-Key': wsimApiKey,
+          },
+        });
+        const elapsed = Math.round(performance.now() - startTime);
+
+        log(`Response: ${response.status} ${response.statusText} (${elapsed}ms)`, response.ok ? 'success' : 'warn');
+
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          logObject('Response Body', data);
+
+          if (data.cards) {
+            log(`Found ${data.cards.length} card(s)`, 'success');
+            data.cards.forEach((card, i) => {
+              log(`  Card ${i + 1}: ${card.cardType} ****${card.lastFour}${card.isDefault ? ' (default)' : ''}`, 'info');
+            });
+          } else if (data.error === 'not_authenticated') {
+            log('User NOT authenticated - cannot fetch cards', 'warn');
+          }
+        } else {
+          const text = await response.text();
+          log(`Non-JSON response: ${text.substring(0, 200)}`, 'warn');
+        }
+
+      } catch (error) {
+        log(`Fetch Error: ${error.name} - ${error.message}`, 'error');
+
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+          log('DIAGNOSIS: CORS is blocking the request', 'error');
+        }
+      }
+    }
+
+    async function runAllTests() {
+      clearLog();
+      log('Starting comprehensive WSIM API diagnostic...', 'info');
+      log(`SSIM Origin: ${window.location.origin}`, 'info');
+      log(`WSIM API URL: ${wsimApiUrl}`, 'info');
+      log(`API Key: ${wsimApiKey ? 'Set (' + wsimApiKey.length + ' chars)' : 'NOT SET'}`, wsimApiKey ? 'info' : 'warn');
+
+      await testCorsPreflightOnly();
+      await new Promise(r => setTimeout(r, 500));
+      await testUserEndpoint();
+      await new Promise(r => setTimeout(r, 500));
+      await testCardsEndpoint();
+
+      logHeader('DIAGNOSTIC COMPLETE');
+      log('Share these results with the WSIM team for troubleshooting', 'info');
+    }
+  </script>
+</body>
+</html>
