@@ -1,17 +1,21 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { config } from '../config/env';
-import {
-  getOrderByTransactionId,
-  setOrderAuthorized,
-  setOrderCaptured,
-  setOrderVoided,
-  setOrderRefunded,
-  setOrderDeclined,
-  setOrderFailed,
-} from '../data/orders';
+import { getOrCreateStore } from '../services/store';
+import * as orderService from '../services/order';
+import type { Store } from '@prisma/client';
 
 const router = Router();
+
+// Store reference (cached for request lifecycle)
+let currentStore: Store | null = null;
+
+async function ensureStore(): Promise<Store> {
+  if (!currentStore) {
+    currentStore = await getOrCreateStore();
+  }
+  return currentStore;
+}
 
 // Webhook event types from NSIM
 type WebhookEventType =
@@ -113,15 +117,16 @@ function webhookSignatureMiddleware(
 /**
  * Handle payment.authorized event
  */
-function handlePaymentAuthorized(data: WebhookPayload['data']): void {
+async function handlePaymentAuthorized(storeId: string, data: WebhookPayload['data']): Promise<void> {
   console.log('[Webhook] Payment authorized:', data.transactionId);
 
   if (data.orderId) {
     // Order might already be authorized from synchronous response
     // This is a backup/confirmation
-    const order = getOrderByTransactionId(data.transactionId);
+    const order = await orderService.getOrderByTransactionId(storeId, data.transactionId);
     if (order && order.status === 'pending') {
-      setOrderAuthorized(
+      await orderService.setOrderAuthorized(
+        storeId,
         order.id,
         data.transactionId,
         data.authorizationCode || '',
@@ -134,73 +139,73 @@ function handlePaymentAuthorized(data: WebhookPayload['data']): void {
 /**
  * Handle payment.captured event
  */
-function handlePaymentCaptured(data: WebhookPayload['data']): void {
+async function handlePaymentCaptured(storeId: string, data: WebhookPayload['data']): Promise<void> {
   console.log('[Webhook] Payment captured:', data.transactionId);
 
-  const order = getOrderByTransactionId(data.transactionId);
+  const order = await orderService.getOrderByTransactionId(storeId, data.transactionId);
   if (order && order.status === 'authorized') {
-    setOrderCaptured(order.id, data.capturedAmount);
+    await orderService.setOrderCaptured(storeId, order.id, data.capturedAmount);
   }
 }
 
 /**
  * Handle payment.voided event
  */
-function handlePaymentVoided(data: WebhookPayload['data']): void {
+async function handlePaymentVoided(storeId: string, data: WebhookPayload['data']): Promise<void> {
   console.log('[Webhook] Payment voided:', data.transactionId);
 
-  const order = getOrderByTransactionId(data.transactionId);
+  const order = await orderService.getOrderByTransactionId(storeId, data.transactionId);
   if (order && order.status === 'authorized') {
-    setOrderVoided(order.id);
+    await orderService.setOrderVoided(storeId, order.id);
   }
 }
 
 /**
  * Handle payment.refunded event
  */
-function handlePaymentRefunded(data: WebhookPayload['data']): void {
+async function handlePaymentRefunded(storeId: string, data: WebhookPayload['data']): Promise<void> {
   console.log('[Webhook] Payment refunded:', data.transactionId);
 
-  const order = getOrderByTransactionId(data.transactionId);
+  const order = await orderService.getOrderByTransactionId(storeId, data.transactionId);
   if (order && order.status === 'captured' && data.refundedAmount !== undefined) {
-    setOrderRefunded(order.id, data.refundedAmount);
+    await orderService.setOrderRefunded(storeId, order.id, data.refundedAmount);
   }
 }
 
 /**
  * Handle payment.declined event
  */
-function handlePaymentDeclined(data: WebhookPayload['data']): void {
+async function handlePaymentDeclined(storeId: string, data: WebhookPayload['data']): Promise<void> {
   console.log('[Webhook] Payment declined:', data.transactionId, data.declineReason);
 
-  const order = getOrderByTransactionId(data.transactionId);
+  const order = await orderService.getOrderByTransactionId(storeId, data.transactionId);
   if (order && order.status === 'pending') {
-    setOrderDeclined(order.id);
+    await orderService.setOrderDeclined(storeId, order.id);
   }
 }
 
 /**
  * Handle payment.expired event
  */
-function handlePaymentExpired(data: WebhookPayload['data']): void {
+async function handlePaymentExpired(storeId: string, data: WebhookPayload['data']): Promise<void> {
   console.log('[Webhook] Payment expired:', data.transactionId);
 
-  const order = getOrderByTransactionId(data.transactionId);
+  const order = await orderService.getOrderByTransactionId(storeId, data.transactionId);
   if (order && order.status === 'authorized') {
     // Treat expired authorizations as voided
-    setOrderVoided(order.id);
+    await orderService.setOrderVoided(storeId, order.id);
   }
 }
 
 /**
  * Handle payment.failed event
  */
-function handlePaymentFailed(data: WebhookPayload['data']): void {
+async function handlePaymentFailed(storeId: string, data: WebhookPayload['data']): Promise<void> {
   console.log('[Webhook] Payment failed:', data.transactionId, data.failureReason);
 
-  const order = getOrderByTransactionId(data.transactionId);
+  const order = await orderService.getOrderByTransactionId(storeId, data.transactionId);
   if (order && (order.status === 'pending' || order.status === 'authorized')) {
-    setOrderFailed(order.id);
+    await orderService.setOrderFailed(storeId, order.id);
   }
 }
 
@@ -208,12 +213,14 @@ function handlePaymentFailed(data: WebhookPayload['data']): void {
  * Main webhook endpoint
  * POST /webhooks/payment
  */
-router.post('/payment', webhookSignatureMiddleware, (req: Request, res: Response) => {
+router.post('/payment', webhookSignatureMiddleware, async (req: Request, res: Response) => {
   const payload = req.body as WebhookPayload;
 
   console.log('[Webhook] Received event:', payload.type, 'ID:', payload.id);
 
   try {
+    const store = await ensureStore();
+
     // Verify merchantId matches our configured merchant
     if (payload.data.merchantId !== config.merchantId) {
       console.warn('[Webhook] Merchant ID mismatch:', payload.data.merchantId);
@@ -224,25 +231,25 @@ router.post('/payment', webhookSignatureMiddleware, (req: Request, res: Response
     // Route to appropriate handler based on event type
     switch (payload.type) {
       case 'payment.authorized':
-        handlePaymentAuthorized(payload.data);
+        await handlePaymentAuthorized(store.id, payload.data);
         break;
       case 'payment.captured':
-        handlePaymentCaptured(payload.data);
+        await handlePaymentCaptured(store.id, payload.data);
         break;
       case 'payment.voided':
-        handlePaymentVoided(payload.data);
+        await handlePaymentVoided(store.id, payload.data);
         break;
       case 'payment.refunded':
-        handlePaymentRefunded(payload.data);
+        await handlePaymentRefunded(store.id, payload.data);
         break;
       case 'payment.declined':
-        handlePaymentDeclined(payload.data);
+        await handlePaymentDeclined(store.id, payload.data);
         break;
       case 'payment.expired':
-        handlePaymentExpired(payload.data);
+        await handlePaymentExpired(store.id, payload.data);
         break;
       case 'payment.failed':
-        handlePaymentFailed(payload.data);
+        await handlePaymentFailed(store.id, payload.data);
         break;
       default:
         console.warn('[Webhook] Unknown event type:', payload.type);

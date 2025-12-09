@@ -2,6 +2,22 @@ import { Router, Request, Response } from 'express';
 import { getProvider, getAllProviders, generateState, generateNonce, generateCodeVerifier, generateCodeChallenge } from '../config/oidc';
 import { config } from '../config/env';
 import '../types/session';
+import { getOrCreateStore, getOrCreateStoreUser, getStoreUserByBsimId, updateConsentedScopes, hasConsentedToScopes, getValidWsimJwt } from '../services/store';
+import type { Store } from '@prisma/client';
+
+// Cookie name for remembering the user's BSIM ID
+const BSIM_USER_COOKIE = 'ssim_bsim_user';
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000; // 1 year
+
+// Store reference (initialized on first request)
+let currentStore: Store | null = null;
+
+async function ensureStore(): Promise<Store> {
+  if (!currentStore) {
+    currentStore = await getOrCreateStore();
+  }
+  return currentStore;
+}
 
 const router = Router();
 
@@ -37,7 +53,8 @@ router.get('/login/:providerId', async (req: Request, res: Response) => {
     req.session.returnTo = returnTo;
   }
 
-  const authUrl = provider.client.authorizationUrl({
+  // Build authorization URL parameters
+  const authParams: Record<string, string> = {
     scope: provider.config.scopes,
     state,
     nonce,
@@ -45,7 +62,41 @@ router.get('/login/:providerId', async (req: Request, res: Response) => {
     code_challenge_method: 'S256',
     // Request JWT access token for Open Banking API access
     resource: config.openbankingBaseUrl,
-  });
+  };
+
+  // Check if this is a returning user who has already consented
+  // If so, we can skip the consent screen by passing prompt=login
+  // Use a timeout to avoid blocking login if DB is slow/unavailable
+  const bsimUserId = req.cookies?.[BSIM_USER_COOKIE];
+  if (bsimUserId) {
+    try {
+      const checkReturningUser = async () => {
+        const store = await ensureStore();
+        const existingUser = await getStoreUserByBsimId(store.id, bsimUserId);
+
+        if (existingUser) {
+          const requestedScopes = provider.config.scopes.split(' ');
+          if (hasConsentedToScopes(existingUser, requestedScopes)) {
+            // User has already consented to these scopes - skip consent screen
+            authParams.prompt = 'login';
+            authParams.login_hint = existingUser.email;
+            console.log(`[Auth] Returning user ${existingUser.email} - skipping consent (already approved scopes)`);
+          }
+        }
+      };
+
+      // Timeout after 2 seconds to avoid blocking login
+      await Promise.race([
+        checkReturningUser(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('DB timeout')), 2000))
+      ]);
+    } catch (err) {
+      // Database error or timeout - proceed without consent optimization
+      console.warn('[Auth] Could not check returning user (proceeding with normal login):', err instanceof Error ? err.message : err);
+    }
+  }
+
+  const authUrl = provider.client.authorizationUrl(authParams);
 
   console.log('Authorization URL:', authUrl);
 
@@ -114,6 +165,49 @@ router.get('/callback/:providerId', async (req: Request, res: Response) => {
       expires_at: tokenSet.expires_at,
       scope: tokenSet.scope,
     };
+
+    // Persist user to database
+    try {
+      const store = await ensureStore();
+      const storeUser = await getOrCreateStoreUser(
+        store.id,
+        userInfo.sub as string,
+        userInfo.email as string,
+        userInfo.name as string | undefined
+      );
+
+      // Store the database user ID in session
+      req.session.storeUserId = storeUser.id;
+
+      // Update consented scopes (the scopes they just approved)
+      const currentScopes = tokenSet.scope?.split(' ') || [];
+      if (currentScopes.length > 0) {
+        // Merge with any previously consented scopes
+        const allScopes = [...new Set([...storeUser.consentedScopes, ...currentScopes])];
+        await updateConsentedScopes(storeUser.id, allScopes);
+      }
+
+      // If user has a valid WSIM JWT stored, add it to session for checkout page
+      const wsimJwt = getValidWsimJwt(storeUser);
+      if (wsimJwt) {
+        req.session.wsimJwt = wsimJwt;
+        req.session.wsimJwtExp = storeUser.wsimJwtExp?.getTime();
+      }
+
+      console.log(`[Auth] User persisted: ${storeUser.email} (ID: ${storeUser.id})`);
+
+      // Set a persistent cookie with the BSIM user ID for returning user detection
+      // This allows us to skip consent on subsequent logins
+      res.cookie(BSIM_USER_COOKIE, userInfo.sub, {
+        maxAge: COOKIE_MAX_AGE,
+        httpOnly: true,
+        secure: config.nodeEnv === 'production',
+        sameSite: 'lax',
+      });
+    } catch (dbError) {
+      // Log but don't fail auth if DB is unavailable
+      console.error('[Auth] Failed to persist user to database:', dbError);
+    }
 
     // Clear temporary OIDC state
     delete req.session.oidcState;

@@ -42,3 +42,5 @@ certs/
 
 # Local deployment plans (shared via filesystem, not repo)
 LOCAL_DEPLOYMENT_PLANS/
+
+/src/generated/prisma

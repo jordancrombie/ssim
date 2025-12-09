@@ -1,13 +1,24 @@
 import { Router, Request, Response } from 'express';
 import { Issuer, Client, generators } from 'openid-client';
 import { config } from '../config/env';
-import { getProductById, formatPrice } from '../data/products';
-import { createOrder, getOrderById, setOrderAuthorized, setOrderCaptured, setOrderVoided, setOrderRefunded, setOrderFailed, setOrderDeclined } from '../data/orders';
-import { OrderItem } from '../models/order';
+import { getOrCreateStore } from '../services/store';
+import * as productService from '../services/product';
+import * as orderService from '../services/order';
 import { authorizePayment, capturePayment, voidPayment, refundPayment } from '../services/payment';
+import type { Store, Order } from '@prisma/client';
 import '../types/session';
 
 const router = Router();
+
+// Store reference (cached for request lifecycle)
+let currentStore: Store | null = null;
+
+async function ensureStore(): Promise<Store> {
+  if (!currentStore) {
+    currentStore = await getOrCreateStore();
+  }
+  return currentStore;
+}
 
 // Store payment OIDC clients (initialized on first use)
 let paymentClient: Client | null = null;
@@ -61,39 +72,41 @@ router.post('/initiate', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Cart is empty' });
   }
 
-  // Build order items from cart
-  const orderItems: OrderItem[] = [];
-  let subtotal = 0;
+  try {
+    const store = await ensureStore();
 
-  for (const cartItem of cart) {
-    const product = getProductById(cartItem.productId);
-    if (!product) {
-      return res.status(400).json({ error: `Product ${cartItem.productId} not found` });
+    // Build order items from cart
+    const orderItems: orderService.OrderItem[] = [];
+    let subtotal = 0;
+
+    for (const cartItem of cart) {
+      const product = await productService.getProductById(store.id, cartItem.productId);
+      if (!product) {
+        return res.status(400).json({ error: `Product ${cartItem.productId} not found` });
+      }
+
+      const itemSubtotal = product.price * cartItem.quantity;
+      orderItems.push({
+        productId: product.id,
+        productName: product.name,
+        quantity: cartItem.quantity,
+        unitPrice: product.price,
+        subtotal: itemSubtotal,
+      });
+      subtotal += itemSubtotal;
     }
 
-    const itemSubtotal = product.price * cartItem.quantity;
-    orderItems.push({
-      productId: product.id,
-      productName: product.name,
-      quantity: cartItem.quantity,
-      unitPrice: product.price,
-      subtotal: itemSubtotal,
+    // Create order - for wallet payments, use 'guest' if not authenticated
+    const bsimUserId = req.session.userInfo?.sub as string || 'guest';
+    const order = await orderService.createOrder(store.id, {
+      bsimUserId,
+      items: orderItems,
+      subtotal,
+      currency: 'CAD',
     });
-    subtotal += itemSubtotal;
-  }
 
-  // Create order - for wallet payments, use 'guest' if not authenticated
-  const userId = req.session.userInfo?.sub as string || 'guest';
-  const order = createOrder({
-    userId,
-    items: orderItems,
-    subtotal,
-    currency: 'CAD',
-  });
+    console.log('[Payment] Created order:', order.id, 'Total:', productService.formatPrice(subtotal), 'Provider:', provider);
 
-  console.log('[Payment] Created order:', order.id, 'Total:', formatPrice(subtotal), 'Provider:', provider);
-
-  try {
     // Generate PKCE and state
     const state = generators.state();
     const nonce = generators.nonce();
@@ -167,7 +180,6 @@ router.post('/initiate', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('[Payment] Failed to initiate payment:', error);
-    setOrderFailed(order.id);
     res.status(500).json({
       error: 'Failed to initiate payment',
       details: error instanceof Error ? error.message : 'Unknown error',
@@ -192,23 +204,25 @@ router.get('/callback', async (req: Request, res: Response) => {
     return res.redirect('/checkout?error=state_mismatch');
   }
 
-  // Check for error from auth server
-  if (req.query.error) {
-    console.error('[Payment] Auth error:', req.query.error, req.query.error_description);
-    const order = getOrderById(orderId);
-    if (order) {
-      setOrderDeclined(orderId);
-    }
-    return res.redirect(`/checkout?error=${req.query.error}`);
-  }
-
-  const order = getOrderById(orderId);
-  if (!order) {
-    console.error('[Payment] Order not found:', orderId);
-    return res.redirect('/checkout?error=order_not_found');
-  }
-
   try {
+    const store = await ensureStore();
+
+    // Check for error from auth server
+    if (req.query.error) {
+      console.error('[Payment] Auth error:', req.query.error, req.query.error_description);
+      const order = await orderService.getOrderById(store.id, orderId);
+      if (order) {
+        await orderService.setOrderDeclined(store.id, orderId);
+      }
+      return res.redirect(`/checkout?error=${req.query.error}`);
+    }
+
+    const order = await orderService.getOrderById(store.id, orderId);
+    if (!order) {
+      console.error('[Payment] Order not found:', orderId);
+      return res.redirect('/checkout?error=order_not_found');
+    }
+
     const client = await getPaymentClient();
 
     // Exchange code for tokens
@@ -271,7 +285,8 @@ router.get('/callback', async (req: Request, res: Response) => {
 
     if (authResult.status === 'authorized') {
       // Update order with payment details (bank payment)
-      setOrderAuthorized(
+      await orderService.setOrderAuthorized(
+        store.id,
         order.id,
         authResult.transactionId,
         authResult.authorizationCode || '',
@@ -291,18 +306,17 @@ router.get('/callback', async (req: Request, res: Response) => {
         res.redirect(`/order-confirmation/${order.id}`);
       });
     } else if (authResult.status === 'declined') {
-      setOrderDeclined(order.id);
+      await orderService.setOrderDeclined(store.id, order.id);
       // Pass the decline reason to the checkout page
       const reason = encodeURIComponent(authResult.declineReason || 'Payment declined');
       console.log('[Payment] Payment declined:', authResult.declineReason);
       res.redirect(`/checkout?error=payment_declined&reason=${reason}`);
     } else {
-      setOrderFailed(order.id);
+      await orderService.setOrderFailed(store.id, order.id);
       res.redirect(`/checkout?error=payment_failed`);
     }
   } catch (error) {
     console.error('[Payment] Callback error:', error);
-    setOrderFailed(orderId);
     const errorMsg = error instanceof Error ? encodeURIComponent(error.message) : 'payment_error';
     res.redirect(`/checkout?error=payment_error&reason=${errorMsg}`);
   }
@@ -331,23 +345,24 @@ router.get('/wallet-callback', async (req: Request, res: Response) => {
     return res.redirect('/checkout?error=state_mismatch');
   }
 
-  // Check for error from auth server
-  if (req.query.error) {
-    console.error('[Payment] WSIM auth error:', req.query.error, req.query.error_description);
-    const order = getOrderById(orderId);
-    if (order) {
-      setOrderDeclined(orderId);
-    }
-    return res.redirect(`/checkout?error=${req.query.error}`);
-  }
-
-  const order = getOrderById(orderId);
-  if (!order) {
-    console.error('[Payment] Order not found:', orderId);
-    return res.redirect('/checkout?error=order_not_found');
-  }
-
   try {
+    const store = await ensureStore();
+
+    // Check for error from auth server
+    if (req.query.error) {
+      console.error('[Payment] WSIM auth error:', req.query.error, req.query.error_description);
+      const order = await orderService.getOrderById(store.id, orderId);
+      if (order) {
+        await orderService.setOrderDeclined(store.id, orderId);
+      }
+      return res.redirect(`/checkout?error=${req.query.error}`);
+    }
+
+    const order = await orderService.getOrderById(store.id, orderId);
+    if (!order) {
+      console.error('[Payment] Order not found:', orderId);
+      return res.redirect('/checkout?error=order_not_found');
+    }
     const client = await getWsimClient();
     if (!client) {
       throw new Error('WSIM client not available');
@@ -428,9 +443,6 @@ router.get('/wallet-callback', async (req: Request, res: Response) => {
           email_verified: idTokenClaims.email_verified,
         } as Record<string, unknown>;
 
-        // Update the order with the real user ID
-        order.userId = idTokenClaims.sub as string;
-
         console.log('[Payment] Created user session from WSIM auth for user:', idTokenClaims.sub);
       } catch (e) {
         console.warn('[Payment] Could not extract user identity from WSIM ID token:', e);
@@ -454,7 +466,8 @@ router.get('/wallet-callback', async (req: Request, res: Response) => {
 
     if (authResult.status === 'authorized') {
       // Update order with payment details (wallet payment)
-      setOrderAuthorized(
+      await orderService.setOrderAuthorized(
+        store.id,
         order.id,
         authResult.transactionId,
         authResult.authorizationCode || '',
@@ -475,17 +488,16 @@ router.get('/wallet-callback', async (req: Request, res: Response) => {
         res.redirect(`/order-confirmation/${order.id}`);
       });
     } else if (authResult.status === 'declined') {
-      setOrderDeclined(order.id);
+      await orderService.setOrderDeclined(store.id, order.id);
       const reason = encodeURIComponent(authResult.declineReason || 'Payment declined');
       console.log('[Payment] Wallet payment declined:', authResult.declineReason);
       res.redirect(`/checkout?error=payment_declined&reason=${reason}`);
     } else {
-      setOrderFailed(order.id);
+      await orderService.setOrderFailed(store.id, order.id);
       res.redirect(`/checkout?error=payment_failed`);
     }
   } catch (error) {
     console.error('[Payment] Wallet callback error:', error);
-    setOrderFailed(orderId);
     const errorMsg = error instanceof Error ? encodeURIComponent(error.message) : 'payment_error';
     res.redirect(`/checkout?error=payment_error&reason=${errorMsg}`);
   }
@@ -504,40 +516,41 @@ router.post('/popup-complete', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Cart is empty' });
   }
 
-  // Build order items from cart
-  const orderItems: OrderItem[] = [];
-  let subtotal = 0;
+  try {
+    const store = await ensureStore();
 
-  for (const cartItem of cart) {
-    const product = getProductById(cartItem.productId);
-    if (!product) {
-      return res.status(400).json({ error: `Product ${cartItem.productId} not found` });
+    // Build order items from cart
+    const orderItems: orderService.OrderItem[] = [];
+    let subtotal = 0;
+
+    for (const cartItem of cart) {
+      const product = await productService.getProductById(store.id, cartItem.productId);
+      if (!product) {
+        return res.status(400).json({ error: `Product ${cartItem.productId} not found` });
+      }
+
+      const itemSubtotal = product.price * cartItem.quantity;
+      orderItems.push({
+        productId: product.id,
+        productName: product.name,
+        quantity: cartItem.quantity,
+        unitPrice: product.price,
+        subtotal: itemSubtotal,
+      });
+      subtotal += itemSubtotal;
     }
 
-    const itemSubtotal = product.price * cartItem.quantity;
-    orderItems.push({
-      productId: product.id,
-      productName: product.name,
-      quantity: cartItem.quantity,
-      unitPrice: product.price,
-      subtotal: itemSubtotal,
+    // Create order - use 'guest' if not authenticated (wallet-only flow)
+    const bsimUserId = req.session.userInfo?.sub as string || 'guest';
+    const order = await orderService.createOrder(store.id, {
+      bsimUserId,
+      items: orderItems,
+      subtotal,
+      currency: 'CAD',
     });
-    subtotal += itemSubtotal;
-  }
 
-  // Create order - use 'guest' if not authenticated (wallet-only flow)
-  const userId = req.session.userInfo?.sub as string || 'guest';
-  const order = createOrder({
-    userId,
-    items: orderItems,
-    subtotal,
-    currency: 'CAD',
-  });
-
-  console.log('[Payment] Popup flow - Created order:', order.id, 'Total:', formatPrice(subtotal));
-  console.log('[Payment] Popup flow - Card:', cardBrand, '****' + cardLast4);
-
-  try {
+    console.log('[Payment] Popup flow - Created order:', order.id, 'Total:', productService.formatPrice(subtotal));
+    console.log('[Payment] Popup flow - Card:', cardBrand, '****' + cardLast4);
     // Authorize payment via NSIM API with cardToken only (no walletCardToken for popup flow)
     console.log('[Payment] Popup flow - Authorizing payment via NSIM...');
     const authResult = await authorizePayment({
@@ -550,7 +563,8 @@ router.post('/popup-complete', async (req: Request, res: Response) => {
 
     if (authResult.status === 'authorized') {
       // Update order with payment details (popup wallet payment)
-      setOrderAuthorized(
+      await orderService.setOrderAuthorized(
+        store.id,
         order.id,
         authResult.transactionId,
         authResult.authorizationCode || '',
@@ -575,7 +589,7 @@ router.post('/popup-complete', async (req: Request, res: Response) => {
         });
       });
     } else if (authResult.status === 'declined') {
-      setOrderDeclined(order.id);
+      await orderService.setOrderDeclined(store.id, order.id);
       console.log('[Payment] Popup payment declined:', authResult.declineReason);
       res.status(400).json({
         success: false,
@@ -583,7 +597,7 @@ router.post('/popup-complete', async (req: Request, res: Response) => {
         reason: authResult.declineReason || 'Payment declined',
       });
     } else {
-      setOrderFailed(order.id);
+      await orderService.setOrderFailed(store.id, order.id);
       res.status(500).json({
         success: false,
         error: 'payment_failed',
@@ -592,7 +606,6 @@ router.post('/popup-complete', async (req: Request, res: Response) => {
     }
   } catch (error) {
     console.error('[Payment] Popup payment error:', error);
-    setOrderFailed(order.id);
     res.status(500).json({
       success: false,
       error: 'payment_error',
@@ -610,28 +623,30 @@ router.post('/capture/:orderId', async (req: Request, res: Response) => {
   const { orderId } = req.params;
   const { amount } = req.body;
 
-  const order = getOrderById(orderId);
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
-  }
-
-  if (order.userId !== req.session.userInfo.sub) {
-    return res.status(403).json({ error: 'Not authorized' });
-  }
-
-  if (order.status !== 'authorized') {
-    return res.status(400).json({ error: 'Order is not authorized' });
-  }
-
-  if (!order.paymentDetails?.transactionId) {
-    return res.status(400).json({ error: 'No transaction to capture' });
-  }
-
   try {
-    const result = await capturePayment(order.paymentDetails.transactionId, amount);
+    const store = await ensureStore();
+    const order = await orderService.getOrderById(store.id, orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.bsimUserId !== req.session.userInfo.sub) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    if (order.status !== 'authorized') {
+      return res.status(400).json({ error: 'Order is not authorized' });
+    }
+
+    const paymentDetails = orderService.getOrderPaymentDetails(order);
+    if (!paymentDetails?.transactionId) {
+      return res.status(400).json({ error: 'No transaction to capture' });
+    }
+
+    const result = await capturePayment(paymentDetails.transactionId, amount);
 
     if (result.status === 'captured') {
-      setOrderCaptured(orderId, amount);
+      await orderService.setOrderCaptured(store.id, orderId, amount);
       res.json({ success: true, status: 'captured' });
     } else {
       res.status(400).json({ error: 'Capture failed', status: result.status });
@@ -653,28 +668,30 @@ router.post('/void/:orderId', async (req: Request, res: Response) => {
 
   const { orderId } = req.params;
 
-  const order = getOrderById(orderId);
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
-  }
-
-  if (order.userId !== req.session.userInfo.sub) {
-    return res.status(403).json({ error: 'Not authorized' });
-  }
-
-  if (order.status !== 'authorized') {
-    return res.status(400).json({ error: 'Order is not authorized' });
-  }
-
-  if (!order.paymentDetails?.transactionId) {
-    return res.status(400).json({ error: 'No transaction to void' });
-  }
-
   try {
-    const result = await voidPayment(order.paymentDetails.transactionId);
+    const store = await ensureStore();
+    const order = await orderService.getOrderById(store.id, orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.bsimUserId !== req.session.userInfo.sub) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    if (order.status !== 'authorized') {
+      return res.status(400).json({ error: 'Order is not authorized' });
+    }
+
+    const paymentDetails = orderService.getOrderPaymentDetails(order);
+    if (!paymentDetails?.transactionId) {
+      return res.status(400).json({ error: 'No transaction to void' });
+    }
+
+    const result = await voidPayment(paymentDetails.transactionId);
 
     if (result.status === 'voided') {
-      setOrderVoided(orderId);
+      await orderService.setOrderVoided(store.id, orderId);
       res.json({ success: true, status: 'voided' });
     } else {
       res.status(400).json({ error: 'Void failed', status: result.status });
@@ -701,28 +718,30 @@ router.post('/refund/:orderId', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Valid amount is required' });
   }
 
-  const order = getOrderById(orderId);
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
-  }
-
-  if (order.userId !== req.session.userInfo.sub) {
-    return res.status(403).json({ error: 'Not authorized' });
-  }
-
-  if (order.status !== 'captured') {
-    return res.status(400).json({ error: 'Order is not captured' });
-  }
-
-  if (!order.paymentDetails?.transactionId) {
-    return res.status(400).json({ error: 'No transaction to refund' });
-  }
-
   try {
-    const result = await refundPayment(order.paymentDetails.transactionId, amount, reason || 'Customer refund');
+    const store = await ensureStore();
+    const order = await orderService.getOrderById(store.id, orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.bsimUserId !== req.session.userInfo.sub) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    if (order.status !== 'captured') {
+      return res.status(400).json({ error: 'Order is not captured' });
+    }
+
+    const paymentDetails = orderService.getOrderPaymentDetails(order);
+    if (!paymentDetails?.transactionId) {
+      return res.status(400).json({ error: 'No transaction to refund' });
+    }
+
+    const result = await refundPayment(paymentDetails.transactionId, amount, reason || 'Customer refund');
 
     if (result.status === 'refunded') {
-      setOrderRefunded(orderId, amount);
+      await orderService.setOrderRefunded(store.id, orderId, amount);
       res.json({ success: true, status: 'refunded' });
     } else {
       res.status(400).json({ error: 'Refund failed', status: result.status });
