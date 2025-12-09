@@ -1,10 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { config } from '../config/env';
-import { getOrCreateStore } from '../services/store';
+import { getOrCreateStore, getStoreBranding, updateStoreBranding } from '../services/store';
 import * as productService from '../services/product';
 import * as orderService from '../services/order';
 import * as adminService from '../services/admin';
 import { capturePayment, voidPayment, refundPayment } from '../services/payment';
+import { upload, deleteUploadedFile } from '../services/upload';
+import { getAllThemes, getTheme } from '../config/themes';
 import type { Store } from '@prisma/client';
 
 const router = Router();
@@ -480,6 +482,108 @@ router.get('/settings', async (req: Request, res: Response) => {
     });
   }
 });
+
+// =============================================================================
+// Store Branding
+// =============================================================================
+
+router.get('/branding', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const themes = getAllThemes();
+    const currentTheme = getTheme(branding?.themePreset || 'default');
+
+    res.render('admin/branding', {
+      ...getViewData(req),
+      title: 'Store Branding',
+      store,
+      branding,
+      themes,
+      currentTheme,
+      query: req.query,
+    });
+  } catch (error) {
+    console.error('[Admin] Branding error:', error);
+    res.status(500).render('error', {
+      ...getViewData(req),
+      title: 'Error',
+      message: 'Failed to load branding settings',
+    });
+  }
+});
+
+router.post(
+  '/branding',
+  upload.fields([
+    { name: 'logo', maxCount: 1 },
+    { name: 'heroImage', maxCount: 1 },
+  ]),
+  async (req: Request, res: Response) => {
+    try {
+      const store = await ensureStore();
+      const { name, tagline, description, themePreset } = req.body;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+
+      // Get current branding to check for existing files
+      const currentBranding = await getStoreBranding(store.id);
+
+      const updateData: {
+        name?: string;
+        tagline?: string | null;
+        description?: string | null;
+        themePreset?: string;
+        logoUrl?: string | null;
+        heroImageUrl?: string | null;
+      } = {
+        name: name || store.name,
+        tagline: tagline || null,
+        description: description || null,
+        themePreset: themePreset || 'default',
+      };
+
+      // Handle logo upload
+      if (files?.logo?.[0]) {
+        // Delete old logo if exists
+        if (currentBranding?.logoUrl) {
+          deleteUploadedFile(currentBranding.logoUrl);
+        }
+        updateData.logoUrl = `/uploads/logos/${files.logo[0].filename}`;
+      }
+
+      // Handle hero image upload
+      if (files?.heroImage?.[0]) {
+        // Delete old hero if exists
+        if (currentBranding?.heroImageUrl) {
+          deleteUploadedFile(currentBranding.heroImageUrl);
+        }
+        updateData.heroImageUrl = `/uploads/heroes/${files.heroImage[0].filename}`;
+      }
+
+      // Handle logo removal
+      if (req.body.removeLogo === 'true' && currentBranding?.logoUrl) {
+        deleteUploadedFile(currentBranding.logoUrl);
+        updateData.logoUrl = null;
+      }
+
+      // Handle hero removal
+      if (req.body.removeHero === 'true' && currentBranding?.heroImageUrl) {
+        deleteUploadedFile(currentBranding.heroImageUrl);
+        updateData.heroImageUrl = null;
+      }
+
+      await updateStoreBranding(store.id, updateData);
+
+      // Clear cached store to pick up changes
+      currentStore = null;
+
+      res.redirect('/admin/branding?success=updated');
+    } catch (error) {
+      console.error('[Admin] Branding update error:', error);
+      res.redirect('/admin/branding?error=update_failed');
+    }
+  }
+);
 
 // =============================================================================
 // API Endpoints for AJAX operations

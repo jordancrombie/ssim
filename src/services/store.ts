@@ -4,6 +4,18 @@ import type { Store, StoreUser } from '@prisma/client';
 import { seedDefaultProducts } from './product';
 
 /**
+ * Store branding information
+ */
+export interface StoreBranding {
+  name: string;
+  tagline: string | null;
+  description: string | null;
+  logoUrl: string | null;
+  heroImageUrl: string | null;
+  themePreset: string;
+}
+
+/**
  * Get or create the store record for this SSIM instance
  * Also seeds default products if the store is new
  */
@@ -163,4 +175,68 @@ export function getValidWsimJwt(user: StoreUser): string | null {
   }
 
   return user.wsimJwt;
+}
+
+// ============================================
+// Store Branding Functions
+// ============================================
+
+/**
+ * Get store branding information
+ * Falls back to env config for name if not set in DB
+ */
+export async function getStoreBranding(storeId: string): Promise<StoreBranding | null> {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: {
+      name: true,
+      tagline: true,
+      description: true,
+      logoUrl: true,
+      heroImageUrl: true,
+      themePreset: true,
+    },
+  });
+
+  if (!store) {
+    return null;
+  }
+
+  return {
+    name: store.name || config.storeName,
+    tagline: store.tagline,
+    description: store.description,
+    logoUrl: store.logoUrl,
+    heroImageUrl: store.heroImageUrl,
+    themePreset: store.themePreset || 'default',
+  };
+}
+
+/**
+ * Update store branding information
+ */
+export async function updateStoreBranding(
+  storeId: string,
+  data: Partial<StoreBranding>
+): Promise<Store> {
+  return prisma.store.update({
+    where: { id: storeId },
+    data: {
+      name: data.name,
+      tagline: data.tagline,
+      description: data.description,
+      logoUrl: data.logoUrl,
+      heroImageUrl: data.heroImageUrl,
+      themePreset: data.themePreset,
+    },
+  });
+}
+
+/**
+ * Get store by ID with full details
+ */
+export async function getStoreById(storeId: string): Promise<Store | null> {
+  return prisma.store.findUnique({
+    where: { id: storeId },
+  });
 }
