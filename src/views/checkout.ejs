@@ -3,8 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Checkout - SSIM Store</title>
+  <title>Checkout - <%= store?.name || 'SSIM Store' %></title>
   <link rel="stylesheet" href="/css/tailwind.css">
+  <style>
+    <% if (typeof themeCSS !== 'undefined') { %>
+      <%= themeCSS %>
+    <% } %>
+  </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
   <!-- Navigation -->
@@ -12,26 +17,30 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16">
         <div class="flex items-center">
-          <a href="/" class="flex items-center space-x-2">
-            <div class="w-8 h-8 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center">
-              <span class="text-white font-bold text-sm">S</span>
+          <% if (store?.envBadge) { %>
+            <div class="w-10 h-10 rounded-full bg-theme-primary flex items-center justify-center mr-3">
+              <span class="text-white font-bold text-lg"><%= store.envBadge %></span>
             </div>
-            <span class="font-semibold text-gray-800">SSIM Store</span>
-          </a>
+          <% } %>
+          <% if (store?.logoUrl) { %>
+            <a href="/"><img src="<%= store.logoUrl %>" alt="<%= store?.name %>" class="h-10"></a>
+          <% } else { %>
+            <a href="/" class="text-xl font-bold text-theme-primary"><%= store?.name || 'SSIM Store' %></a>
+          <% } %>
         </div>
         <div class="flex items-center space-x-4">
-          <a href="/store" class="text-gray-600 hover:text-gray-800">Store</a>
-          <a href="/checkout" class="text-gray-600 hover:text-gray-800 relative">
+          <a href="/store" class="text-gray-600 hover:text-theme-primary">Store</a>
+          <a href="/checkout" class="text-gray-600 hover:text-theme-primary relative">
             Cart
             <% if (cartCount > 0) { %>
-            <span class="absolute -top-2 -right-2 bg-purple-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"><%= cartCount %></span>
+            <span class="absolute -top-2 -right-2 bg-theme-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"><%= cartCount %></span>
             <% } %>
           </a>
           <% if (isAuthenticated) { %>
-          <a href="/orders" class="text-gray-600 hover:text-gray-800">Orders</a>
-          <a href="/auth/logout" class="text-gray-600 hover:text-gray-800">Logout</a>
+          <a href="/orders" class="text-gray-600 hover:text-theme-primary">Orders</a>
+          <a href="/auth/logout" class="text-gray-600 hover:text-theme-primary">Logout</a>
           <% } else { %>
-          <a href="/login" class="text-gray-600 hover:text-gray-800">Login</a>
+          <a href="/login" class="text-gray-600 hover:text-theme-primary">Login</a>
           <% } %>
         </div>
       </div>
@@ -41,15 +50,15 @@
   <div class="max-w-4xl mx-auto py-12 px-4">
     <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
       <!-- Header -->
-      <div class="bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-6">
+      <div class="gradient-theme px-8 py-6">
         <h1 class="text-3xl font-bold text-white">Checkout</h1>
-        <p class="text-purple-100 mt-1">Review your order and complete payment</p>
+        <p class="text-white/80 mt-1">Review your order and complete payment</p>
       </div>
 
       <div class="p-8">
         <!-- Loading State -->
         <div id="loadingState" class="text-center py-8">
-          <svg class="animate-spin h-8 w-8 text-purple-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg class="animate-spin h-8 w-8 text-theme-primary mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
@@ -63,7 +72,7 @@
           </svg>
           <h2 class="text-xl font-semibold text-gray-800 mt-4">Your cart is empty</h2>
           <p class="text-gray-600 mt-2">Add some items to your cart to checkout</p>
-          <a href="/store" class="inline-block mt-6 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+          <a href="/store" class="inline-block mt-6 btn-theme-primary px-6 py-3 rounded-lg font-semibold transition">
             Browse Store
           </a>
         </div>
@@ -82,7 +91,7 @@
           <div class="bg-gray-50 rounded-xl p-6 mb-8">
             <div class="flex justify-between items-center text-lg">
               <span class="font-semibold text-gray-800">Total</span>
-              <span id="cartTotal" class="text-2xl font-bold text-purple-600">$0.00</span>
+              <span id="cartTotal" class="text-2xl font-bold text-theme-primary">$0.00</span>
             </div>
             <p class="text-sm text-gray-500 mt-2">Taxes calculated at checkout</p>
           </div>
@@ -91,7 +100,7 @@
           <button
             id="payBankButton"
             onclick="initiatePayment('bank')"
-            class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+            class="w-full gradient-theme text-white py-4 px-6 rounded-xl font-semibold text-center hover:opacity-90 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
@@ -128,7 +137,7 @@
             <button
               id="payWalletPopupButton"
               onclick="openWalletPopup()"
-              class="bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-violet-700 hover:to-purple-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+              class="gradient-theme text-white py-4 px-6 rounded-xl font-semibold text-center hover:opacity-90 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -513,7 +522,7 @@
 
         <!-- Back to Store -->
         <div class="mt-8 pt-6 border-t border-gray-200">
-          <a href="/store" class="text-purple-600 hover:text-purple-700 font-medium flex items-center">
+          <a href="/store" class="text-theme-primary hover:opacity-80 font-medium flex items-center">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
             </svg>
@@ -847,7 +856,7 @@
       const container = document.getElementById('walletEmbedContainer');
       container.innerHTML = `
         <div class="text-center py-8">
-          <svg class="animate-spin h-8 w-8 text-purple-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg class="animate-spin h-8 w-8 text-theme-primary mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>

@@ -22,6 +22,11 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16">
         <div class="flex items-center">
+          <% if (typeof store !== 'undefined' && store?.envBadge) { %>
+            <div class="w-10 h-10 rounded-full bg-theme-primary flex items-center justify-center mr-3">
+              <span class="text-white font-bold text-lg"><%= store.envBadge %></span>
+            </div>
+          <% } %>
           <% if (typeof store !== 'undefined' && store?.logoUrl) { %>
             <a href="/"><img src="<%= store.logoUrl %>" alt="<%= store?.name %>" class="h-10"></a>
           <% } else { %>

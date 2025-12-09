@@ -75,6 +75,20 @@
                 <p class="text-xs text-gray-500 mt-1">Displayed on the homepage "About Us" section</p>
               </div>
 
+              <!-- Environment Badge -->
+              <div>
+                <label for="envBadge" class="block text-sm font-medium text-gray-700 mb-1">Environment Badge</label>
+                <div class="flex items-center space-x-3">
+                  <input type="text" id="envBadge" name="envBadge" maxlength="1"
+                    value="<%= branding?.envBadge || '' %>"
+                    placeholder="D"
+                    class="w-16 px-4 py-2 text-center text-lg font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                  <div class="flex-1">
+                    <p class="text-xs text-gray-500">Single letter shown in header (e.g., "D" for Dev, "P" for Prod, "S" for Staging)</p>
+                  </div>
+                </div>
+              </div>
+
               <!-- Theme Selection -->
               <div>
                 <label for="themePreset" class="block text-sm font-medium text-gray-700 mb-1">Theme</label>
