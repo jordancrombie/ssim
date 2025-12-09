@@ -522,7 +522,7 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const store = await ensureStore();
-      const { name, tagline, description, themePreset } = req.body;
+      const { name, tagline, description, themePreset, envBadge } = req.body;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
 
       // Get current branding to check for existing files
@@ -535,11 +535,13 @@ router.post(
         themePreset?: string;
         logoUrl?: string | null;
         heroImageUrl?: string | null;
+        envBadge?: string | null;
       } = {
         name: name || store.name,
         tagline: tagline || null,
         description: description || null,
         themePreset: themePreset || 'default',
+        envBadge: envBadge ? envBadge.charAt(0).toUpperCase() : null,
       };
 
       // Handle logo upload

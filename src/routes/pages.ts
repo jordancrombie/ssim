@@ -127,17 +127,28 @@ router.get('/store', async (req: Request, res: Response) => {
 });
 
 // Checkout page
-router.get('/checkout', (req: Request, res: Response) => {
-  const isAuthenticated = !!req.session.userInfo;
-  res.render('checkout', {
-    isAuthenticated,
-    userInfo: req.session.userInfo,
-    cartCount: getCartCount(req),
-    wsimEnabled: config.wsimEnabled,
-    wsimPopupUrl: config.wsimPopupUrl,
-    wsimApiUrl: config.wsimApiUrl,
-    wsimApiKey: config.wsimApiKey,
-  });
+router.get('/checkout', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const isAuthenticated = !!req.session.userInfo;
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
+
+    res.render('checkout', {
+      store: branding,
+      isAuthenticated,
+      userInfo: req.session.userInfo,
+      cartCount: getCartCount(req),
+      wsimEnabled: config.wsimEnabled,
+      wsimPopupUrl: config.wsimPopupUrl,
+      wsimApiUrl: config.wsimApiUrl,
+      wsimApiKey: config.wsimApiKey,
+      themeCSS,
+    });
+  } catch (error) {
+    console.error('[Pages] Checkout error:', error);
+    res.status(500).render('error', { message: 'Failed to load checkout' });
+  }
 });
 
 // Order confirmation page

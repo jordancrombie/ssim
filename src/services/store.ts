@@ -13,6 +13,7 @@ export interface StoreBranding {
   logoUrl: string | null;
   heroImageUrl: string | null;
   themePreset: string;
+  envBadge: string | null;
 }
 
 /**
@@ -195,6 +196,7 @@ export async function getStoreBranding(storeId: string): Promise<StoreBranding |
       logoUrl: true,
       heroImageUrl: true,
       themePreset: true,
+      envBadge: true,
     },
   });
 
@@ -209,6 +211,7 @@ export async function getStoreBranding(storeId: string): Promise<StoreBranding |
     logoUrl: store.logoUrl,
     heroImageUrl: store.heroImageUrl,
     themePreset: store.themePreset || 'default',
+    envBadge: store.envBadge,
   };
 }
 
@@ -228,6 +231,7 @@ export async function updateStoreBranding(
       logoUrl: data.logoUrl,
       heroImageUrl: data.heroImageUrl,
       themePreset: data.themePreset,
+      envBadge: data.envBadge,
     },
   });
 }

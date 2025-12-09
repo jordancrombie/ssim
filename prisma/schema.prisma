@@ -30,6 +30,7 @@ model Store {
   logoUrl      String?  // Path to uploaded logo image
   heroImageUrl String?  // Path to hero banner image
   themePreset  String   @default("default") // Theme identifier: default, amazon, walmart, staples, regalmoose
+  envBadge     String?  // Single character environment badge, e.g., "D" for dev, "P" for prod
 
   users    StoreUser[]
   products Product[]
