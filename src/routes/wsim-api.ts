@@ -1,12 +1,23 @@
 import { Router, Request, Response } from 'express';
 import { config } from '../config/env';
 import { authorizePayment } from '../services/payment';
-import { setOrderAuthorized, setOrderDeclined, setOrderFailed, createOrder } from '../data/orders';
-import { getProductById } from '../data/products';
-import { OrderItem } from '../models/order';
+import { getOrCreateStore } from '../services/store';
+import * as productService from '../services/product';
+import * as orderService from '../services/order';
+import type { Store } from '@prisma/client';
 import '../types/session';
 
 const router = Router();
+
+// Store reference (cached for request lifecycle)
+let currentStore: Store | null = null;
+
+async function ensureStore(): Promise<Store> {
+  if (!currentStore) {
+    currentStore = await getOrCreateStore();
+  }
+  return currentStore;
+}
 
 /**
  * WSIM Merchant API Proxy Routes
@@ -200,39 +211,41 @@ router.post('/payment/complete', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Cart is empty' });
   }
 
-  // Convert cart items to order items with proper structure
-  const orderItems: OrderItem[] = [];
-  let subtotal = 0;
+  try {
+    const store = await ensureStore();
 
-  for (const cartItem of cart) {
-    const product = getProductById(cartItem.productId);
-    if (!product) {
-      return res.status(400).json({ error: `Product not found: ${cartItem.productId}` });
+    // Convert cart items to order items with proper structure
+    const orderItems: orderService.OrderItem[] = [];
+    let subtotal = 0;
+
+    for (const cartItem of cart) {
+      const product = await productService.getProductById(store.id, cartItem.productId);
+      if (!product) {
+        return res.status(400).json({ error: `Product not found: ${cartItem.productId}` });
+      }
+
+      const itemSubtotal = product.price * cartItem.quantity;
+      orderItems.push({
+        productId: cartItem.productId,
+        productName: product.name,
+        quantity: cartItem.quantity,
+        unitPrice: product.price,
+        subtotal: itemSubtotal,
+      });
+      subtotal += itemSubtotal;
     }
 
-    const itemSubtotal = product.price * cartItem.quantity;
-    orderItems.push({
-      productId: cartItem.productId,
-      productName: product.name,
-      quantity: cartItem.quantity,
-      unitPrice: product.price,
-      subtotal: itemSubtotal,
+    // Create order
+    const bsimUserId = req.session.userInfo?.sub as string || 'guest';
+    const order = await orderService.createOrder(store.id, {
+      bsimUserId,
+      items: orderItems,
+      subtotal,
+      currency: 'CAD',
     });
-    subtotal += itemSubtotal;
-  }
 
-  // Create order
-  const userId = req.session.userInfo?.sub as string || 'guest';
-  const order = createOrder({
-    userId,
-    items: orderItems,
-    subtotal,
-    currency: 'CAD',
-  });
+    console.log(`[WSIM API] Processing API payment for order ${order.id}, amount: ${order.subtotal} cents`);
 
-  console.log(`[WSIM API] Processing API payment for order ${order.id}, amount: ${order.subtotal} cents`);
-
-  try {
     const authResult = await authorizePayment({
       merchantId: config.merchantId,
       amount: order.subtotal,
@@ -243,7 +256,8 @@ router.post('/payment/complete', async (req: Request, res: Response) => {
     });
 
     if (authResult.status === 'authorized') {
-      setOrderAuthorized(
+      await orderService.setOrderAuthorized(
+        store.id,
         order.id,
         authResult.transactionId,
         authResult.authorizationCode || '',
@@ -264,20 +278,19 @@ router.post('/payment/complete', async (req: Request, res: Response) => {
         redirectUrl: `/order-confirmation/${order.id}`,
       });
     } else if (authResult.status === 'declined') {
-      setOrderDeclined(order.id);
+      await orderService.setOrderDeclined(store.id, order.id);
       console.log(`[WSIM API] Payment declined for order ${order.id}: ${authResult.declineReason}`);
       res.status(400).json({
         error: 'Payment declined',
         reason: authResult.declineReason,
       });
     } else {
-      setOrderFailed(order.id);
+      await orderService.setOrderFailed(store.id, order.id);
       console.log(`[WSIM API] Payment failed for order ${order.id}`);
       res.status(500).json({ error: 'Payment failed' });
     }
   } catch (error) {
     console.error('[WSIM API] Payment complete error:', error);
-    setOrderFailed(order.id);
     res.status(500).json({ error: 'Payment processing failed' });
   }
 });

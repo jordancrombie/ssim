@@ -1,30 +1,26 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { config } from '../config/env';
-import {
-  getAllProducts,
-  getProductById,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  toggleProductActive,
-  getProductStats,
-  formatPrice,
-  getCategories,
-} from '../data/products';
-import {
-  getAllOrders,
-  getOrderById,
-  getOrderStats,
-  setOrderCaptured,
-  setOrderVoided,
-  setOrderRefunded,
-} from '../data/orders';
+import { getOrCreateStore } from '../services/store';
+import * as productService from '../services/product';
+import * as orderService from '../services/order';
+import * as adminService from '../services/admin';
 import { capturePayment, voidPayment, refundPayment } from '../services/payment';
+import type { Store } from '@prisma/client';
 
 const router = Router();
 
+// Store reference (cached for request lifecycle)
+let currentStore: Store | null = null;
+
+async function ensureStore(): Promise<Store> {
+  if (!currentStore) {
+    currentStore = await getOrCreateStore();
+  }
+  return currentStore;
+}
+
 // Admin authentication middleware
-function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   // Check if admin is enabled
   if (!config.adminEnabled) {
     res.status(403).render('error', {
@@ -45,17 +41,36 @@ function requireAdmin(req: Request, res: Response, next: NextFunction): void {
     return;
   }
 
-  // Check if user email is in admin list (if configured)
+  // Check if user has admin access (env-based or database-based)
   const userEmail = (userInfo.email as string)?.toLowerCase();
-  if (config.adminEmails.length > 0 && !config.adminEmails.includes(userEmail)) {
-    res.status(403).render('error', {
-      title: 'Access Denied',
-      message: 'You do not have admin access. Contact an administrator.',
-      isAuthenticated: true,
-      userInfo,
-      cartCount: req.session.cart?.length || 0,
-    });
-    return;
+
+  try {
+    const store = await ensureStore();
+    const hasAccess = await adminService.isAdmin(store.id, userEmail);
+
+    if (!hasAccess) {
+      res.status(403).render('error', {
+        title: 'Access Denied',
+        message: 'You do not have admin access. Contact an administrator.',
+        isAuthenticated: true,
+        userInfo,
+        cartCount: req.session.cart?.length || 0,
+      });
+      return;
+    }
+  } catch (err) {
+    // If DB is unavailable, fall back to env-based check only
+    console.warn('[Admin] Database check failed, using env-based auth only:', err);
+    if (config.adminEmails.length > 0 && !config.adminEmails.includes(userEmail)) {
+      res.status(403).render('error', {
+        title: 'Access Denied',
+        message: 'You do not have admin access. Contact an administrator.',
+        isAuthenticated: true,
+        userInfo,
+        cartCount: req.session.cart?.length || 0,
+      });
+      return;
+    }
   }
 
   next();
@@ -78,239 +93,358 @@ function getViewData(req: Request) {
 // Admin Dashboard
 // =============================================================================
 
-router.get('/', (req: Request, res: Response) => {
-  const productStats = getProductStats();
-  const orderStats = getOrderStats();
-  const recentOrders = getAllOrders().slice(0, 5);
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const [productStats, orderStats, allOrders] = await Promise.all([
+      productService.getProductStats(store.id),
+      orderService.getOrderStats(store.id),
+      orderService.getAllOrders(store.id),
+    ]);
 
-  res.render('admin/dashboard', {
-    ...getViewData(req),
-    title: 'Admin Dashboard',
-    productStats,
-    orderStats,
-    recentOrders,
-    formatPrice,
-  });
+    const recentOrders = allOrders.slice(0, 5);
+
+    res.render('admin/dashboard', {
+      ...getViewData(req),
+      title: 'Admin Dashboard',
+      productStats,
+      orderStats,
+      recentOrders,
+      formatPrice: productService.formatPrice,
+      getOrderItems: orderService.getOrderItems,
+      getOrderPaymentDetails: orderService.getOrderPaymentDetails,
+    });
+  } catch (error) {
+    console.error('[Admin] Dashboard error:', error);
+    res.status(500).render('error', {
+      ...getViewData(req),
+      title: 'Error',
+      message: 'Failed to load dashboard data',
+    });
+  }
 });
 
 // =============================================================================
 // Product Management
 // =============================================================================
 
-router.get('/products', (req: Request, res: Response) => {
-  const products = getAllProducts(true); // Include inactive
-  const categories = getCategories();
+router.get('/products', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const [products, categories] = await Promise.all([
+      productService.getAllProducts(store.id, true), // Include inactive
+      productService.getCategories(store.id),
+    ]);
 
-  res.render('admin/products', {
-    ...getViewData(req),
-    title: 'Manage Products',
-    products,
-    categories,
-    formatPrice,
-  });
-});
-
-router.get('/products/new', (req: Request, res: Response) => {
-  const categories = getCategories();
-
-  res.render('admin/product-form', {
-    ...getViewData(req),
-    title: 'Add Product',
-    product: null,
-    categories,
-    isEdit: false,
-  });
-});
-
-router.post('/products', (req: Request, res: Response) => {
-  const { name, description, price, currency, category, image } = req.body;
-
-  // Convert price from dollars to cents
-  const priceInCents = Math.round(parseFloat(price) * 100);
-
-  createProduct({
-    name,
-    description,
-    price: priceInCents,
-    currency: currency || 'CAD',
-    category,
-    image: image || undefined,
-  });
-
-  res.redirect('/admin/products?success=created');
-});
-
-router.get('/products/:id/edit', (req: Request, res: Response) => {
-  const product = getProductById(req.params.id);
-  if (!product) {
-    res.redirect('/admin/products?error=notfound');
-    return;
+    res.render('admin/products', {
+      ...getViewData(req),
+      title: 'Manage Products',
+      products,
+      categories,
+      formatPrice: productService.formatPrice,
+    });
+  } catch (error) {
+    console.error('[Admin] Products list error:', error);
+    res.status(500).render('error', {
+      ...getViewData(req),
+      title: 'Error',
+      message: 'Failed to load products',
+    });
   }
-
-  const categories = getCategories();
-
-  res.render('admin/product-form', {
-    ...getViewData(req),
-    title: 'Edit Product',
-    product,
-    categories,
-    isEdit: true,
-  });
 });
 
-router.post('/products/:id', (req: Request, res: Response) => {
-  const { name, description, price, currency, category, image } = req.body;
+router.get('/products/new', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const categories = await productService.getCategories(store.id);
 
-  // Convert price from dollars to cents
-  const priceInCents = Math.round(parseFloat(price) * 100);
-
-  const updated = updateProduct(req.params.id, {
-    name,
-    description,
-    price: priceInCents,
-    currency: currency || 'CAD',
-    category,
-    image: image || undefined,
-  });
-
-  if (!updated) {
-    res.redirect('/admin/products?error=notfound');
-    return;
+    res.render('admin/product-form', {
+      ...getViewData(req),
+      title: 'Add Product',
+      product: null,
+      categories,
+      isEdit: false,
+    });
+  } catch (error) {
+    console.error('[Admin] New product form error:', error);
+    res.status(500).render('error', {
+      ...getViewData(req),
+      title: 'Error',
+      message: 'Failed to load product form',
+    });
   }
-
-  res.redirect('/admin/products?success=updated');
 });
 
-router.post('/products/:id/toggle', (req: Request, res: Response) => {
-  const product = toggleProductActive(req.params.id);
-  if (!product) {
-    res.redirect('/admin/products?error=notfound');
-    return;
-  }
+router.post('/products', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const { name, description, price, currency, category, image } = req.body;
 
-  res.redirect('/admin/products?success=toggled');
+    // Convert price from dollars to cents
+    const priceInCents = Math.round(parseFloat(price) * 100);
+
+    await productService.createProduct(store.id, {
+      name,
+      description,
+      price: priceInCents,
+      currency: currency || 'CAD',
+      category,
+      image: image || undefined,
+    });
+
+    res.redirect('/admin/products?success=created');
+  } catch (error) {
+    console.error('[Admin] Create product error:', error);
+    res.redirect('/admin/products?error=create_failed');
+  }
 });
 
-router.post('/products/:id/delete', (req: Request, res: Response) => {
-  const deleted = deleteProduct(req.params.id);
-  if (!deleted) {
-    res.redirect('/admin/products?error=notfound');
-    return;
-  }
+router.get('/products/:id/edit', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const [product, categories] = await Promise.all([
+      productService.getProductById(store.id, req.params.id),
+      productService.getCategories(store.id),
+    ]);
 
-  res.redirect('/admin/products?success=deleted');
+    if (!product) {
+      res.redirect('/admin/products?error=notfound');
+      return;
+    }
+
+    res.render('admin/product-form', {
+      ...getViewData(req),
+      title: 'Edit Product',
+      product,
+      categories,
+      isEdit: true,
+    });
+  } catch (error) {
+    console.error('[Admin] Edit product form error:', error);
+    res.redirect('/admin/products?error=load_failed');
+  }
+});
+
+router.post('/products/:id', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const { name, description, price, currency, category, image } = req.body;
+
+    // Convert price from dollars to cents
+    const priceInCents = Math.round(parseFloat(price) * 100);
+
+    const updated = await productService.updateProduct(store.id, req.params.id, {
+      name,
+      description,
+      price: priceInCents,
+      currency: currency || 'CAD',
+      category,
+      image: image || undefined,
+    });
+
+    if (!updated) {
+      res.redirect('/admin/products?error=notfound');
+      return;
+    }
+
+    res.redirect('/admin/products?success=updated');
+  } catch (error) {
+    console.error('[Admin] Update product error:', error);
+    res.redirect('/admin/products?error=update_failed');
+  }
+});
+
+router.post('/products/:id/toggle', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const product = await productService.toggleProductActive(store.id, req.params.id);
+
+    if (!product) {
+      res.redirect('/admin/products?error=notfound');
+      return;
+    }
+
+    res.redirect('/admin/products?success=toggled');
+  } catch (error) {
+    console.error('[Admin] Toggle product error:', error);
+    res.redirect('/admin/products?error=toggle_failed');
+  }
+});
+
+router.post('/products/:id/delete', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const deleted = await productService.deleteProduct(store.id, req.params.id);
+
+    if (!deleted) {
+      res.redirect('/admin/products?error=notfound');
+      return;
+    }
+
+    res.redirect('/admin/products?success=deleted');
+  } catch (error) {
+    console.error('[Admin] Delete product error:', error);
+    res.redirect('/admin/products?error=delete_failed');
+  }
 });
 
 // =============================================================================
 // Order Management
 // =============================================================================
 
-router.get('/orders', (req: Request, res: Response) => {
-  const orders = getAllOrders();
-  const stats = getOrderStats();
+router.get('/orders', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const [orders, stats] = await Promise.all([
+      orderService.getAllOrders(store.id),
+      orderService.getOrderStats(store.id),
+    ]);
 
-  res.render('admin/orders', {
-    ...getViewData(req),
-    title: 'Manage Orders',
-    orders,
-    stats,
-    formatPrice,
-  });
+    res.render('admin/orders', {
+      ...getViewData(req),
+      title: 'Manage Orders',
+      orders,
+      stats,
+      formatPrice: productService.formatPrice,
+      getOrderItems: orderService.getOrderItems,
+      getOrderPaymentDetails: orderService.getOrderPaymentDetails,
+    });
+  } catch (error) {
+    console.error('[Admin] Orders list error:', error);
+    res.status(500).render('error', {
+      ...getViewData(req),
+      title: 'Error',
+      message: 'Failed to load orders',
+    });
+  }
 });
 
-router.get('/orders/:id', (req: Request, res: Response) => {
-  const order = getOrderById(req.params.id);
-  if (!order) {
-    res.redirect('/admin/orders?error=notfound');
-    return;
-  }
+router.get('/orders/:id', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const order = await orderService.getOrderById(store.id, req.params.id);
 
-  res.render('admin/order-detail', {
-    ...getViewData(req),
-    title: `Order ${order.id}`,
-    order,
-    formatPrice,
-  });
+    if (!order) {
+      res.redirect('/admin/orders?error=notfound');
+      return;
+    }
+
+    res.render('admin/order-detail', {
+      ...getViewData(req),
+      title: `Order ${order.id}`,
+      order,
+      formatPrice: productService.formatPrice,
+      getOrderItems: orderService.getOrderItems,
+      getOrderPaymentDetails: orderService.getOrderPaymentDetails,
+    });
+  } catch (error) {
+    console.error('[Admin] Order detail error:', error);
+    res.redirect('/admin/orders?error=load_failed');
+  }
 });
 
 router.post('/orders/:id/capture', async (req: Request, res: Response) => {
-  const order = getOrderById(req.params.id);
-  if (!order || !order.paymentDetails?.transactionId) {
-    res.redirect('/admin/orders?error=notfound');
-    return;
-  }
-
-  if (order.status !== 'authorized') {
-    res.redirect(`/admin/orders/${order.id}?error=invalid_status`);
-    return;
-  }
-
   try {
-    const result = await capturePayment(order.paymentDetails.transactionId);
+    const store = await ensureStore();
+    const order = await orderService.getOrderById(store.id, req.params.id);
+
+    if (!order) {
+      res.redirect('/admin/orders?error=notfound');
+      return;
+    }
+
+    const paymentDetails = orderService.getOrderPaymentDetails(order);
+    if (!paymentDetails?.transactionId) {
+      res.redirect('/admin/orders?error=notfound');
+      return;
+    }
+
+    if (order.status !== 'authorized') {
+      res.redirect(`/admin/orders/${order.id}?error=invalid_status`);
+      return;
+    }
+
+    const result = await capturePayment(paymentDetails.transactionId);
     if (result.status === 'captured') {
-      setOrderCaptured(order.id, result.capturedAmount);
+      await orderService.setOrderCaptured(store.id, order.id, result.capturedAmount);
       res.redirect(`/admin/orders/${order.id}?success=captured`);
     } else {
       res.redirect(`/admin/orders/${order.id}?error=capture_failed`);
     }
   } catch (error) {
     console.error('[Admin] Capture error:', error);
-    res.redirect(`/admin/orders/${order.id}?error=capture_error`);
+    res.redirect(`/admin/orders/${req.params.id}?error=capture_error`);
   }
 });
 
 router.post('/orders/:id/void', async (req: Request, res: Response) => {
-  const order = getOrderById(req.params.id);
-  if (!order || !order.paymentDetails?.transactionId) {
-    res.redirect('/admin/orders?error=notfound');
-    return;
-  }
-
-  if (order.status !== 'authorized') {
-    res.redirect(`/admin/orders/${order.id}?error=invalid_status`);
-    return;
-  }
-
   try {
-    const result = await voidPayment(order.paymentDetails.transactionId);
+    const store = await ensureStore();
+    const order = await orderService.getOrderById(store.id, req.params.id);
+
+    if (!order) {
+      res.redirect('/admin/orders?error=notfound');
+      return;
+    }
+
+    const paymentDetails = orderService.getOrderPaymentDetails(order);
+    if (!paymentDetails?.transactionId) {
+      res.redirect('/admin/orders?error=notfound');
+      return;
+    }
+
+    if (order.status !== 'authorized') {
+      res.redirect(`/admin/orders/${order.id}?error=invalid_status`);
+      return;
+    }
+
+    const result = await voidPayment(paymentDetails.transactionId);
     if (result.status === 'voided') {
-      setOrderVoided(order.id);
+      await orderService.setOrderVoided(store.id, order.id);
       res.redirect(`/admin/orders/${order.id}?success=voided`);
     } else {
       res.redirect(`/admin/orders/${order.id}?error=void_failed`);
     }
   } catch (error) {
     console.error('[Admin] Void error:', error);
-    res.redirect(`/admin/orders/${order.id}?error=void_error`);
+    res.redirect(`/admin/orders/${req.params.id}?error=void_error`);
   }
 });
 
 router.post('/orders/:id/refund', async (req: Request, res: Response) => {
-  const order = getOrderById(req.params.id);
-  if (!order || !order.paymentDetails?.transactionId) {
-    res.redirect('/admin/orders?error=notfound');
-    return;
-  }
-
-  if (order.status !== 'captured') {
-    res.redirect(`/admin/orders/${order.id}?error=invalid_status`);
-    return;
-  }
-
-  const reason = req.body.reason || 'Admin refund';
-  const amount = order.subtotal / 100; // Convert cents to dollars for API
-
   try {
-    const result = await refundPayment(order.paymentDetails.transactionId, amount, reason);
+    const store = await ensureStore();
+    const order = await orderService.getOrderById(store.id, req.params.id);
+
+    if (!order) {
+      res.redirect('/admin/orders?error=notfound');
+      return;
+    }
+
+    const paymentDetails = orderService.getOrderPaymentDetails(order);
+    if (!paymentDetails?.transactionId) {
+      res.redirect('/admin/orders?error=notfound');
+      return;
+    }
+
+    if (order.status !== 'captured') {
+      res.redirect(`/admin/orders/${order.id}?error=invalid_status`);
+      return;
+    }
+
+    const reason = req.body.reason || 'Admin refund';
+    const amount = order.subtotal / 100; // Convert cents to dollars for API
+
+    const result = await refundPayment(paymentDetails.transactionId, amount, reason);
     if (result.status === 'refunded') {
-      setOrderRefunded(order.id, order.subtotal);
+      await orderService.setOrderRefunded(store.id, order.id, order.subtotal);
       res.redirect(`/admin/orders/${order.id}?success=refunded`);
     } else {
       res.redirect(`/admin/orders/${order.id}?error=refund_failed`);
     }
   } catch (error) {
     console.error('[Admin] Refund error:', error);
-    res.redirect(`/admin/orders/${order.id}?error=refund_error`);
+    res.redirect(`/admin/orders/${req.params.id}?error=refund_error`);
   }
 });
 
@@ -318,31 +452,55 @@ router.post('/orders/:id/refund', async (req: Request, res: Response) => {
 // Settings (placeholder for future)
 // =============================================================================
 
-router.get('/settings', (req: Request, res: Response) => {
-  res.render('admin/settings', {
-    ...getViewData(req),
-    title: 'Settings',
-    config: {
-      appBaseUrl: config.appBaseUrl,
-      paymentApiUrl: config.paymentApiUrl,
-      merchantId: config.merchantId,
-      adminEmails: config.adminEmails,
-    },
-  });
+router.get('/settings', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const admins = await adminService.getAllAdmins(store.id);
+    const superAdmins = adminService.getSuperAdminEmails();
+
+    res.render('admin/settings', {
+      ...getViewData(req),
+      title: 'Settings',
+      config: {
+        appBaseUrl: config.appBaseUrl,
+        paymentApiUrl: config.paymentApiUrl,
+        merchantId: config.merchantId,
+        adminEmails: config.adminEmails,
+      },
+      admins,
+      superAdmins,
+      store,
+    });
+  } catch (error) {
+    console.error('[Admin] Settings error:', error);
+    res.status(500).render('error', {
+      ...getViewData(req),
+      title: 'Error',
+      message: 'Failed to load settings',
+    });
+  }
 });
 
 // =============================================================================
 // API Endpoints for AJAX operations
 // =============================================================================
 
-router.get('/api/stats', (req: Request, res: Response) => {
-  const productStats = getProductStats();
-  const orderStats = getOrderStats();
+router.get('/api/stats', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const [productStats, orderStats] = await Promise.all([
+      productService.getProductStats(store.id),
+      orderService.getOrderStats(store.id),
+    ]);
 
-  res.json({
-    products: productStats,
-    orders: orderStats,
-  });
+    res.json({
+      products: productStats,
+      orders: orderStats,
+    });
+  } catch (error) {
+    console.error('[Admin] Stats API error:', error);
+    res.status(500).json({ error: 'Failed to load stats' });
+  }
 });
 
 export default router;

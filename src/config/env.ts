@@ -30,6 +30,11 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   sessionSecret: process.env.SESSION_SECRET || 'dev-session-secret',
   appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:3005',
+  // Database
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/ssim',
+  // Store identity (for multi-tenant DB)
+  storeDomain: process.env.STORE_DOMAIN || new URL(process.env.APP_BASE_URL || 'http://localhost:3005').hostname,
+  storeName: process.env.STORE_NAME || 'SSIM Store',
   openbankingBaseUrl: process.env.OPENBANKING_BASE_URL || 'https://openbanking.banksim.ca',
   trustProxy: process.env.TRUST_PROXY === 'true',
   providers: parseProviders(),

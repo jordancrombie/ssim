@@ -47,5 +47,10 @@ declare module 'express-session' {
     adminReturnTo?: string;
     // Login redirect
     returnTo?: string;
+    // Database user reference
+    storeUserId?: string;
+    // WSIM JWT (from database, for Quick Checkout)
+    wsimJwt?: string;
+    wsimJwtExp?: number;
   }
 }
