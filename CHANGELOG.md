@@ -2,6 +2,69 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.9.0] - 2025-12-08
+
+### Added
+- **PostgreSQL Database Integration** - Persistent storage using Prisma ORM
+  - Multi-tenant database schema with store isolation
+  - Six database tables: `stores`, `store_users`, `products`, `orders`, `store_admins`
+  - All data persists across container restarts
+
+- **Persistent Products** - Product catalog stored in database
+  - Auto-seeding of default products when store is first created
+  - Products survive container restarts and redeployments
+  - Admin-managed product CRUD operations now persist
+
+- **Persistent Orders** - Order history stored in database
+  - Complete order history with payment details (JSONB)
+  - Orders linked to users and stores
+  - Transaction tracking across sessions
+
+- **Database-Backed Admin Roles** - Role-based access control
+  - Four roles: `admin`, `product_editor`, `order_manager`, `viewer`
+  - Admins can be added/managed via admin panel
+  - Environment-based super admins (`ADMIN_EMAILS`) always have full access
+
+- **WSIM JWT Persistence** - Quick Checkout works across sessions
+  - WSIM wallet tokens stored in user database record
+  - Token restored on login for seamless Quick Checkout
+  - New `/api/user/wsim-token` endpoints for token management
+
+- **OIDC Consent Skipping** - Returning users skip consent screen
+  - Consented scopes stored per user in database
+  - Smoother login experience for repeat customers
+
+- **WSIM API Diagnostic Page** - Debug tool at `/wsim-diagnostic`
+  - Test CORS configuration and session handling
+  - Verify WSIM API connectivity
+
+### Fixed
+- **Passkey Authentication** - Fixed `@simplewebauthn/browser@10` API change
+  - Updated `startAuthentication(options)` to `startAuthentication({ optionsJSON: options })`
+  - Affects all Quick Checkout and API checkout flows
+
+### New Environment Variables
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `STORE_DOMAIN` | No | Store identifier (defaults to hostname) |
+| `STORE_NAME` | No | Display name (defaults to "SSIM Store") |
+
+### Database Schema
+- `stores` - Store configuration and multi-tenant isolation
+- `store_users` - User records with WSIM JWT storage and consent tracking
+- `products` - Product catalog with pricing, categories, images
+- `orders` - Order history with JSONB items and payment details
+- `store_admins` - Role-based admin access per store
+
+### Dependencies
+- Added `prisma` and `@prisma/client` for database ORM
+- Requires PostgreSQL 14+
+
+### Documentation
+- Added production deployment guide for shared RDS setup
+- Database migration instructions for existing deployments
+
 ## [1.8.5] - 2025-12-07
 
 ### Fixed
