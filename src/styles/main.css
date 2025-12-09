@@ -1,1 +1,61 @@
 @import "tailwindcss";
+
+/* ============================================
+   Theme CSS Variables
+   These are set dynamically per-store via inline styles
+   ============================================ */
+:root {
+  /* Default theme (purple) - overridden by store-specific theme */
+  --color-primary: #9333ea;
+  --color-primary-hover: #7c3aed;
+  --color-primary-light: #f3e8ff;
+  --color-secondary: #6366f1;
+  --color-accent: #a855f7;
+  --gradient-from: #667eea;
+  --gradient-to: #764ba2;
+}
+
+/* ============================================
+   Theme Utility Classes
+   Use these instead of hardcoded Tailwind colors
+   ============================================ */
+
+/* Background colors */
+.bg-theme-primary { background-color: var(--color-primary); }
+.bg-theme-primary-light { background-color: var(--color-primary-light); }
+.bg-theme-secondary { background-color: var(--color-secondary); }
+.bg-theme-accent { background-color: var(--color-accent); }
+
+/* Text colors */
+.text-theme-primary { color: var(--color-primary); }
+.text-theme-secondary { color: var(--color-secondary); }
+.text-theme-accent { color: var(--color-accent); }
+
+/* Border colors */
+.border-theme-primary { border-color: var(--color-primary); }
+.border-theme-secondary { border-color: var(--color-secondary); }
+
+/* Ring colors (for focus states) */
+.ring-theme-primary { --tw-ring-color: var(--color-primary); }
+.focus\:ring-theme-primary:focus { --tw-ring-color: var(--color-primary); }
+
+/* Hover states */
+.hover\:bg-theme-primary:hover { background-color: var(--color-primary); }
+.hover\:bg-theme-primary-hover:hover { background-color: var(--color-primary-hover); }
+.hover\:text-theme-primary:hover { color: var(--color-primary); }
+.hover\:border-theme-primary:hover { border-color: var(--color-primary); }
+
+/* Gradient */
+.gradient-theme {
+  background: linear-gradient(135deg, var(--gradient-from) 0%, var(--gradient-to) 100%);
+}
+
+/* Combined utility for primary buttons */
+.btn-theme-primary {
+  background-color: var(--color-primary);
+  color: white;
+  transition: background-color 0.2s;
+}
+.btn-theme-primary:hover {
+  background-color: var(--color-primary-hover);
+}

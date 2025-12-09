@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SSIM - Store Simulator</title>
+  <title><%= typeof store !== 'undefined' && store?.name ? store.name : 'SSIM' %> - Store</title>
   <link rel="stylesheet" href="/css/tailwind.css">
   <style>
+    <% if (typeof themeCSS !== 'undefined') { %>
+      <%= themeCSS %>
+    <% } %>
     .gradient-bg {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, var(--gradient-from, #667eea) 0%, var(--gradient-to, #764ba2) 100%);
     }
     .card-shadow {
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
@@ -19,24 +22,30 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16">
         <div class="flex items-center">
-          <a href="/" class="text-2xl font-bold text-purple-600">SSIM</a>
-          <span class="ml-2 text-gray-500">Store Simulator</span>
+          <% if (typeof store !== 'undefined' && store?.logoUrl) { %>
+            <a href="/"><img src="<%= store.logoUrl %>" alt="<%= store?.name %>" class="h-10"></a>
+          <% } else { %>
+            <a href="/" class="text-2xl font-bold text-theme-primary"><%= typeof store !== 'undefined' && store?.name ? store.name : 'SSIM' %></a>
+            <% if (typeof store === 'undefined' || !store?.name) { %>
+              <span class="ml-2 text-gray-500">Store Simulator</span>
+            <% } %>
+          <% } %>
         </div>
         <div class="flex items-center space-x-4">
-          <a href="/store" class="text-gray-700 hover:text-purple-600">Store</a>
-          <a href="/checkout" class="text-gray-700 hover:text-purple-600 flex items-center">
+          <a href="/store" class="text-gray-700 hover:text-theme-primary">Store</a>
+          <a href="/checkout" class="text-gray-700 hover:text-theme-primary flex items-center">
             <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
             </svg>
-            Cart<% if (typeof cartCount !== 'undefined' && cartCount > 0) { %><span id="navCartCount" class="ml-1 bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full"><%= cartCount %></span><% } %>
+            Cart<% if (typeof cartCount !== 'undefined' && cartCount > 0) { %><span id="navCartCount" class="ml-1 bg-theme-primary text-white text-xs px-2 py-0.5 rounded-full"><%= cartCount %></span><% } %>
           </a>
           <% if (typeof isAuthenticated !== 'undefined' && isAuthenticated) { %>
-            <a href="/orders" class="text-gray-700 hover:text-purple-600">Orders</a>
-            <a href="/profile" class="text-gray-700 hover:text-purple-600">Profile</a>
-            <a href="/kenok" class="text-gray-700 hover:text-purple-600 font-semibold">KENOK</a>
+            <a href="/orders" class="text-gray-700 hover:text-theme-primary">Orders</a>
+            <a href="/profile" class="text-gray-700 hover:text-theme-primary">Profile</a>
+            <a href="/kenok" class="text-gray-700 hover:text-theme-primary font-semibold">KENOK</a>
             <a href="/auth/logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition">Logout</a>
           <% } else { %>
-            <a href="/login" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition">Login</a>
+            <a href="/login" class="btn-theme-primary px-4 py-2 rounded-lg">Login</a>
           <% } %>
         </div>
       </div>
@@ -48,7 +57,7 @@
   </main>
 
   <footer class="mt-auto py-6 text-center text-gray-500 text-sm">
-    <p>SSIM Store Simulator &copy; <%= new Date().getFullYear() %></p>
+    <p><%= typeof store !== 'undefined' && store?.name ? store.name : 'SSIM Store Simulator' %> &copy; <%= new Date().getFullYear() %></p>
   </footer>
 </body>
 </html>
