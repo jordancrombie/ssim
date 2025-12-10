@@ -66,15 +66,31 @@ router.get('/demo', (req: Request, res: Response) => {
 });
 
 // Login page with provider selection
-router.get('/login', (req: Request, res: Response) => {
+router.get('/login', async (req: Request, res: Response) => {
   if (req.session.userInfo) {
     const returnTo = req.query.returnTo as string;
     return res.redirect(returnTo && returnTo.startsWith('/') ? returnTo : '/profile');
   }
 
-  const providers = getAllProviders();
-  const returnTo = req.query.returnTo as string;
-  res.render('login', { providers, returnTo: returnTo && returnTo.startsWith('/') ? returnTo : '' });
+  try {
+    const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
+
+    const providers = getAllProviders();
+    const returnTo = req.query.returnTo as string;
+    res.render('login', {
+      providers,
+      returnTo: returnTo && returnTo.startsWith('/') ? returnTo : '',
+      store: branding,
+      themeCSS,
+      isAuthenticated: false,
+      cartCount: getCartCount(req),
+    });
+  } catch (error) {
+    console.error('[Pages] Login error:', error);
+    res.status(500).render('error', { message: 'Failed to load login page' });
+  }
 });
 
 // Profile page (shows OIDC info after login)

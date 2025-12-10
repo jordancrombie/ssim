@@ -6,7 +6,7 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 
 ### Fixed
 - **Consistent Branding Across All Pages** - All customer-facing pages now display store branding
-  - Profile, KENOK, Orders, Order Detail, and Order Confirmation pages now show theme colors and store name
+  - Login, Profile, KENOK, Orders, Order Detail, and Order Confirmation pages now show theme colors and store name
   - Fixed routes to pass `store` branding and `themeCSS` to all page templates
   - Updated view includes to pass branding data to layout
 
