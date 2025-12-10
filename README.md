@@ -25,9 +25,16 @@ SSIM is part of the BankSim ecosystem - a suite of applications that simulate re
 - **Order Management** - Order history, details, and confirmation pages
 - **Decline Handling** - Clear error messages with card retry support
 
+### Store Branding & Theming
+- **Customizable Branding** - Store name, tagline, description, logo, and hero image
+- **Theme Presets** - 5 themes: Default (Purple), Amazon (Orange), Walmart (Blue), Staples (Red), Regal Moose (Forest Green)
+- **Environment Badge** - Visual indicator (e.g., "D" for dev, "P" for prod) in header
+- **E-Commerce Homepage** - Modern storefront with featured products at `/`
+
 ### Admin Dashboard
 - **Product Management** - Add, edit, delete, and toggle products
 - **Order Management** - View all orders, capture/void/refund payments
+- **Branding Configuration** - Theme selection, logo/hero uploads, environment badge
 - **Settings** - View configuration and environment settings
 - **Access Control** - Email-based admin authorization via BSIM auth
 
@@ -192,7 +199,8 @@ INSERT INTO oauth_clients (
 ### Pages
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | Home page |
+| `/` | GET | E-commerce homepage with featured products |
+| `/demo` | GET | OIDC demo page (original home page) |
 | `/login` | GET | Login page with provider selection |
 | `/profile` | GET | User profile (after authentication) |
 | `/kenok` | GET | KENOK - Open Banking account access |
@@ -239,6 +247,8 @@ INSERT INTO oauth_clients (
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/admin` | GET | Admin dashboard |
+| `/admin/branding` | GET | Store branding configuration |
+| `/admin/branding` | POST | Update branding (with file uploads) |
 | `/admin/products` | GET | Product management |
 | `/admin/products/new` | GET | Add new product form |
 | `/admin/products/:id/edit` | GET | Edit product form |
@@ -267,10 +277,10 @@ ssim/
 ├── src/
 │   ├── config/
 │   │   ├── env.ts          # Environment configuration
-│   │   └── oidc.ts         # OIDC client setup
-│   ├── data/
-│   │   ├── products.ts     # Product catalog
-│   │   └── orders.ts       # Order storage
+│   │   ├── oidc.ts         # OIDC client setup
+│   │   └── themes.ts       # Theme preset definitions
+│   ├── helpers/
+│   │   └── theme.ts        # CSS generation helper
 │   ├── models/
 │   │   └── order.ts        # Order type definitions
 │   ├── routes/
@@ -282,20 +292,26 @@ ssim/
 │   │   ├── webhooks.ts     # NSIM webhook handlers
 │   │   └── pages.ts        # Page routes
 │   ├── services/
-│   │   └── payment.ts      # NSIM Payment API client
+│   │   ├── payment.ts      # NSIM Payment API client
+│   │   ├── store.ts        # Store and branding service
+│   │   ├── product.ts      # Product service
+│   │   ├── order.ts        # Order service
+│   │   └── upload.ts       # File upload service (multer)
 │   ├── types/
 │   │   └── session.ts      # Session type extensions
 │   ├── views/
 │   │   ├── admin/          # Admin dashboard views
-│   │   │   ├── layout.ejs         # Admin sidebar layout
+│   │   │   ├── _sidebar.ejs       # Shared sidebar partial
 │   │   │   ├── dashboard.ejs      # Dashboard with stats
+│   │   │   ├── branding.ejs       # Store branding config
 │   │   │   ├── products.ejs       # Product list
 │   │   │   ├── product-form.ejs   # Add/edit product
 │   │   │   ├── orders.ejs         # Order list
 │   │   │   ├── order-detail.ejs   # Order detail with actions
 │   │   │   └── settings.ejs       # Settings display
-│   │   ├── layout.ejs      # Base layout
-│   │   ├── home.ejs        # Home page
+│   │   ├── layout.ejs      # Base layout with theme support
+│   │   ├── homepage.ejs    # E-commerce homepage
+│   │   ├── demo.ejs        # OIDC demo page
 │   │   ├── store.ejs       # Product catalog
 │   │   ├── checkout.ejs    # Shopping cart/checkout
 │   │   ├── orders.ejs      # Order history
@@ -305,8 +321,12 @@ ssim/
 │   │   ├── login.ejs       # Login/provider selection
 │   │   └── profile.ejs     # User profile display
 │   ├── public/
+│   │   ├── uploads/        # Uploaded logos and hero images
 │   │   └── logo.png        # SSIM logo for OIDC providers
 │   └── server.ts           # Express app entry point
+├── prisma/
+│   ├── schema.prisma       # Database schema
+│   └── migrations/         # Database migrations
 ├── Dockerfile
 ├── docker-compose.yml
 └── package.json
@@ -413,9 +433,10 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [x] **Payment Webhooks** - Real-time status updates with signature verification
 - [x] **Production Deployment** - Deployed to AWS ECS Fargate at https://ssim.banksim.ca
 - [x] **Decline Handling** - Clear error messages with card retry support
+- [x] **Persistent Storage** - PostgreSQL database with Prisma ORM (v1.9.0)
+- [x] **Store Branding** - Admin-configurable themes, logos, and environment badges (v1.10.0)
 
 ### Pending
-- [ ] **Persistent storage** - Orders are currently in-memory; add database storage (PostgreSQL/Redis)
 - [ ] **Payment capture UI** - Add UI buttons to capture/void authorized payments from order details page
 - [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period
 - [ ] **Email notifications** - Send order confirmation and status update emails
