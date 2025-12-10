@@ -2,6 +2,51 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.10.0] - 2025-12-10
+
+### Added
+- **Store Branding** - Admin-configurable store customization
+  - Store name, tagline, and description
+  - Logo and hero image uploads (stored in `/uploads/`)
+  - 5 theme presets: Default (Purple), Amazon (Orange), Walmart (Blue), Staples (Red), Regal Moose (Forest Green)
+  - CSS custom properties for dynamic theming without rebuild
+
+- **Environment Badge** - Visual environment indicator in header
+  - Single-letter badge (e.g., "D" for dev, "P" for prod) displayed in colored circle
+  - Configurable via admin branding page
+  - Visible on all customer-facing pages
+
+- **New E-Commerce Homepage** - Modern storefront at `/`
+  - Featured products section with random selection
+  - Hero section with store branding
+  - "About Us" section from store description
+  - Feature highlights (Secure Payments, Quick Checkout, Trusted & Safe)
+
+- **Admin Branding Page** - New `/admin/branding` page
+  - Theme preview with live color updates
+  - File upload for logo and hero images
+  - Environment badge configuration
+
+### Changed
+- **Homepage Moved** - Original OIDC demo page moved from `/` to `/demo`
+- **Themed Customer Pages** - Store, checkout, and homepage now use theme colors
+- **Checkout Header** - Now uses theme gradient instead of hardcoded purple
+
+### Database Migrations
+- `20251209183707_add_store_branding` - Adds tagline, description, logoUrl, heroImageUrl, themePreset
+- `20251209234000_add_env_badge` - Adds envBadge field
+
+### New Files
+- `src/config/themes.ts` - Theme preset definitions
+- `src/helpers/theme.ts` - CSS generation helper
+- `src/services/upload.ts` - File upload service (multer)
+- `src/views/homepage.ejs` - New e-commerce homepage
+- `src/views/demo.ejs` - Renamed from home.ejs
+- `src/views/admin/branding.ejs` - Admin branding form
+
+### Dependencies
+- Added `multer` and `@types/multer` for file uploads
+
 ## [1.9.0] - 2025-12-08
 
 ### Added
