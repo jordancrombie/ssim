@@ -1725,6 +1725,41 @@
       return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     }
 
+    // Helper function for WebAuthn - convert base64url string to ArrayBuffer
+    function base64urlToBuffer(base64url) {
+      // Add padding if needed
+      let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) {
+        base64 += '=';
+      }
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    // Prepare passkey options by converting base64url strings to ArrayBuffers
+    function preparePasskeyOptions(options) {
+      const prepared = { ...options };
+
+      // Convert challenge from base64url string to ArrayBuffer
+      if (typeof prepared.challenge === 'string') {
+        prepared.challenge = base64urlToBuffer(prepared.challenge);
+      }
+
+      // Convert allowCredentials[].id from base64url strings to ArrayBuffers
+      if (prepared.allowCredentials) {
+        prepared.allowCredentials = prepared.allowCredentials.map(cred => ({
+          ...cred,
+          id: typeof cred.id === 'string' ? base64urlToBuffer(cred.id) : cred.id,
+        }));
+      }
+
+      return prepared;
+    }
+
     // Show JWT Quick Checkout card picker
     async function showJwtApiCheckout() {
       const sessionToken = localStorage.getItem('wsim_session_token');
@@ -1954,9 +1989,9 @@
 
         console.log('[Checkout] JWT - Requesting passkey authentication...');
 
-        // WebAuthn authentication
+        // WebAuthn authentication - convert base64url strings to ArrayBuffers
         const credential = await navigator.credentials.get({
-          publicKey: jwtPaymentOptions,
+          publicKey: preparePasskeyOptions(jwtPaymentOptions),
         });
 
         console.log('[Checkout] JWT - Passkey authentication successful');
