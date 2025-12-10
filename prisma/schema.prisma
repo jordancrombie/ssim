@@ -24,6 +24,14 @@ model Store {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Branding
+  tagline      String?  // Short slogan, e.g., "Your One-Stop Shop"
+  description  String?  // Longer store description for homepage
+  logoUrl      String?  // Path to uploaded logo image
+  heroImageUrl String?  // Path to hero banner image
+  themePreset  String   @default("default") // Theme identifier: default, amazon, walmart, staples, regalmoose
+  envBadge     String?  // Single character environment badge, e.g., "D" for dev, "P" for prod
+
   users    StoreUser[]
   products Product[]
   orders   Order[]

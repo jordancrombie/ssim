@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - SSIM Admin</title>
+  <link rel="stylesheet" href="/css/tailwind.css">
+</head>
+<body class="min-h-screen bg-gray-100">
+  <div class="flex h-screen">
+    <%- include('_sidebar', { currentPage: 'branding', userInfo: userInfo }) %>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="px-6 py-4">
+          <h1 class="text-2xl font-semibold text-gray-800"><%= title %></h1>
+        </div>
+      </header>
+
+      <main class="flex-1 overflow-y-auto p-6 bg-gray-100">
+        <% if (query.success === 'updated') { %>
+          <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Branding updated successfully!
+          </div>
+        <% } %>
+
+        <% if (query.error) { %>
+          <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Failed to update branding. Please try again.
+          </div>
+        <% } %>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Branding Form -->
+          <div class="bg-white rounded-xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+              </svg>
+              Store Branding
+            </h2>
+
+            <form action="/admin/branding" method="POST" enctype="multipart/form-data" class="space-y-6">
+              <!-- Store Name -->
+              <div>
+                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
+                <input type="text" id="name" name="name" required
+                  value="<%= branding?.name || store.name || '' %>"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+              </div>
+
+              <!-- Tagline -->
+              <div>
+                <label for="tagline" class="block text-sm font-medium text-gray-700 mb-1">Tagline</label>
+                <input type="text" id="tagline" name="tagline"
+                  value="<%= branding?.tagline || '' %>"
+                  placeholder="Your One-Stop Shop"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                <p class="text-xs text-gray-500 mt-1">A short slogan displayed under your store name</p>
+              </div>
+
+              <!-- Description -->
+              <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea id="description" name="description" rows="3"
+                  placeholder="Tell customers about your store..."
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"><%= branding?.description || '' %></textarea>
+                <p class="text-xs text-gray-500 mt-1">Displayed on the homepage "About Us" section</p>
+              </div>
+
+              <!-- Environment Badge -->
+              <div>
+                <label for="envBadge" class="block text-sm font-medium text-gray-700 mb-1">Environment Badge</label>
+                <div class="flex items-center space-x-3">
+                  <input type="text" id="envBadge" name="envBadge" maxlength="1"
+                    value="<%= branding?.envBadge || '' %>"
+                    placeholder="D"
+                    class="w-16 px-4 py-2 text-center text-lg font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                  <div class="flex-1">
+                    <p class="text-xs text-gray-500">Single letter shown in header (e.g., "D" for Dev, "P" for Prod, "S" for Staging)</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Theme Selection -->
+              <div>
+                <label for="themePreset" class="block text-sm font-medium text-gray-700 mb-1">Theme</label>
+                <select id="themePreset" name="themePreset"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                  <% themes.forEach(theme => { %>
+                    <option value="<%= theme.id %>" <%= (branding?.themePreset || 'default') === theme.id ? 'selected' : '' %>>
+                      <%= theme.name %>
+                    </option>
+                  <% }); %>
+                </select>
+                <p class="text-xs text-gray-500 mt-1" id="themeDescription"><%= currentTheme.description %></p>
+              </div>
+
+              <!-- Logo Upload -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                <% if (branding?.logoUrl) { %>
+                  <div class="mb-3 flex items-center space-x-4">
+                    <img src="<%= branding.logoUrl %>" alt="Current logo" class="h-16 rounded border">
+                    <label class="flex items-center text-sm text-gray-600">
+                      <input type="checkbox" name="removeLogo" value="true" class="mr-2">
+                      Remove current logo
+                    </label>
+                  </div>
+                <% } %>
+                <input type="file" id="logo" name="logo" accept="image/*"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                <p class="text-xs text-gray-500 mt-1">Recommended: 200x50px, PNG or SVG. Max 5MB.</p>
+              </div>
+
+              <!-- Hero Image Upload -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Hero Banner Image</label>
+                <% if (branding?.heroImageUrl) { %>
+                  <div class="mb-3 flex items-center space-x-4">
+                    <img src="<%= branding.heroImageUrl %>" alt="Current hero" class="h-24 rounded border">
+                    <label class="flex items-center text-sm text-gray-600">
+                      <input type="checkbox" name="removeHero" value="true" class="mr-2">
+                      Remove current hero image
+                    </label>
+                  </div>
+                <% } %>
+                <input type="file" id="heroImage" name="heroImage" accept="image/*"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                <p class="text-xs text-gray-500 mt-1">Recommended: 1920x600px, JPG. Max 5MB.</p>
+              </div>
+
+              <button type="submit" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition font-medium">
+                Save Changes
+              </button>
+            </form>
+          </div>
+
+          <!-- Theme Preview -->
+          <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-sm p-6">
+              <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+                Theme Preview
+              </h2>
+              <div id="themePreview" class="border rounded-lg overflow-hidden">
+                <!-- Preview content updated by JavaScript -->
+              </div>
+            </div>
+
+            <!-- Theme Color Reference -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">Color Palette</h2>
+              <div id="colorPalette" class="grid grid-cols-3 gap-3">
+                <!-- Colors updated by JavaScript -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const themes = <%- JSON.stringify(themes) %>;
+    const select = document.getElementById('themePreset');
+    const preview = document.getElementById('themePreview');
+    const colorPalette = document.getElementById('colorPalette');
+    const themeDescription = document.getElementById('themeDescription');
+
+    function updatePreview() {
+      const theme = themes.find(t => t.id === select.value);
+      if (!theme) return;
+
+      // Update description
+      themeDescription.textContent = theme.description;
+
+      // Update preview
+      preview.innerHTML = `
+        <div style="background: linear-gradient(135deg, ${theme.colors.gradient.from}, ${theme.colors.gradient.to})" class="p-8 text-white text-center">
+          <h3 class="text-2xl font-bold mb-2">Sample Hero</h3>
+          <p class="opacity-90 mb-4">Your tagline here</p>
+          <button style="background-color: white; color: ${theme.colors.primary}" class="px-6 py-2 rounded-lg font-semibold">Shop Now</button>
+        </div>
+        <div class="p-4 space-y-3">
+          <button style="background-color: ${theme.colors.primary}" class="w-full text-white py-2 rounded-lg hover:opacity-90 transition">Primary Button</button>
+          <div style="background-color: ${theme.colors.primaryLight}" class="p-4 rounded-lg">
+            <span style="color: ${theme.colors.primary}" class="font-semibold">Primary Text on Light Background</span>
+          </div>
+          <div class="flex space-x-2">
+            <span style="background-color: ${theme.colors.accent}" class="px-3 py-1 text-white rounded-full text-sm">Accent Badge</span>
+            <span style="background-color: ${theme.colors.secondary}" class="px-3 py-1 text-white rounded-full text-sm">Secondary</span>
+          </div>
+        </div>
+      `;
+
+      // Update color palette
+      colorPalette.innerHTML = `
+        <div class="text-center">
+          <div style="background-color: ${theme.colors.primary}" class="w-full h-12 rounded-lg mb-1"></div>
+          <span class="text-xs text-gray-500">Primary</span>
+        </div>
+        <div class="text-center">
+          <div style="background-color: ${theme.colors.primaryHover}" class="w-full h-12 rounded-lg mb-1"></div>
+          <span class="text-xs text-gray-500">Hover</span>
+        </div>
+        <div class="text-center">
+          <div style="background-color: ${theme.colors.primaryLight}" class="w-full h-12 rounded-lg mb-1 border"></div>
+          <span class="text-xs text-gray-500">Light</span>
+        </div>
+        <div class="text-center">
+          <div style="background-color: ${theme.colors.secondary}" class="w-full h-12 rounded-lg mb-1"></div>
+          <span class="text-xs text-gray-500">Secondary</span>
+        </div>
+        <div class="text-center">
+          <div style="background-color: ${theme.colors.accent}" class="w-full h-12 rounded-lg mb-1"></div>
+          <span class="text-xs text-gray-500">Accent</span>
+        </div>
+        <div class="text-center">
+          <div style="background: linear-gradient(135deg, ${theme.colors.gradient.from}, ${theme.colors.gradient.to})" class="w-full h-12 rounded-lg mb-1"></div>
+          <span class="text-xs text-gray-500">Gradient</span>
+        </div>
+      `;
+    }
+
+    select.addEventListener('change', updatePreview);
+    updatePreview();
+  </script>
+</body>
+</html>

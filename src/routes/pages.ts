@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { getAllProviders } from '../config/oidc';
 import { config } from '../config/env';
-import { getOrCreateStore } from '../services/store';
+import { getOrCreateStore, getStoreBranding } from '../services/store';
 import * as productService from '../services/product';
 import * as orderService from '../services/order';
+import { generateThemeCSS } from '../helpers/theme';
 import type { Store } from '@prisma/client';
 import '../types/session';
 
@@ -25,10 +26,40 @@ function getCartCount(req: Request): number {
   return cart.reduce((sum, item) => sum + item.quantity, 0);
 }
 
-// Home page
-router.get('/', (req: Request, res: Response) => {
+// New e-commerce homepage
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const products = await productService.getAllProducts(store.id);
+
+    // Get featured products (random 6)
+    const featuredProducts = [...products]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 6);
+
+    const isAuthenticated = !!req.session.userInfo;
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
+
+    res.render('homepage', {
+      store: branding,
+      featuredProducts,
+      formatPrice: productService.formatPrice,
+      isAuthenticated,
+      userInfo: req.session.userInfo,
+      cartCount: getCartCount(req),
+      themeCSS,
+    });
+  } catch (error) {
+    console.error('[Pages] Homepage error:', error);
+    res.status(500).render('error', { message: 'Failed to load homepage' });
+  }
+});
+
+// OIDC Demo page (old homepage)
+router.get('/demo', (req: Request, res: Response) => {
   const isAuthenticated = !!req.session.userInfo;
-  res.render('home', {
+  res.render('demo', {
     isAuthenticated,
     userInfo: req.session.userInfo,
   });
@@ -75,14 +106,19 @@ router.get('/kenok', (req: Request, res: Response) => {
 router.get('/store', async (req: Request, res: Response) => {
   try {
     const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
     const products = await productService.getAllProducts(store.id);
     const isAuthenticated = !!req.session.userInfo;
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
+
     res.render('store', {
+      store: branding,
       products,
       formatPrice: productService.formatPrice,
       isAuthenticated,
       userInfo: req.session.userInfo,
       cartCount: getCartCount(req),
+      themeCSS,
     });
   } catch (error) {
     console.error('[Pages] Store error:', error);
@@ -91,17 +127,28 @@ router.get('/store', async (req: Request, res: Response) => {
 });
 
 // Checkout page
-router.get('/checkout', (req: Request, res: Response) => {
-  const isAuthenticated = !!req.session.userInfo;
-  res.render('checkout', {
-    isAuthenticated,
-    userInfo: req.session.userInfo,
-    cartCount: getCartCount(req),
-    wsimEnabled: config.wsimEnabled,
-    wsimPopupUrl: config.wsimPopupUrl,
-    wsimApiUrl: config.wsimApiUrl,
-    wsimApiKey: config.wsimApiKey,
-  });
+router.get('/checkout', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const isAuthenticated = !!req.session.userInfo;
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
+
+    res.render('checkout', {
+      store: branding,
+      isAuthenticated,
+      userInfo: req.session.userInfo,
+      cartCount: getCartCount(req),
+      wsimEnabled: config.wsimEnabled,
+      wsimPopupUrl: config.wsimPopupUrl,
+      wsimApiUrl: config.wsimApiUrl,
+      wsimApiKey: config.wsimApiKey,
+      themeCSS,
+    });
+  } catch (error) {
+    console.error('[Pages] Checkout error:', error);
+    res.status(500).render('error', { message: 'Failed to load checkout' });
+  }
 });
 
 // Order confirmation page

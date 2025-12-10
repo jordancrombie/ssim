@@ -5,7 +5,7 @@
         <h1 class="text-3xl font-bold text-gray-800">Store</h1>
         <p class="text-gray-600 mt-1">Browse our collection of products</p>
       </div>
-      <a href="/checkout" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center space-x-2">
+      <a href="/checkout" class="btn-theme-primary px-6 py-3 rounded-lg font-semibold flex items-center space-x-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
         </svg>
@@ -17,20 +17,24 @@
     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
       ${products.map(product => `
         <div class="bg-white rounded-xl card-shadow overflow-hidden hover:shadow-lg transition">
-          <div class="h-48 bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center">
-            <svg class="w-20 h-20 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-            </svg>
+          <div class="h-48 bg-theme-primary-light flex items-center justify-center">
+            ${product.image ? `
+              <img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover">
+            ` : `
+              <svg class="w-20 h-20 text-theme-primary opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+              </svg>
+            `}
           </div>
           <div class="p-6">
-            <span class="text-xs font-medium text-purple-600 uppercase tracking-wider">${product.category}</span>
+            <span class="text-xs font-medium text-theme-primary uppercase tracking-wider">${product.category}</span>
             <h3 class="text-lg font-semibold text-gray-800 mt-1">${product.name}</h3>
             <p class="text-gray-600 text-sm mt-2 line-clamp-2">${product.description}</p>
             <div class="flex justify-between items-center mt-4">
-              <span class="text-2xl font-bold text-purple-600">${formatPrice(product.price)}</span>
+              <span class="text-2xl font-bold text-theme-primary">${formatPrice(product.price)}</span>
               <button
                 onclick="addToCart('${product.id}')"
-                class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center space-x-2"
+                class="btn-theme-primary px-4 py-2 rounded-lg font-medium flex items-center space-x-2"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -103,4 +107,4 @@
       }, 3000);
     }
   </script>
-`, isAuthenticated: typeof userInfo !== 'undefined' && userInfo !== null, cartCount: cartCount }) %>
+`, isAuthenticated: typeof userInfo !== 'undefined' && userInfo !== null, cartCount: cartCount, store: store, themeCSS: themeCSS }) %>
