@@ -47,6 +47,32 @@ This file tracks planned features and improvements for the Store Simulator.
 - [ ] **CSRF Protection** - Add CSRF tokens to forms
 - [ ] **Audit Logging** - Log admin actions
 
+## Known Issues / Investigations
+
+### JWT Quick Checkout - Passkey Per Transaction (2025-12-10)
+**Status:** Under investigation (likely WSIM-side issue)
+
+**Problem:** When using JWT Quick Checkout for multiple transactions in the same session:
+- First transaction: User authenticates to WSIM via popup, gets JWT token, passkey prompt works correctly
+- Second transaction (same session): User is NOT prompted for passkey at all
+
+**Requirement:** At least one passkey authentication should be required per transaction.
+
+**Analysis:**
+- SSIM code in `checkout.ejs` looks correct - `confirmJwtPayment()` always calls `navigator.credentials.get()` with `passkeyOptions` from WSIM's `/payment/initiate` response
+- The issue is likely in **WSIM's `/payment/initiate` endpoint** - it may be:
+  1. Not returning `passkeyOptions` for subsequent transactions (session-based bypass)
+  2. Returning a flag that allows direct confirmation without passkey
+  3. Auto-confirming based on recent passkey auth in the same session
+
+**Files involved:**
+- `src/views/checkout.ejs` - `confirmJwtPayment()` function (lines 1928-2055)
+- WSIM `/payment/initiate` and `/payment/confirm` endpoints
+
+**Next steps:** WSIM team to investigate their payment initiation logic to ensure `passkeyOptions` is always returned for each new transaction.
+
+---
+
 ## Completed
 
 - [x] **WSIM Merchant API Integration** - Multiple API checkout options (v1.8.0)
