@@ -1125,7 +1125,7 @@
 
         // Step 2: Trigger browser passkey authentication
         // Use the simplewebauthn browser library
-        const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.es5.min.js');
+        const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.js');
 
         const passkeyResponse = await startAuthentication({ optionsJSON: apiPasskeyOptions });
 
@@ -1492,7 +1492,7 @@
         `;
 
         // Step 2: Trigger browser passkey authentication
-        const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.es5.min.js');
+        const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.js');
 
         const passkeyResponse = await startAuthentication({ optionsJSON: apiProxyPasskeyOptions });
 
@@ -2258,7 +2258,7 @@
         `;
 
         // Step 2: Trigger browser passkey authentication
-        const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.es5.min.js');
+        const { startAuthentication } = await import('https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10/dist/bundle/index.js');
         const passkeyResponse = await startAuthentication({ optionsJSON: initiateData.passkeyOptions });
 
         button.innerHTML = `
