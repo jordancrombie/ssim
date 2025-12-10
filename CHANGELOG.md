@@ -2,6 +2,18 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.10.1] - 2025-12-10
+
+### Fixed
+- **Consistent Branding Across All Pages** - All customer-facing pages now display store branding
+  - Profile, KENOK, Orders, Order Detail, and Order Confirmation pages now show theme colors and store name
+  - Fixed routes to pass `store` branding and `themeCSS` to all page templates
+  - Updated view includes to pass branding data to layout
+
+- **Consistent Navigation** - All pages now have the same nav items
+  - Checkout page nav updated to include Profile and KENOK links
+  - Navigation styling consistent across all pages (Store, Cart, Orders, Profile, KENOK, Logout)
+
 ## [1.10.0] - 2025-12-10
 
 ### Added

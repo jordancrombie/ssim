@@ -30,17 +30,19 @@
         </div>
         <div class="flex items-center space-x-4">
           <a href="/store" class="text-gray-600 hover:text-theme-primary">Store</a>
-          <a href="/checkout" class="text-gray-600 hover:text-theme-primary relative">
-            Cart
-            <% if (cartCount > 0) { %>
-            <span class="absolute -top-2 -right-2 bg-theme-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"><%= cartCount %></span>
-            <% } %>
+          <a href="/checkout" class="text-gray-600 hover:text-theme-primary flex items-center">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            Cart<% if (cartCount > 0) { %><span class="ml-1 bg-theme-primary text-white text-xs px-2 py-0.5 rounded-full"><%= cartCount %></span><% } %>
           </a>
           <% if (isAuthenticated) { %>
           <a href="/orders" class="text-gray-600 hover:text-theme-primary">Orders</a>
-          <a href="/auth/logout" class="text-gray-600 hover:text-theme-primary">Logout</a>
+          <a href="/profile" class="text-gray-600 hover:text-theme-primary">Profile</a>
+          <a href="/kenok" class="text-gray-600 hover:text-theme-primary font-semibold">KENOK</a>
+          <a href="/auth/logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition">Logout</a>
           <% } else { %>
-          <a href="/login" class="text-gray-600 hover:text-theme-primary">Login</a>
+          <a href="/login" class="btn-theme-primary px-4 py-2 rounded-lg">Login</a>
           <% } %>
         </div>
       </div>

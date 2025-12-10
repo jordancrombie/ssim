@@ -78,28 +78,54 @@ router.get('/login', (req: Request, res: Response) => {
 });
 
 // Profile page (shows OIDC info after login)
-router.get('/profile', (req: Request, res: Response) => {
+router.get('/profile', async (req: Request, res: Response) => {
   if (!req.session.userInfo) {
     return res.redirect('/login');
   }
 
-  res.render('profile', {
-    userInfo: req.session.userInfo,
-    tokenSet: req.session.tokenSet,
-    providerId: req.session.providerId,
-  });
+  try {
+    const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
+
+    res.render('profile', {
+      userInfo: req.session.userInfo,
+      tokenSet: req.session.tokenSet,
+      providerId: req.session.providerId,
+      store: branding,
+      themeCSS,
+      isAuthenticated: true,
+      cartCount: getCartCount(req),
+    });
+  } catch (error) {
+    console.error('[Pages] Profile error:', error);
+    res.status(500).render('error', { message: 'Failed to load profile' });
+  }
 });
 
 // KENOK page (Open Banking integration)
-router.get('/kenok', (req: Request, res: Response) => {
+router.get('/kenok', async (req: Request, res: Response) => {
   if (!req.session.userInfo) {
     return res.redirect('/login');
   }
 
-  res.render('kenok', {
-    userInfo: req.session.userInfo,
-    tokenSet: req.session.tokenSet,
-  });
+  try {
+    const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
+
+    res.render('kenok', {
+      userInfo: req.session.userInfo,
+      tokenSet: req.session.tokenSet,
+      store: branding,
+      themeCSS,
+      isAuthenticated: true,
+      cartCount: getCartCount(req),
+    });
+  } catch (error) {
+    console.error('[Pages] KENOK error:', error);
+    res.status(500).render('error', { message: 'Failed to load KENOK' });
+  }
 });
 
 // Store page
@@ -155,6 +181,8 @@ router.get('/checkout', async (req: Request, res: Response) => {
 router.get('/order-confirmation/:orderId', async (req: Request, res: Response) => {
   try {
     const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
     const { orderId } = req.params;
     const order = await orderService.getOrderById(store.id, orderId);
 
@@ -185,6 +213,8 @@ router.get('/order-confirmation/:orderId', async (req: Request, res: Response) =
       getOrderPaymentDetails: orderService.getOrderPaymentDetails,
       isAuthenticated,
       cartCount: getCartCount(req),
+      store: branding,
+      themeCSS,
     });
   } catch (error) {
     console.error('[Pages] Order confirmation error:', error);
@@ -200,6 +230,8 @@ router.get('/orders', async (req: Request, res: Response) => {
 
   try {
     const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
     const bsimUserId = req.session.userInfo.sub as string;
     const orders = await orderService.getOrdersByUserId(store.id, bsimUserId);
 
@@ -210,6 +242,8 @@ router.get('/orders', async (req: Request, res: Response) => {
       getOrderPaymentDetails: orderService.getOrderPaymentDetails,
       isAuthenticated: true,
       cartCount: getCartCount(req),
+      store: branding,
+      themeCSS,
     });
   } catch (error) {
     console.error('[Pages] Orders error:', error);
@@ -225,6 +259,8 @@ router.get('/orders/:orderId', async (req: Request, res: Response) => {
 
   try {
     const store = await ensureStore();
+    const branding = await getStoreBranding(store.id);
+    const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
     const { orderId } = req.params;
     const order = await orderService.getOrderById(store.id, orderId);
 
@@ -244,6 +280,8 @@ router.get('/orders/:orderId', async (req: Request, res: Response) => {
       getOrderPaymentDetails: orderService.getOrderPaymentDetails,
       isAuthenticated: true,
       cartCount: getCartCount(req),
+      store: branding,
+      themeCSS,
     });
   } catch (error) {
     console.error('[Pages] Order detail error:', error);
