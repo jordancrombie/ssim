@@ -42,7 +42,7 @@ describe('Page Routes', () => {
       const response = await request(app).get('/');
 
       expect(response.status).toBe(200);
-      expect(response.body.view).toBe('home');
+      expect(response.body.view).toBe('homepage');
     });
 
     it('should pass isAuthenticated: false when not logged in', async () => {
