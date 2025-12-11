@@ -2,6 +2,17 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.10.2] - 2025-12-11
+
+### Added
+- **Expanded Unit Test Coverage** - Test count increased from 75 to 147 (96% increase)
+  - `src/__tests__/routes/cart.test.ts` - 21 tests for cart CRUD operations
+  - `src/__tests__/services/product.test.ts` - 23 tests for product service
+  - `src/__tests__/services/order.test.ts` - 28 tests for order service
+
+### Fixed
+- **Homepage Test** - Updated test expectation after homepage view rename (home → homepage)
+
 ## [1.10.1] - 2025-12-10
 
 ### Fixed
