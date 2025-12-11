@@ -2,6 +2,14 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.10.3] - 2025-12-11
+
+### Added
+- **Expanded Unit Test Coverage** - Test count increased from 147 to 203 (38% increase)
+  - `src/__tests__/services/payment.test.ts` - 12 tests for NSIM payment service
+  - `src/__tests__/services/store.test.ts` - 25 tests for store/branding service
+  - `src/__tests__/routes/webhooks.test.ts` - 19 tests for webhook signature verification and event handling
+
 ## [1.10.2] - 2025-12-11
 
 ### Added
