@@ -8,12 +8,26 @@ interface InitializedProvider {
 
 const initializedProviders: Map<string, InitializedProvider> = new Map();
 
+/**
+ * Ensure URL uses HTTPS protocol
+ * This prevents 301 redirect issues when HTTP URLs are accidentally configured
+ */
+function ensureHttps(url: string): string {
+  if (url.startsWith('http://')) {
+    const httpsUrl = url.replace('http://', 'https://');
+    console.warn(`[OIDC] Upgrading HTTP URL to HTTPS: ${url} -> ${httpsUrl}`);
+    return httpsUrl;
+  }
+  return url;
+}
+
 export async function initializeProviders(): Promise<void> {
   for (const providerConfig of config.providers) {
     try {
-      console.log(`Discovering OIDC provider: ${providerConfig.name} (${providerConfig.issuer})`);
+      const issuerUrl = ensureHttps(providerConfig.issuer);
+      console.log(`Discovering OIDC provider: ${providerConfig.name} (${issuerUrl})`);
 
-      const issuer = await Issuer.discover(providerConfig.issuer);
+      const issuer = await Issuer.discover(issuerUrl);
       console.log(`Discovered issuer: ${issuer.metadata.issuer}`);
 
       const client = new issuer.Client({
