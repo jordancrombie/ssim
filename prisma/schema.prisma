@@ -36,7 +36,9 @@ model Store {
   bankPaymentEnabled         Boolean @default(true)  // BSIM redirect checkout
   walletRedirectEnabled      Boolean @default(true)  // WSIM redirect checkout
   walletPopupEnabled         Boolean @default(true)  // WSIM popup checkout
+  walletInlineEnabled        Boolean @default(true)  // WSIM inline/embed checkout
   walletQuickCheckoutEnabled Boolean @default(true)  // WSIM quick checkout for returning users
+  walletApiEnabled           Boolean @default(true)  // WSIM API card picker (API, API Direct, API Proxy)
 
   users    StoreUser[]
   products Product[]

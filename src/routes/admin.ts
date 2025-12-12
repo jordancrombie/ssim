@@ -629,10 +629,12 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
     const bankPaymentEnabled = config.paymentApiKey ? req.body.bankPaymentEnabled === 'true' : false;
     const walletRedirectEnabled = config.wsimEnabled ? req.body.walletRedirectEnabled === 'true' : false;
     const walletPopupEnabled = config.wsimEnabled ? req.body.walletPopupEnabled === 'true' : false;
+    const walletInlineEnabled = config.wsimEnabled ? req.body.walletInlineEnabled === 'true' : false;
     const walletQuickCheckoutEnabled = config.wsimEnabled ? req.body.walletQuickCheckoutEnabled === 'true' : false;
+    const walletApiEnabled = config.wsimEnabled ? req.body.walletApiEnabled === 'true' : false;
 
     // Validate at least one method is enabled (only count configured methods)
-    const anyEnabled = bankPaymentEnabled || walletRedirectEnabled || walletPopupEnabled || walletQuickCheckoutEnabled;
+    const anyEnabled = bankPaymentEnabled || walletRedirectEnabled || walletPopupEnabled || walletInlineEnabled || walletQuickCheckoutEnabled || walletApiEnabled;
     const anyConfigured = !!config.paymentApiKey || config.wsimEnabled;
 
     if (anyConfigured && !anyEnabled) {
@@ -644,7 +646,9 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
       bankPaymentEnabled,
       walletRedirectEnabled,
       walletPopupEnabled,
+      walletInlineEnabled,
       walletQuickCheckoutEnabled,
+      walletApiEnabled,
     });
 
     // Clear cached store to pick up changes

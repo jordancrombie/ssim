@@ -2,6 +2,22 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.12.0] - 2025-12-12
+
+### Added
+- **Complete Payment Method Toggles** - Added remaining toggles to cover all 8 checkout buttons
+  - **Wallet Inline** toggle - Controls the inline/embed WSIM checkout option
+  - **Wallet API** toggle - Controls API, API (Direct), and API (Proxy) buttons together
+  - Payment Methods admin page now shows 6 toggles covering all payment options
+
+### Fixed
+- **Inline Button Toggle** - Previously incorrectly used `walletPopupEnabled` toggle, now correctly uses `walletInlineEnabled`
+
+### Database Migrations
+- `20251212163155_add_wallet_inline_and_api_settings` - Adds `walletInlineEnabled` and `walletApiEnabled` boolean fields to Store model (both default to `true`)
+
+---
+
 ## [1.11.0] - 2025-12-12
 
 ### Added
