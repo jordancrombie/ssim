@@ -2,6 +2,26 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.11.0] - 2025-12-12
+
+### Added
+- **Admin Payment Methods Configuration** - Toggle payment options from admin panel
+  - New `/admin/payment-methods` page with toggle switches for each payment method
+  - Control visibility of: Bank Payment (BSIM), Wallet Redirect, Wallet Popup, Quick Checkout
+  - Settings persist in database per-store
+  - Validation ensures at least one payment method remains enabled
+  - Backend validation prevents disabled payment methods from being used
+
+### Changed
+- **Admin Dashboard Sidebar** - Now uses shared `_sidebar.ejs` partial for consistency
+  - Payment Methods link now appears on all admin pages including dashboard
+
+### Database Migrations
+- `20251212062121_add_payment_method_settings` - Adds `bankPaymentEnabled`, `walletRedirectEnabled`, `walletPopupEnabled`, `walletQuickCheckoutEnabled` boolean fields to Store model (all default to `true`)
+
+### New Files
+- `src/views/admin/payment-methods.ejs` - Admin toggle form for payment methods
+
 ## [1.10.4] - 2025-12-12
 
 ### Fixed

@@ -35,6 +35,7 @@ SSIM is part of the BankSim ecosystem - a suite of applications that simulate re
 - **Product Management** - Add, edit, delete, and toggle products
 - **Order Management** - View all orders, capture/void/refund payments
 - **Branding Configuration** - Theme selection, logo/hero uploads, environment badge
+- **Payment Methods** - Toggle which payment options appear on checkout (Bank, Wallet Redirect, Popup, Quick Checkout)
 - **Settings** - View configuration and environment settings
 - **Access Control** - Email-based admin authorization via BSIM auth
 
@@ -262,6 +263,8 @@ INSERT INTO oauth_clients (
 | `/admin/orders/:id/void` | POST | Void authorization |
 | `/admin/orders/:id/refund` | POST | Refund captured payment |
 | `/admin/settings` | GET | View settings |
+| `/admin/payment-methods` | GET | Payment method configuration |
+| `/admin/payment-methods` | POST | Update payment method settings |
 | `/admin/api/stats` | GET | Get dashboard statistics (JSON) |
 
 ### Other
@@ -304,6 +307,7 @@ ssim/
 │   │   │   ├── _sidebar.ejs       # Shared sidebar partial
 │   │   │   ├── dashboard.ejs      # Dashboard with stats
 │   │   │   ├── branding.ejs       # Store branding config
+│   │   │   ├── payment-methods.ejs # Payment method toggles
 │   │   │   ├── products.ejs       # Product list
 │   │   │   ├── product-form.ejs   # Add/edit product
 │   │   │   ├── orders.ejs         # Order list
@@ -435,6 +439,7 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [x] **Decline Handling** - Clear error messages with card retry support
 - [x] **Persistent Storage** - PostgreSQL database with Prisma ORM (v1.9.0)
 - [x] **Store Branding** - Admin-configurable themes, logos, and environment badges (v1.10.0)
+- [x] **Payment Method Toggles** - Admin control over which payment options appear on checkout (v1.11.0)
 
 ### Pending
 - [ ] **Payment capture UI** - Add UI buttons to capture/void authorized payments from order details page

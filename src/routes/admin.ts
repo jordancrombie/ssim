@@ -1,6 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { config } from '../config/env';
-import { getOrCreateStore, getStoreBranding, updateStoreBranding } from '../services/store';
+import {
+  getOrCreateStore,
+  getStoreBranding,
+  updateStoreBranding,
+  getPaymentMethodSettings,
+  updatePaymentMethodSettings,
+} from '../services/store';
 import * as productService from '../services/product';
 import * as orderService from '../services/order';
 import * as adminService from '../services/admin';
@@ -586,6 +592,70 @@ router.post(
     }
   }
 );
+
+// =============================================================================
+// Payment Methods Configuration
+// =============================================================================
+
+router.get('/payment-methods', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const settings = await getPaymentMethodSettings(store.id);
+
+    res.render('admin/payment-methods', {
+      ...getViewData(req),
+      title: 'Payment Methods',
+      settings,
+      wsimConfigured: config.wsimEnabled,
+      bankConfigured: !!config.paymentApiKey,
+      query: req.query,
+    });
+  } catch (error) {
+    console.error('[Admin] Payment methods error:', error);
+    res.status(500).render('error', {
+      ...getViewData(req),
+      title: 'Error',
+      message: 'Failed to load payment method settings',
+    });
+  }
+});
+
+router.post('/payment-methods', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+
+    // Parse checkbox values (present = true, absent = false)
+    // Only consider methods that are actually configured
+    const bankPaymentEnabled = config.paymentApiKey ? req.body.bankPaymentEnabled === 'true' : false;
+    const walletRedirectEnabled = config.wsimEnabled ? req.body.walletRedirectEnabled === 'true' : false;
+    const walletPopupEnabled = config.wsimEnabled ? req.body.walletPopupEnabled === 'true' : false;
+    const walletQuickCheckoutEnabled = config.wsimEnabled ? req.body.walletQuickCheckoutEnabled === 'true' : false;
+
+    // Validate at least one method is enabled (only count configured methods)
+    const anyEnabled = bankPaymentEnabled || walletRedirectEnabled || walletPopupEnabled || walletQuickCheckoutEnabled;
+    const anyConfigured = !!config.paymentApiKey || config.wsimEnabled;
+
+    if (anyConfigured && !anyEnabled) {
+      res.redirect('/admin/payment-methods?error=at_least_one');
+      return;
+    }
+
+    await updatePaymentMethodSettings(store.id, {
+      bankPaymentEnabled,
+      walletRedirectEnabled,
+      walletPopupEnabled,
+      walletQuickCheckoutEnabled,
+    });
+
+    // Clear cached store to pick up changes
+    currentStore = null;
+
+    res.redirect('/admin/payment-methods?success=updated');
+  } catch (error) {
+    console.error('[Admin] Payment methods update error:', error);
+    res.redirect('/admin/payment-methods?error=update_failed');
+  }
+});
 
 // =============================================================================
 // API Endpoints for AJAX operations

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getAllProviders } from '../config/oidc';
 import { config } from '../config/env';
-import { getOrCreateStore, getStoreBranding } from '../services/store';
+import { getOrCreateStore, getStoreBranding, getPaymentMethodSettings } from '../services/store';
 import * as productService from '../services/product';
 import * as orderService from '../services/order';
 import { generateThemeCSS } from '../helpers/theme';
@@ -173,6 +173,7 @@ router.get('/checkout', async (req: Request, res: Response) => {
   try {
     const store = await ensureStore();
     const branding = await getStoreBranding(store.id);
+    const paymentSettings = await getPaymentMethodSettings(store.id);
     const isAuthenticated = !!req.session.userInfo;
     const themeCSS = generateThemeCSS(branding?.themePreset || 'default');
 
@@ -185,6 +186,7 @@ router.get('/checkout', async (req: Request, res: Response) => {
       wsimPopupUrl: config.wsimPopupUrl,
       wsimApiUrl: config.wsimApiUrl,
       wsimApiKey: config.wsimApiKey,
+      paymentSettings,
       themeCSS,
     });
   } catch (error) {

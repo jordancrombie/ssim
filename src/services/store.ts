@@ -244,3 +244,71 @@ export async function getStoreById(storeId: string): Promise<Store | null> {
     where: { id: storeId },
   });
 }
+
+// ============================================
+// Payment Method Settings
+// ============================================
+
+/**
+ * Payment method configuration for a store
+ */
+export interface PaymentMethodSettings {
+  bankPaymentEnabled: boolean;
+  walletRedirectEnabled: boolean;
+  walletPopupEnabled: boolean;
+  walletQuickCheckoutEnabled: boolean;
+}
+
+/**
+ * Default payment method settings
+ */
+const DEFAULT_PAYMENT_SETTINGS: PaymentMethodSettings = {
+  bankPaymentEnabled: true,
+  walletRedirectEnabled: true,
+  walletPopupEnabled: true,
+  walletQuickCheckoutEnabled: true,
+};
+
+/**
+ * Get payment method settings for a store
+ */
+export async function getPaymentMethodSettings(storeId: string): Promise<PaymentMethodSettings> {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: {
+      bankPaymentEnabled: true,
+      walletRedirectEnabled: true,
+      walletPopupEnabled: true,
+      walletQuickCheckoutEnabled: true,
+    },
+  });
+
+  if (!store) {
+    return DEFAULT_PAYMENT_SETTINGS;
+  }
+
+  return {
+    bankPaymentEnabled: store.bankPaymentEnabled,
+    walletRedirectEnabled: store.walletRedirectEnabled,
+    walletPopupEnabled: store.walletPopupEnabled,
+    walletQuickCheckoutEnabled: store.walletQuickCheckoutEnabled,
+  };
+}
+
+/**
+ * Update payment method settings for a store
+ */
+export async function updatePaymentMethodSettings(
+  storeId: string,
+  settings: Partial<PaymentMethodSettings>
+): Promise<Store> {
+  return prisma.store.update({
+    where: { id: storeId },
+    data: {
+      bankPaymentEnabled: settings.bankPaymentEnabled,
+      walletRedirectEnabled: settings.walletRedirectEnabled,
+      walletPopupEnabled: settings.walletPopupEnabled,
+      walletQuickCheckoutEnabled: settings.walletQuickCheckoutEnabled,
+    },
+  });
+}
