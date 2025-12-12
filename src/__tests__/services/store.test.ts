@@ -52,6 +52,10 @@ describe('Store Service', () => {
       themePreset: 'default',
       envBadge: null,
       isActive: true,
+      bankPaymentEnabled: true,
+      walletRedirectEnabled: true,
+      walletPopupEnabled: true,
+      walletQuickCheckoutEnabled: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -546,6 +550,10 @@ describe('Store Service', () => {
           themePreset: 'walmart',
           envBadge: 'PROD',
           isActive: true,
+          bankPaymentEnabled: true,
+          walletRedirectEnabled: true,
+          walletPopupEnabled: true,
+          walletQuickCheckoutEnabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -591,6 +599,10 @@ describe('Store Service', () => {
           themePreset: 'default',
           envBadge: null,
           isActive: true,
+          bankPaymentEnabled: true,
+          walletRedirectEnabled: true,
+          walletPopupEnabled: true,
+          walletQuickCheckoutEnabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         };

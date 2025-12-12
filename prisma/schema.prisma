@@ -32,6 +32,12 @@ model Store {
   themePreset  String   @default("default") // Theme identifier: default, amazon, walmart, staples, regalmoose
   envBadge     String?  // Single character environment badge, e.g., "D" for dev, "P" for prod
 
+  // Payment method configuration
+  bankPaymentEnabled         Boolean @default(true)  // BSIM redirect checkout
+  walletRedirectEnabled      Boolean @default(true)  // WSIM redirect checkout
+  walletPopupEnabled         Boolean @default(true)  // WSIM popup checkout
+  walletQuickCheckoutEnabled Boolean @default(true)  // WSIM quick checkout for returning users
+
   users    StoreUser[]
   products Product[]
   orders   Order[]

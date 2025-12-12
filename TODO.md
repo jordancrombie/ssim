@@ -4,11 +4,10 @@ This file tracks planned features and improvements for the Store Simulator.
 
 ## Priority: High
 
-### Persistent Storage
-- [ ] **Database Integration** - Replace in-memory storage
-  - PostgreSQL for orders and products
-  - Redis for sessions (currently MemoryStore warning in logs)
-  - Migration scripts for schema setup
+### Session Storage
+- [ ] **Redis Sessions** - Replace MemoryStore with Redis
+  - Currently using MemoryStore (warning in logs)
+  - Would allow horizontal scaling with multiple instances
 
 ## Priority: Medium
 
@@ -75,6 +74,13 @@ This file tracks planned features and improvements for the Store Simulator.
 
 ## Completed
 
+- [x] **Admin Payment Methods** - Toggle payment options from admin panel (v1.11.0)
+  - Control visibility of Bank Payment, Wallet Redirect, Popup, Quick Checkout
+  - Settings persist in database per-store
+- [x] **Store Branding** - Admin-configurable themes, logos, environment badges (v1.10.0)
+- [x] **Persistent Storage** - PostgreSQL database with Prisma ORM (v1.9.0)
+  - Products, Orders, Store settings all persisted
+  - Database migrations for schema management
 - [x] **WSIM Merchant API Integration** - Multiple API checkout options (v1.8.0)
   - API, API (Direct), API (Proxy) buttons
   - Custom card selection with passkey authentication
@@ -99,69 +105,23 @@ This file tracks planned features and improvements for the Store Simulator.
 ### Admin Routes Structure
 ```
 /admin
-├── /login          # Admin authentication
-├── /dashboard      # Overview with key metrics
-├── /products       # Product CRUD
-├── /orders         # Order management
-├── /settings       # Store configuration
-└── /webhooks       # Webhook logs and status
+├── /                # Dashboard with key metrics
+├── /products        # Product CRUD
+├── /orders          # Order management
+├── /branding        # Store branding config
+├── /payment-methods # Payment method toggles
+└── /settings        # Store configuration (read-only)
 ```
 
-### Database Schema (Future)
-```sql
--- Products table (replaces src/data/products.ts)
-CREATE TABLE products (
-  id UUID PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  price_cents INTEGER NOT NULL,
-  currency VARCHAR(3) DEFAULT 'CAD',
-  image_url TEXT,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+### Database
+Database schema is managed via Prisma ORM. See `prisma/schema.prisma` for current schema.
 
--- Orders table (replaces src/data/orders.ts)
-CREATE TABLE orders (
-  id UUID PRIMARY KEY,
-  user_id VARCHAR(255) NOT NULL,
-  status VARCHAR(50) NOT NULL,
-  subtotal_cents INTEGER NOT NULL,
-  currency VARCHAR(3) DEFAULT 'CAD',
-  transaction_id VARCHAR(255),
-  authorization_code VARCHAR(255),
-  card_token VARCHAR(255),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Order items table
-CREATE TABLE order_items (
-  id UUID PRIMARY KEY,
-  order_id UUID REFERENCES orders(id),
-  product_id UUID REFERENCES products(id),
-  quantity INTEGER NOT NULL,
-  unit_price_cents INTEGER NOT NULL
-);
-
--- Admin users table
-CREATE TABLE admin_users (
-  id UUID PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  name VARCHAR(255),
-  bsim_sub VARCHAR(255) UNIQUE,  -- BSIM user subject
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Settings table
-CREATE TABLE store_settings (
-  key VARCHAR(255) PRIMARY KEY,
-  value JSONB NOT NULL,
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+Key models:
+- `Store` - Store settings, branding, payment method toggles
+- `StoreUser` - Users who have logged in via BSIM
+- `StoreAdmin` - Admin access control
+- `Product` - Product catalog
+- `Order` - Orders with payment details
 
 ### Environment Variables (Admin)
 ```env

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - SSIM Admin</title>
+  <link rel="stylesheet" href="/css/tailwind.css">
+</head>
+<body class="min-h-screen bg-gray-100">
+  <div class="flex h-screen">
+    <%- include('_sidebar', { currentPage: 'payment-methods', userInfo: userInfo }) %>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="px-6 py-4">
+          <h1 class="text-2xl font-semibold text-gray-800"><%= title %></h1>
+        </div>
+      </header>
+
+      <main class="flex-1 overflow-y-auto p-6 bg-gray-100">
+        <% if (query.success === 'updated') { %>
+          <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Payment method settings updated successfully!
+          </div>
+        <% } %>
+
+        <% if (query.error === 'at_least_one') { %>
+          <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            At least one payment method must be enabled.
+          </div>
+        <% } else if (query.error) { %>
+          <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Failed to update payment methods. Please try again.
+          </div>
+        <% } %>
+
+        <div class="max-w-3xl">
+          <!-- Payment Methods Form -->
+          <div class="bg-white rounded-xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+              <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+              </svg>
+              Checkout Payment Options
+            </h2>
+            <p class="text-sm text-gray-500 mb-6">
+              Control which payment methods are displayed to customers at checkout.
+              Methods require their infrastructure to be configured via environment variables.
+            </p>
+
+            <form action="/admin/payment-methods" method="POST" class="space-y-6">
+              <!-- Bank Payment -->
+              <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h3 class="font-medium text-gray-900">Bank Payment (BSIM)</h3>
+                      <% if (!bankConfigured) { %>
+                        <span class="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">Not Configured</span>
+                      <% } %>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                      Redirect customers to BSIM for card selection. Requires BSIM login first.
+                    </p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" name="bankPaymentEnabled" value="true"
+                      class="sr-only peer"
+                      <%= settings.bankPaymentEnabled ? 'checked' : '' %>
+                      <%= !bankConfigured ? 'disabled' : '' %>>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+                  </label>
+                </div>
+                <% if (!bankConfigured) { %>
+                  <p class="text-xs text-yellow-700 mt-2">
+                    Requires PAYMENT_API_KEY environment variable to be set.
+                  </p>
+                <% } %>
+              </div>
+
+              <!-- Wallet Redirect -->
+              <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h3 class="font-medium text-gray-900">Wallet Redirect (WSIM)</h3>
+                      <% if (!wsimConfigured) { %>
+                        <span class="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">Not Configured</span>
+                      <% } %>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                      Redirect customers to WSIM wallet for card selection. No BSIM login required.
+                    </p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" name="walletRedirectEnabled" value="true"
+                      class="sr-only peer"
+                      <%= settings.walletRedirectEnabled ? 'checked' : '' %>
+                      <%= !wsimConfigured ? 'disabled' : '' %>>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+                  </label>
+                </div>
+                <% if (!wsimConfigured) { %>
+                  <p class="text-xs text-yellow-700 mt-2">
+                    Requires WSIM_ENABLED=true and WSIM credentials to be configured.
+                  </p>
+                <% } %>
+              </div>
+
+              <!-- Wallet Popup -->
+              <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h3 class="font-medium text-gray-900">Wallet Popup (WSIM)</h3>
+                      <% if (!wsimConfigured) { %>
+                        <span class="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">Not Configured</span>
+                      <% } %>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                      Open WSIM wallet in a popup window. Stays on checkout page during payment.
+                    </p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" name="walletPopupEnabled" value="true"
+                      class="sr-only peer"
+                      <%= settings.walletPopupEnabled ? 'checked' : '' %>
+                      <%= !wsimConfigured ? 'disabled' : '' %>>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+                  </label>
+                </div>
+                <% if (!wsimConfigured) { %>
+                  <p class="text-xs text-yellow-700 mt-2">
+                    Requires WSIM_ENABLED=true and WSIM credentials to be configured.
+                  </p>
+                <% } %>
+              </div>
+
+              <!-- Quick Checkout -->
+              <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h3 class="font-medium text-gray-900">Quick Checkout (WSIM)</h3>
+                      <% if (!wsimConfigured) { %>
+                        <span class="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">Not Configured</span>
+                      <% } %>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                      One-click checkout for returning wallet users with stored JWT token.
+                    </p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" name="walletQuickCheckoutEnabled" value="true"
+                      class="sr-only peer"
+                      <%= settings.walletQuickCheckoutEnabled ? 'checked' : '' %>
+                      <%= !wsimConfigured ? 'disabled' : '' %>>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+                  </label>
+                </div>
+                <% if (!wsimConfigured) { %>
+                  <p class="text-xs text-yellow-700 mt-2">
+                    Requires WSIM_ENABLED=true and WSIM credentials to be configured.
+                  </p>
+                <% } %>
+              </div>
+
+              <!-- Info Box -->
+              <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex">
+                  <svg class="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <div class="text-sm text-blue-700">
+                    <p class="font-medium">Note</p>
+                    <p class="mt-1">
+                      At least one payment method must remain enabled. Payment methods can only be enabled
+                      if their required environment variables are configured.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition font-medium">
+                Save Changes
+              </button>
+            </form>
+          </div>
+
+          <!-- Infrastructure Status -->
+          <div class="bg-white rounded-xl shadow-sm p-6 mt-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+              </svg>
+              Infrastructure Status
+            </h2>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                <span class="text-gray-600">BSIM Payment Gateway</span>
+                <% if (bankConfigured) { %>
+                  <span class="flex items-center text-green-600">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    Configured
+                  </span>
+                <% } else { %>
+                  <span class="flex items-center text-gray-400">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                    </svg>
+                    Not Configured
+                  </span>
+                <% } %>
+              </div>
+              <div class="flex items-center justify-between py-2">
+                <span class="text-gray-600">WSIM Wallet Integration</span>
+                <% if (wsimConfigured) { %>
+                  <span class="flex items-center text-green-600">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    Configured
+                  </span>
+                <% } else { %>
+                  <span class="flex items-center text-gray-400">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                    </svg>
+                    Not Configured
+                  </span>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

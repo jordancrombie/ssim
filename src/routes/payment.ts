@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { Issuer, Client, generators } from 'openid-client';
 import { config } from '../config/env';
-import { getOrCreateStore } from '../services/store';
+import { getOrCreateStore, getPaymentMethodSettings } from '../services/store';
 import * as productService from '../services/product';
 import * as orderService from '../services/order';
 import { authorizePayment, capturePayment, voidPayment, refundPayment } from '../services/payment';
@@ -77,7 +77,7 @@ router.post('/initiate', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  // Validate provider
+  // Validate provider - check env config
   if (provider === 'wallet' && !config.wsimEnabled) {
     return res.status(400).json({ error: 'Wallet payments are not enabled' });
   }
@@ -89,6 +89,17 @@ router.post('/initiate', async (req: Request, res: Response) => {
 
   try {
     const store = await ensureStore();
+
+    // Check store payment method settings
+    const paymentSettings = await getPaymentMethodSettings(store.id);
+
+    if (provider === 'bank' && !paymentSettings.bankPaymentEnabled) {
+      return res.status(400).json({ error: 'Bank payments are disabled for this store' });
+    }
+
+    if (provider === 'wallet' && !paymentSettings.walletRedirectEnabled) {
+      return res.status(400).json({ error: 'Wallet redirect payments are disabled for this store' });
+    }
 
     // Build order items from cart
     const orderItems: orderService.OrderItem[] = [];
