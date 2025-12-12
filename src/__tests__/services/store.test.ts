@@ -55,7 +55,9 @@ describe('Store Service', () => {
       bankPaymentEnabled: true,
       walletRedirectEnabled: true,
       walletPopupEnabled: true,
+      walletInlineEnabled: true,
       walletQuickCheckoutEnabled: true,
+      walletApiEnabled: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -553,7 +555,9 @@ describe('Store Service', () => {
           bankPaymentEnabled: true,
           walletRedirectEnabled: true,
           walletPopupEnabled: true,
+          walletInlineEnabled: true,
           walletQuickCheckoutEnabled: true,
+          walletApiEnabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -602,7 +606,9 @@ describe('Store Service', () => {
           bankPaymentEnabled: true,
           walletRedirectEnabled: true,
           walletPopupEnabled: true,
+          walletInlineEnabled: true,
           walletQuickCheckoutEnabled: true,
+          walletApiEnabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),
         };

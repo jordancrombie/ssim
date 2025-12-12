@@ -112,7 +112,7 @@
           </button>
           <% } %>
 
-          <% const showWalletDivider = wsimEnabled && (paymentSettings?.walletRedirectEnabled !== false || paymentSettings?.walletPopupEnabled !== false || paymentSettings?.walletQuickCheckoutEnabled !== false); %>
+          <% const showWalletDivider = wsimEnabled && (paymentSettings?.walletRedirectEnabled !== false || paymentSettings?.walletPopupEnabled !== false || paymentSettings?.walletInlineEnabled !== false || paymentSettings?.walletQuickCheckoutEnabled !== false || paymentSettings?.walletApiEnabled !== false); %>
           <% if (showWalletDivider) { %>
           <!-- Divider -->
           <div class="flex items-center my-4">
@@ -154,7 +154,7 @@
             </button>
             <% } %>
 
-            <% if (paymentSettings?.walletPopupEnabled !== false) { %>
+            <% if (paymentSettings?.walletInlineEnabled !== false) { %>
             <!-- Pay with Wallet Embed (Inline checkout) -->
             <button
               id="payWalletEmbedButton"
@@ -184,6 +184,7 @@
           </div>
 
           <!-- API Options Row -->
+          <% if (paymentSettings?.walletApiEnabled !== false) { %>
           <div class="grid grid-cols-3 gap-3">
             <!-- Original API (Backend proxies WSIM calls) -->
             <button
@@ -221,6 +222,7 @@
               <span>API (Proxy)</span>
             </button>
           </div>
+          <% } %>
 
           <!-- API Direct Card Picker UI -->
           <div id="apiDirectCardPickerContainer" class="hidden mt-4">

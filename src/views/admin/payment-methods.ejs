@@ -146,6 +146,35 @@
                 <% } %>
               </div>
 
+              <!-- Wallet Inline -->
+              <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h3 class="font-medium text-gray-900">Wallet Inline (WSIM)</h3>
+                      <% if (!wsimConfigured) { %>
+                        <span class="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">Not Configured</span>
+                      <% } %>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                      Embed WSIM wallet directly in checkout page via iframe.
+                    </p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" name="walletInlineEnabled" value="true"
+                      class="sr-only peer"
+                      <%= settings.walletInlineEnabled ? 'checked' : '' %>
+                      <%= !wsimConfigured ? 'disabled' : '' %>>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+                  </label>
+                </div>
+                <% if (!wsimConfigured) { %>
+                  <p class="text-xs text-yellow-700 mt-2">
+                    Requires WSIM_ENABLED=true and WSIM credentials to be configured.
+                  </p>
+                <% } %>
+              </div>
+
               <!-- Quick Checkout -->
               <div class="border border-gray-200 rounded-lg p-4">
                 <div class="flex items-start justify-between">
@@ -164,6 +193,35 @@
                     <input type="checkbox" name="walletQuickCheckoutEnabled" value="true"
                       class="sr-only peer"
                       <%= settings.walletQuickCheckoutEnabled ? 'checked' : '' %>
+                      <%= !wsimConfigured ? 'disabled' : '' %>>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+                  </label>
+                </div>
+                <% if (!wsimConfigured) { %>
+                  <p class="text-xs text-yellow-700 mt-2">
+                    Requires WSIM_ENABLED=true and WSIM credentials to be configured.
+                  </p>
+                <% } %>
+              </div>
+
+              <!-- Wallet API -->
+              <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h3 class="font-medium text-gray-900">Wallet API Card Picker (WSIM)</h3>
+                      <% if (!wsimConfigured) { %>
+                        <span class="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">Not Configured</span>
+                      <% } %>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                      Card picker via WSIM Merchant API. Controls API, API (Direct), and API (Proxy) buttons.
+                    </p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" name="walletApiEnabled" value="true"
+                      class="sr-only peer"
+                      <%= settings.walletApiEnabled ? 'checked' : '' %>
                       <%= !wsimConfigured ? 'disabled' : '' %>>
                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
                   </label>

@@ -45,6 +45,8 @@ This file tracks planned features and improvements for the Store Simulator.
 - [ ] **Rate Limiting** - Protect payment endpoints
 - [ ] **CSRF Protection** - Add CSRF tokens to forms
 - [ ] **Audit Logging** - Log admin actions
+- [ ] **Credential Encryption** - Encrypt sensitive values (API keys, secrets) at rest in database
+  - Consider when adding admin-configurable payment credentials (v1.13.0)
 
 ## Known Issues / Investigations
 
@@ -74,6 +76,10 @@ This file tracks planned features and improvements for the Store Simulator.
 
 ## Completed
 
+- [x] **Complete Payment Method Toggles** - Added all remaining toggles (v1.12.0)
+  - Wallet Inline toggle for embedded iframe checkout
+  - Wallet API toggle controls API, API (Direct), API (Proxy) buttons
+  - Fixed Inline button to use correct toggle (was using Popup)
 - [x] **Admin Payment Methods** - Toggle payment options from admin panel (v1.11.0)
   - Control visibility of Bank Payment, Wallet Redirect, Popup, Quick Checkout
   - Settings persist in database per-store
