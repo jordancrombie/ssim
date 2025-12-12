@@ -20,14 +20,28 @@ async function ensureStore(): Promise<Store> {
   return currentStore;
 }
 
+/**
+ * Ensure URL uses HTTPS protocol
+ * This prevents 301 redirect issues when HTTP URLs are accidentally configured
+ */
+function ensureHttps(url: string): string {
+  if (url.startsWith('http://')) {
+    const httpsUrl = url.replace('http://', 'https://');
+    console.warn(`[Payment] Upgrading HTTP URL to HTTPS: ${url} -> ${httpsUrl}`);
+    return httpsUrl;
+  }
+  return url;
+}
+
 // Store payment OIDC clients (initialized on first use)
 let paymentClient: Client | null = null;
 let wsimClient: Client | null = null;
 
 async function getPaymentClient() {
   if (!paymentClient) {
-    console.log('[Payment] Discovering payment auth issuer:', config.paymentAuthUrl);
-    const issuer = await Issuer.discover(config.paymentAuthUrl);
+    const authUrl = ensureHttps(config.paymentAuthUrl);
+    console.log('[Payment] Discovering payment auth issuer:', authUrl);
+    const issuer = await Issuer.discover(authUrl);
     paymentClient = new issuer.Client({
       client_id: config.paymentClientId,
       client_secret: config.paymentClientSecret,
@@ -40,8 +54,9 @@ async function getPaymentClient() {
 
 async function getWsimClient() {
   if (!wsimClient && config.wsimEnabled && config.wsimAuthUrl) {
-    console.log('[Payment] Discovering WSIM issuer:', config.wsimAuthUrl);
-    const issuer = await Issuer.discover(config.wsimAuthUrl);
+    const wsimAuthUrl = ensureHttps(config.wsimAuthUrl);
+    console.log('[Payment] Discovering WSIM issuer:', wsimAuthUrl);
+    const issuer = await Issuer.discover(wsimAuthUrl);
     wsimClient = new issuer.Client({
       client_id: config.wsimClientId,
       client_secret: config.wsimClientSecret,

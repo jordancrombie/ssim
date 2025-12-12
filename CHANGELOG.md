@@ -2,6 +2,14 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.10.4] - 2025-12-12
+
+### Fixed
+- **OIDC 301 Redirect Error** - Fixed "expected 200 OK, got: 301 Moved Permanently" error during OAuth token exchange
+  - Added `ensureHttps()` helper to automatically upgrade HTTP URLs to HTTPS for OIDC discovery
+  - Applied to payment auth (BSIM), wallet auth (WSIM), and general OIDC provider initialization
+  - Prevents issues when environment variables accidentally use `http://` instead of `https://`
+
 ## [1.10.3] - 2025-12-11
 
 ### Added
