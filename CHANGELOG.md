@@ -2,6 +2,29 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.12.1] - 2025-12-12
+
+### Added
+- **Major Unit Test Expansion** - Nearly doubled test coverage (35% → 65%)
+  - `src/__tests__/routes/admin.test.ts` - 32 tests for admin routes (0% → 75% coverage)
+  - `src/__tests__/routes/pages.test.ts` - Expanded from 18 to 41 tests (45% → 87% coverage)
+  - `src/__tests__/routes/user-api.test.ts` - 12 tests for WSIM JWT endpoints (0% → 100%)
+  - `src/__tests__/services/admin.test.ts` - 29 tests for admin service (0% → 100%)
+  - `src/__tests__/services/upload.test.ts` - 7 tests for file upload service (0% → 85%)
+  - Total tests: 244 → 352 (+108 tests)
+
+### Test Coverage Improvements
+| File | Before | After |
+|------|--------|-------|
+| admin.ts (routes) | 0% | 75% |
+| pages.ts | 45% | 87% |
+| user-api.ts | 0% | 100% |
+| admin.ts (service) | 0% | 100% |
+| upload.ts | 0% | 85% |
+| Services overall | - | 91% |
+
+---
+
 ## [1.12.0] - 2025-12-12
 
 ### Added

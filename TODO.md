@@ -38,7 +38,11 @@ This file tracks planned features and improvements for the Store Simulator.
 
 ### Developer Experience
 - [ ] **API Documentation** - OpenAPI/Swagger spec
-- [ ] **Test Coverage** - Expand unit and integration tests
+- [x] **Test Coverage** - Expand unit and integration tests (v1.12.1)
+  - 352 tests, 65% overall coverage
+  - Routes: admin (75%), pages (87%), payment (52%), user-api (100%)
+  - Services: 91% coverage overall
+  - Remaining: wsim-api.ts (0%), payment callbacks
 - [ ] **Seed Data** - Script to populate demo products and orders
 
 ### Security
@@ -76,6 +80,8 @@ This file tracks planned features and improvements for the Store Simulator.
 
 ## Completed
 
+- [x] **Unit Test Coverage Expansion** - 352 tests, 65% coverage (v1.12.1)
+  - Admin routes, pages, user-api, admin service, upload service fully tested
 - [x] **Complete Payment Method Toggles** - Added all remaining toggles (v1.12.0)
   - Wallet Inline toggle for embedded iframe checkout
   - Wallet API toggle controls API, API (Direct), API (Proxy) buttons
