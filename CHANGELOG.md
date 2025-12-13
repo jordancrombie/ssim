@@ -2,6 +2,36 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.12.2] - 2025-12-13
+
+### Added
+- **Quick Checkout E2E Tests** - Comprehensive Playwright tests for JWT Quick Checkout flow
+  - `e2e/tests/checkout/wallet-quick-checkout.spec.ts` - 4 tests for Quick Checkout functionality
+  - Tests JWT token storage after initial wallet payment
+  - Tests Quick Checkout button visibility based on token state
+  - Tests fallback to popup when JWT is invalid/expired
+  - Tests UI visibility with valid/expired/missing tokens
+
+### Fixed
+- **Wallet Inline Checkout E2E Test** - Fixed 60-second timeout on successful payment
+  - Root cause: CDP `credentialAsserted` event doesn't fire when page redirects before event dispatch
+  - Solution: `Promise.race` between passkey completion and page navigation to `/order-confirmation/`
+  - Same fix pattern as popup flow (v1.8.5)
+
+- **Wallet Popup Checkout Race Condition** - Applied consistent `Promise.race` pattern
+  - Races between passkey completion and popup close event
+  - Handles cases where popup closes before CDP event fires
+
+### E2E Test Status
+| Test File | Passing | Failing | Skipped |
+|-----------|---------|---------|---------|
+| bsim-user.spec.ts | 7 | 0 | 0 |
+| bank-payment.spec.ts | 4 | 0 | 0 |
+| wallet-quick-checkout.spec.ts | 4 | 0 | 0 |
+| wallet-oidc.spec.ts | 3 | 0 | 0 |
+
+---
+
 ## [1.12.1] - 2025-12-12
 
 ### Added

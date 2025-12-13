@@ -113,16 +113,13 @@ test.describe('SSIM Wallet OIDC Payment - Popup', () => {
     // Open wallet popup
     const popup = await openWalletPopup(context, page);
 
-    // Complete payment in popup with passkey
+    // Complete payment in popup with passkey (handles popup close internally)
     await completeWalletPopupPayment(
       popup,
       webauthn,
       testUser.email,
       testUser.password
     );
-
-    // Wait for popup to close and main page to update
-    await popup.waitForEvent('close', { timeout: 30000 });
 
     // Verify success on main page
     const orderId = await verifyPaymentSuccess(page);
