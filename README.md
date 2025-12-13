@@ -35,7 +35,7 @@ SSIM is part of the BankSim ecosystem - a suite of applications that simulate re
 - **Product Management** - Add, edit, delete, and toggle products
 - **Order Management** - View all orders, capture/void/refund payments
 - **Branding Configuration** - Theme selection, logo/hero uploads, environment badge
-- **Payment Methods** - Toggle which payment options appear on checkout (Bank, Wallet Redirect, Popup, Quick Checkout)
+- **Payment Methods** - Toggle which payment options appear on checkout (Bank, Wallet Redirect, Popup, Inline, Quick Checkout, API)
 - **Settings** - View configuration and environment settings
 - **Access Control** - Email-based admin authorization via BSIM auth
 
@@ -440,9 +440,9 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [x] **Persistent Storage** - PostgreSQL database with Prisma ORM (v1.9.0)
 - [x] **Store Branding** - Admin-configurable themes, logos, and environment badges (v1.10.0)
 - [x] **Payment Method Toggles** - Admin control over which payment options appear on checkout (v1.11.0)
+- [x] **Complete Payment Toggles** - Added Wallet Inline and Wallet API toggles, covering all 8 checkout buttons (v1.12.0)
 
 ### Pending
-- [ ] **Payment capture UI** - Add UI buttons to capture/void authorized payments from order details page
 - [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period
 - [ ] **Email notifications** - Send order confirmation and status update emails
 - [ ] **Partial refunds** - Support refunding less than the full captured amount
