@@ -31,16 +31,21 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Updated passkey detection to recognize WSIM's "Added" date format
   - Removed tests dependent on unimplemented WSIM password login
 
+- **Wallet API Direct/Proxy Tests** - Enabled previously-skipped tests
+  - CORS is configured correctly on WSIM - tests were incorrectly skipped
+  - API Direct and API Proxy tests now pass (2 additional passing tests)
+  - Combined flow test skipped (redundant, individual tests provide coverage)
+
 ### E2E Test Status
 | Test File | Passing | Skipped |
 |-----------|---------|---------|
-| bsim-user.spec.ts | 7 | 0 |
+| bsim-user.spec.ts | 8 | 0 |
 | bank-payment.spec.ts | 5 | 0 |
 | wallet-quick-checkout.spec.ts | 4 | 0 |
 | wallet-oidc.spec.ts | 3 | 0 |
-| wallet-api.spec.ts | 1 | 3 |
+| wallet-api.spec.ts | 3 | 1 |
 | enrollment.spec.ts | 1 | 0 |
-| **Total** | **22** | **3** |
+| **Total** | **24** | **1** |
 
 ---
 
