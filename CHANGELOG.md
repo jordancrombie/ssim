@@ -22,13 +22,25 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Races between passkey completion and popup close event
   - Handles cases where popup closes before CDP event fires
 
+- **Wallet API Checkout** - Fixed button selector and race condition
+  - Updated button text from "Confirm with Passkey" to "Confirm Payment" (matching WSIM UI)
+  - Applied `Promise.race` pattern for passkey vs popup close
+
+- **WSIM Enrollment E2E Tests** - Fixed passkey registration flow
+  - Consolidated enrollment + passkey registration into single test (avoids re-auth requirement)
+  - Updated passkey detection to recognize WSIM's "Added" date format
+  - Removed tests dependent on unimplemented WSIM password login
+
 ### E2E Test Status
-| Test File | Passing | Failing | Skipped |
-|-----------|---------|---------|---------|
-| bsim-user.spec.ts | 7 | 0 | 0 |
-| bank-payment.spec.ts | 4 | 0 | 0 |
-| wallet-quick-checkout.spec.ts | 4 | 0 | 0 |
-| wallet-oidc.spec.ts | 3 | 0 | 0 |
+| Test File | Passing | Skipped |
+|-----------|---------|---------|
+| bsim-user.spec.ts | 7 | 0 |
+| bank-payment.spec.ts | 5 | 0 |
+| wallet-quick-checkout.spec.ts | 4 | 0 |
+| wallet-oidc.spec.ts | 3 | 0 |
+| wallet-api.spec.ts | 1 | 3 |
+| enrollment.spec.ts | 1 | 0 |
+| **Total** | **22** | **3** |
 
 ---
 
