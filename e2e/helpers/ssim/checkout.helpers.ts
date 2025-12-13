@@ -389,13 +389,27 @@ export async function completeWalletPopupPayment(
     await expect(confirmButton.first()).toBeVisible({ timeout: 10000 });
     console.log('[E2E] Clicking confirm button in popup');
 
-    await simulatePasskeySuccess(popupWebauthn, async () => {
+    // Race between passkey completion and popup closing
+    // The popup may close before the CDP event fires, which is actually success
+    const popupClosePromise = popup.waitForEvent('close', { timeout: 30000 }).then(() => 'popup_closed');
+
+    const passkeyPromise = simulatePasskeySuccess(popupWebauthn, async () => {
       await confirmButton.first().click({ timeout: 10000 });
-    });
-    console.log('[E2E] Payment confirmed with passkey in popup');
+    }).then(() => 'passkey_completed');
+
+    const result = await Promise.race([passkeyPromise, popupClosePromise]);
+    console.log(`[E2E] Payment confirmation result: ${result}`);
+
+    // If passkey completed first, still wait for popup to close
+    if (result === 'passkey_completed') {
+      console.log('[E2E] Waiting for popup to close after passkey completion');
+      await popup.waitForEvent('close', { timeout: 15000 }).catch(() => {
+        console.log('[E2E] Popup may have already closed');
+      });
+    }
 
   } finally {
-    // Clean up popup's virtual authenticator
+    // Clean up popup's virtual authenticator (may fail if popup already closed)
     await teardownVirtualAuthenticator(popupWebauthn).catch(() => {});
   }
 
@@ -493,9 +507,24 @@ export async function completeWalletEmbedPayment(
   await expect(confirmButton.first()).toBeVisible({ timeout: 10000 });
   console.log('[E2E] Clicking confirm button in iframe');
 
-  await simulatePasskeySuccess(webauthn, async () => {
+  // Race between passkey completion and page navigation
+  // The page may redirect to order-confirmation before the CDP event fires
+  const navigationPromise = page.waitForURL(/order-confirmation/, { timeout: 30000 }).then(() => 'page_navigated');
+
+  const passkeyPromise = simulatePasskeySuccess(webauthn, async () => {
     await confirmButton.first().click({ timeout: 10000 });
-  });
+  }).then(() => 'passkey_completed');
+
+  const result = await Promise.race([passkeyPromise, navigationPromise]);
+  console.log(`[E2E] Embed payment confirmation result: ${result}`);
+
+  // If passkey completed first, wait for page to navigate
+  if (result === 'passkey_completed') {
+    console.log('[E2E] Waiting for page navigation after passkey completion');
+    await page.waitForURL(/order-confirmation/, { timeout: 15000 }).catch(() => {
+      console.log('[E2E] Page may have already navigated');
+    });
+  }
 
   console.log('[E2E] completeWalletEmbedPayment - done');
 }
@@ -849,4 +878,126 @@ export async function verifyPaymentFailure(
       page.locator(`text=${expectedError}`)
     ).toBeVisible();
   }
+}
+
+/**
+ * Check if Quick Checkout button is visible
+ *
+ * @param page - Playwright page object
+ * @returns True if Quick Checkout button is visible
+ */
+export async function isQuickCheckoutVisible(page: Page): Promise<boolean> {
+  const container = page.locator('#quickCheckoutContainer');
+  const hasHiddenClass = await container.evaluate((el) =>
+    el.classList.contains('hidden')
+  ).catch(() => true);
+  return !hasHiddenClass;
+}
+
+/**
+ * Check if user has a valid JWT token stored
+ *
+ * @param page - Playwright page object
+ * @returns True if valid token exists in localStorage
+ */
+export async function hasValidJwtToken(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const token = localStorage.getItem('wsim_session_token');
+    const expiresAt = localStorage.getItem('wsim_session_expires');
+    return !!(token && expiresAt && Date.now() < parseInt(expiresAt));
+  });
+}
+
+/**
+ * Clear stored JWT token
+ *
+ * @param page - Playwright page object
+ */
+export async function clearJwtToken(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    localStorage.removeItem('wsim_session_token');
+    localStorage.removeItem('wsim_session_expires');
+  });
+}
+
+/**
+ * Set a mock JWT token (for testing)
+ *
+ * @param page - Playwright page object
+ * @param token - Token string
+ * @param expiresInMs - Time until expiry in milliseconds (default 1 hour)
+ */
+export async function setMockJwtToken(
+  page: Page,
+  token: string = 'mock-jwt-token',
+  expiresInMs: number = 3600000
+): Promise<void> {
+  await page.evaluate(({ token, expiresAt }) => {
+    localStorage.setItem('wsim_session_token', token);
+    localStorage.setItem('wsim_session_expires', String(expiresAt));
+  }, { token, expiresAt: Date.now() + expiresInMs });
+}
+
+/**
+ * Click the Quick Checkout button
+ *
+ * @param page - Playwright page object
+ */
+export async function clickQuickCheckout(page: Page): Promise<void> {
+  const button = page.locator('#quickCheckoutButton');
+  await expect(button).toBeVisible({ timeout: 5000 });
+  await button.click();
+}
+
+/**
+ * Complete Quick Checkout payment flow with passkey
+ *
+ * This handles the JWT-based Quick Checkout flow:
+ * 1. JWT card picker appears
+ * 2. Select a card
+ * 3. Confirm with passkey
+ *
+ * @param page - Playwright page object
+ * @param webauthn - WebAuthn context for passkey simulation
+ */
+export async function completeQuickCheckoutPayment(
+  page: Page,
+  webauthn: WebAuthnContext
+): Promise<void> {
+  console.log('[E2E] completeQuickCheckoutPayment - starting');
+
+  // Wait for JWT card picker to appear
+  const jwtCardPicker = page.locator('#jwtCardPickerContainer');
+  await expect(jwtCardPicker).not.toHaveClass(/hidden/, { timeout: 10000 });
+  console.log('[E2E] JWT card picker visible');
+
+  // Wait for cards to load
+  const jwtCardsList = page.locator('#jwtCardsList');
+  await expect(jwtCardsList).not.toHaveClass(/hidden/, { timeout: 10000 });
+  console.log('[E2E] Cards loaded');
+
+  // Select first card
+  const cardOption = page.locator('#jwtCardsList .card-option-jwt[data-card-id]');
+  const cardCount = await cardOption.count();
+  console.log(`[E2E] Found ${cardCount} cards`);
+
+  if (cardCount === 0) {
+    throw new Error('No cards found in JWT card picker');
+  }
+
+  await cardOption.first().click();
+  console.log('[E2E] Selected first card');
+
+  // Wait for confirm button
+  const confirmButton = page.locator('#jwtConfirmPayment');
+  await expect(confirmButton).not.toHaveClass(/hidden/, { timeout: 5000 });
+  await expect(confirmButton).toBeEnabled();
+  console.log('[E2E] Confirm button visible');
+
+  // Click confirm - this triggers passkey authentication
+  await simulatePasskeySuccess(webauthn, async () => {
+    await confirmButton.click();
+  });
+
+  console.log('[E2E] completeQuickCheckoutPayment - done');
 }
