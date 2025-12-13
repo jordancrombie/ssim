@@ -765,23 +765,29 @@ export async function completeWalletApiPayment(
         await popupCardOption.first().click();
       }
 
-      // Now click "Confirm with Passkey" button in popup to complete payment
-      const confirmPaymentButton = popup.locator('button:has-text("Confirm with Passkey")');
+      // Now click "Confirm Payment" button in popup to complete payment
+      // Note: WSIM popup shows "Confirm Payment" not "Confirm with Passkey"
+      const confirmPaymentButton = popup.locator('button:has-text("Confirm Payment")');
       await expect(confirmPaymentButton).toBeVisible({ timeout: 5000 });
-      console.log('[E2E] Clicking Confirm with Passkey in popup');
+      console.log('[E2E] Clicking Confirm Payment in popup');
 
-      await simulatePasskeySuccess(popupWebauthn, async () => {
+      // Race between passkey completion and popup closing
+      // The popup may close before the CDP event fires, which is actually success
+      const popupClosePromise = popup.waitForEvent('close', { timeout: 30000 }).then(() => 'popup_closed');
+
+      const passkeyPromise = simulatePasskeySuccess(popupWebauthn, async () => {
         await confirmPaymentButton.click();
-      });
-      console.log('[E2E] Payment confirmed with passkey in popup');
+      }).then(() => 'passkey_completed');
 
-      // Popup should close after successful payment confirmation
-      try {
-        await popup.waitForEvent('close', { timeout: 15000 });
-        console.log('[E2E] WSIM popup closed after payment');
-      } catch {
-        // Popup might still be open or already closed
-        console.log('[E2E] WSIM popup close wait ended');
+      const result = await Promise.race([passkeyPromise, popupClosePromise]);
+      console.log(`[E2E] Wallet API payment confirmation result: ${result}`);
+
+      // If passkey completed first, still wait for popup to close
+      if (result === 'passkey_completed') {
+        console.log('[E2E] Waiting for popup to close after passkey completion');
+        await popup.waitForEvent('close', { timeout: 15000 }).catch(() => {
+          console.log('[E2E] Popup may have already closed');
+        });
       }
     } finally {
       // Clean up popup's virtual authenticator
