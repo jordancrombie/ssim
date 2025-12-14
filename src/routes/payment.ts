@@ -819,11 +819,32 @@ router.post('/refund/:orderId', async (req: Request, res: Response) => {
 // - GET /payment/mobile/return - Handle return from mobile app (optional UX)
 
 /**
+ * Build mwsim deep link URL with browser-aware return parameters
+ * @param requestId - The payment request ID
+ * @param returnUrl - The base return URL (e.g., https://ssim.example.com/checkout)
+ * @param sourceBrowser - Browser type for return flow: 'safari', 'chrome', 'firefox', 'edge', 'opera', 'brave', 'samsung', 'other'
+ */
+function buildMobileDeepLink(requestId: string, returnUrl: string, sourceBrowser?: string): string {
+  // Build the return URL with the mwsim_return query param
+  const fullReturnUrl = `${returnUrl}?mwsim_return=${requestId}`;
+  const encodedReturnUrl = encodeURIComponent(fullReturnUrl);
+
+  // Build the deep link with returnUrl and optional sourceBrowser
+  let deepLink = `mwsim://payment/${requestId}?returnUrl=${encodedReturnUrl}`;
+
+  if (sourceBrowser) {
+    deepLink += `&sourceBrowser=${encodeURIComponent(sourceBrowser)}`;
+  }
+
+  return deepLink;
+}
+
+/**
  * Initiate a mobile wallet payment
  * Creates a payment request via WSIM API and returns a deep link URL for the mwsim app
  */
 router.post('/mobile/initiate', async (req: Request, res: Response) => {
-  const { amount, currency, orderId, returnUrl } = req.body;
+  const { amount, currency, orderId, returnUrl, sourceBrowser } = req.body;
 
   try {
     const store = await ensureStore();
@@ -854,11 +875,12 @@ router.post('/mobile/initiate', async (req: Request, res: Response) => {
         createdAt: Date.now(),
       };
 
+      const baseReturnUrl = returnUrl || `${config.appBaseUrl}/checkout`;
       return res.json({
         success: true,
         requestId,
         orderId,
-        deepLinkUrl: `mwsim://payment/${requestId}`,
+        deepLinkUrl: buildMobileDeepLink(requestId, baseReturnUrl, sourceBrowser),
         merchant: {
           id: config.merchantId,
           name: store.name,
@@ -915,11 +937,12 @@ router.post('/mobile/initiate', async (req: Request, res: Response) => {
     };
 
     // Return the deep link URL and request ID
+    const baseReturnUrl = returnUrl || `${config.appBaseUrl}/checkout`;
     res.json({
       success: true,
       requestId: wsimData.requestId,
       orderId,
-      deepLinkUrl: `mwsim://payment/${wsimData.requestId}`,
+      deepLinkUrl: buildMobileDeepLink(wsimData.requestId, baseReturnUrl, sourceBrowser),
       expiresAt: wsimData.expiresAt,
       merchant: {
         id: config.merchantId,
