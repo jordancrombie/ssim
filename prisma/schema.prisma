@@ -39,6 +39,7 @@ model Store {
   walletInlineEnabled        Boolean @default(true)  // WSIM inline/embed checkout
   walletQuickCheckoutEnabled Boolean @default(true)  // WSIM quick checkout for returning users
   walletApiEnabled           Boolean @default(true)  // WSIM API card picker (API, API Direct, API Proxy)
+  walletMobileEnabled        Boolean @default(true)  // WSIM mobile app payment (mwsim deep link)
 
   users    StoreUser[]
   products Product[]

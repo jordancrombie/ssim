@@ -8,6 +8,24 @@ import { authorizePayment, capturePayment, voidPayment, refundPayment } from '..
 import type { Store, Order } from '@prisma/client';
 import '../types/session';
 
+// WSIM Mobile Payment API response types
+interface WsimPaymentRequestResponse {
+  requestId: string;
+  expiresAt?: string;
+}
+
+interface WsimPaymentStatusResponse {
+  status: string;
+  message?: string;
+  transactionId?: string;
+  oneTimePaymentToken?: string;
+}
+
+interface WsimPaymentCompleteResponse {
+  cardToken: string;
+  walletCardToken: string;
+}
+
 const router = Router();
 
 // Store reference (cached for request lifecycle)
@@ -779,6 +797,450 @@ router.post('/refund/:orderId', async (req: Request, res: Response) => {
       details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
+});
+
+// ============================================
+// Mobile Wallet Payment Routes (mwsim)
+// ============================================
+// These routes proxy requests to WSIM's mobile payment API
+// for the mwsim (Mobile Wallet Simulator) app integration.
+//
+// WSIM API Endpoints:
+// - POST /api/mobile/payment/request - Create payment request
+// - GET /api/mobile/payment/:requestId/status - Get status
+// - POST /api/mobile/payment/:requestId/cancel - Cancel request
+// - POST /api/mobile/payment/:requestId/complete - Exchange token and complete
+//
+// SSIM Proxy Endpoints (this file):
+// - POST /payment/mobile/initiate - Create payment request, get deep link URL
+// - GET /payment/mobile/status/:requestId - Poll for payment status
+// - POST /payment/mobile/cancel/:requestId - Cancel a pending payment
+// - POST /payment/mobile/complete/:requestId - Exchange token and authorize payment
+// - GET /payment/mobile/return - Handle return from mobile app (optional UX)
+
+/**
+ * Initiate a mobile wallet payment
+ * Creates a payment request via WSIM API and returns a deep link URL for the mwsim app
+ */
+router.post('/mobile/initiate', async (req: Request, res: Response) => {
+  const { amount, currency, orderId, returnUrl } = req.body;
+
+  try {
+    const store = await ensureStore();
+
+    // Validate request
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    // Get cart to validate
+    const cart = req.session.cart || [];
+    if (cart.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' });
+    }
+
+    // Check if WSIM mobile API is configured
+    if (!config.wsimMobileApiUrl || !config.wsimApiKey) {
+      console.warn('[Payment] WSIM mobile API not configured, using stub mode');
+      // Fallback to stub mode for development/testing
+      const requestId = `mwsim-stub-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      req.session.mobilePaymentRequest = {
+        requestId,
+        amount,
+        currency: currency || 'CAD',
+        orderId,
+        status: 'pending',
+        createdAt: Date.now(),
+      };
+
+      return res.json({
+        success: true,
+        requestId,
+        orderId,
+        deepLinkUrl: `mwsim://payment/${requestId}`,
+        merchant: {
+          id: config.merchantId,
+          name: store.name,
+          logoUrl: `${config.appBaseUrl}/logo-256.png`,
+        },
+        payment: {
+          amount,
+          currency: currency || 'CAD',
+          orderId,
+        },
+        _stub: true, // Indicate this is a stub response
+      });
+    }
+
+    // Call WSIM mobile payment API to create payment request
+    console.log('[Payment] Creating mobile payment request via WSIM API...');
+
+    const wsimResponse = await fetch(`${config.wsimMobileApiUrl}/request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': config.wsimApiKey,
+      },
+      body: JSON.stringify({
+        amount: (amount / 100).toFixed(2), // Convert cents to dollars
+        currency: currency || 'CAD',
+        orderId,
+        returnUrl: returnUrl || `${config.appBaseUrl}/payment/mobile/return`,
+        merchantName: store.name,
+        merchantLogoUrl: `${config.appBaseUrl}/logo-256.png`,
+      }),
+    });
+
+    if (!wsimResponse.ok) {
+      const errorData = await wsimResponse.json().catch(() => ({})) as { message?: string };
+      console.error('[Payment] WSIM mobile API error:', wsimResponse.status, errorData);
+      throw new Error(errorData.message || `WSIM API error: ${wsimResponse.status}`);
+    }
+
+    const wsimData = await wsimResponse.json() as WsimPaymentRequestResponse;
+    console.log('[Payment] WSIM mobile payment request created:', wsimData.requestId);
+
+    // Store the payment request in session for tracking
+    req.session.mobilePaymentRequest = {
+      requestId: wsimData.requestId,
+      amount,
+      currency: currency || 'CAD',
+      orderId,
+      status: 'pending',
+      createdAt: Date.now(),
+    };
+
+    // Return the deep link URL and request ID
+    res.json({
+      success: true,
+      requestId: wsimData.requestId,
+      orderId,
+      deepLinkUrl: `mwsim://payment/${wsimData.requestId}`,
+      expiresAt: wsimData.expiresAt,
+      merchant: {
+        id: config.merchantId,
+        name: store.name,
+        logoUrl: `${config.appBaseUrl}/logo-256.png`,
+      },
+      payment: {
+        amount,
+        currency: currency || 'CAD',
+        orderId,
+      },
+    });
+  } catch (error) {
+    console.error('[Payment] Mobile payment initiation error:', error);
+    res.status(500).json({
+      error: 'Failed to initiate mobile payment',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * Get mobile payment status
+ * Proxies to WSIM API and caches pending status briefly
+ */
+router.get('/mobile/status/:requestId', async (req: Request, res: Response) => {
+  const { requestId } = req.params;
+
+  try {
+    // Check if we have this request in session
+    const sessionRequest = req.session.mobilePaymentRequest;
+    if (!sessionRequest || sessionRequest.requestId !== requestId) {
+      return res.status(404).json({
+        error: 'Payment request not found',
+        status: 'not_found',
+      });
+    }
+
+    // If WSIM API is not configured, use session-based status (stub mode)
+    if (!config.wsimMobileApiUrl || !config.wsimApiKey) {
+      // Check if expired (5 minutes)
+      const EXPIRATION_MS = 5 * 60 * 1000;
+      if (Date.now() - sessionRequest.createdAt > EXPIRATION_MS) {
+        sessionRequest.status = 'expired';
+      }
+
+      return res.json({
+        requestId,
+        status: sessionRequest.status,
+        orderId: sessionRequest.orderId,
+        message: sessionRequest.status === 'expired' ? 'Payment request expired' : undefined,
+        _stub: true,
+      });
+    }
+
+    // Query WSIM API for actual status
+    const wsimResponse = await fetch(`${config.wsimMobileApiUrl}/${requestId}/status`, {
+      method: 'GET',
+      headers: {
+        'X-API-Key': config.wsimApiKey,
+      },
+    });
+
+    if (!wsimResponse.ok) {
+      if (wsimResponse.status === 404) {
+        return res.status(404).json({
+          error: 'Payment request not found',
+          status: 'not_found',
+        });
+      }
+      const errorData = await wsimResponse.json().catch(() => ({})) as { message?: string };
+      throw new Error(errorData.message || `WSIM API error: ${wsimResponse.status}`);
+    }
+
+    const wsimData = await wsimResponse.json() as WsimPaymentStatusResponse;
+
+    // Update session with latest status
+    sessionRequest.status = wsimData.status as 'pending' | 'authorized' | 'declined' | 'cancelled' | 'expired';
+    if (wsimData.transactionId) {
+      sessionRequest.transactionId = wsimData.transactionId;
+    }
+
+    console.log('[Payment] Mobile payment status:', requestId, wsimData.status);
+
+    // If approved, include the one-time token for completing the payment
+    res.json({
+      requestId,
+      status: wsimData.status,
+      orderId: sessionRequest.orderId,
+      message: wsimData.message,
+      // Include token only when approved (for completing payment)
+      oneTimePaymentToken: wsimData.status === 'approved' ? wsimData.oneTimePaymentToken : undefined,
+    });
+  } catch (error) {
+    console.error('[Payment] Mobile payment status error:', error);
+    res.status(500).json({
+      error: 'Failed to get payment status',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * Cancel a mobile payment request
+ * Proxies to WSIM API to cancel the request
+ */
+router.post('/mobile/cancel/:requestId', async (req: Request, res: Response) => {
+  const { requestId } = req.params;
+
+  try {
+    // Update session state
+    const sessionRequest = req.session.mobilePaymentRequest;
+    if (sessionRequest && sessionRequest.requestId === requestId) {
+      sessionRequest.status = 'cancelled';
+    }
+
+    // If WSIM API is configured, cancel there too
+    if (config.wsimMobileApiUrl && config.wsimApiKey) {
+      try {
+        const wsimResponse = await fetch(`${config.wsimMobileApiUrl}/${requestId}/cancel`, {
+          method: 'POST',
+          headers: {
+            'X-API-Key': config.wsimApiKey,
+          },
+        });
+
+        if (!wsimResponse.ok && wsimResponse.status !== 404) {
+          console.warn('[Payment] WSIM cancel API warning:', wsimResponse.status);
+        }
+      } catch (wsimError) {
+        // Log but don't fail - local cancellation is still valid
+        console.warn('[Payment] WSIM cancel API error (non-fatal):', wsimError);
+      }
+    }
+
+    console.log('[Payment] Mobile payment cancelled:', requestId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Payment] Mobile payment cancel error:', error);
+    res.status(500).json({
+      error: 'Failed to cancel payment',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * Complete a mobile payment
+ * Exchanges the one-time token with WSIM to get card tokens,
+ * then authorizes the payment via NSIM
+ */
+router.post('/mobile/complete/:requestId', async (req: Request, res: Response) => {
+  const { requestId } = req.params;
+  const { oneTimePaymentToken } = req.body;
+
+  try {
+    const store = await ensureStore();
+    const sessionRequest = req.session.mobilePaymentRequest;
+
+    if (!sessionRequest || sessionRequest.requestId !== requestId) {
+      return res.status(404).json({ error: 'Payment request not found' });
+    }
+
+    if (!oneTimePaymentToken) {
+      return res.status(400).json({ error: 'Missing oneTimePaymentToken' });
+    }
+
+    // Check if WSIM API is configured
+    if (!config.wsimMobileApiUrl || !config.wsimApiKey) {
+      return res.status(503).json({
+        error: 'WSIM mobile API not configured',
+        _stub: true,
+      });
+    }
+
+    // Exchange token with WSIM to get card tokens
+    console.log('[Payment] Completing mobile payment via WSIM API...');
+
+    const wsimResponse = await fetch(`${config.wsimMobileApiUrl}/${requestId}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': config.wsimApiKey,
+      },
+      body: JSON.stringify({ oneTimePaymentToken }),
+    });
+
+    if (!wsimResponse.ok) {
+      const errorData = (await wsimResponse.json().catch(() => ({}))) as { message?: string };
+      console.error('[Payment] WSIM complete API error:', wsimResponse.status, errorData);
+      throw new Error(errorData.message || `WSIM API error: ${wsimResponse.status}`);
+    }
+
+    const wsimData = (await wsimResponse.json()) as WsimPaymentCompleteResponse;
+    const { cardToken, walletCardToken } = wsimData;
+
+    if (!cardToken || !walletCardToken) {
+      throw new Error('Missing card tokens from WSIM');
+    }
+
+    // Create order if not exists
+    let order = sessionRequest.orderId
+      ? await orderService.getOrderById(store.id, sessionRequest.orderId)
+      : null;
+
+    if (!order) {
+      // Create order from cart
+      const cart = req.session.cart || [];
+      if (cart.length === 0) {
+        return res.status(400).json({ error: 'Cart is empty' });
+      }
+
+      // Build order items from cart
+      const orderItems: orderService.OrderItem[] = [];
+      let subtotal = 0;
+
+      for (const cartItem of cart) {
+        const product = await productService.getProductById(store.id, cartItem.productId);
+        if (!product) {
+          return res.status(400).json({ error: `Product ${cartItem.productId} not found` });
+        }
+
+        const itemSubtotal = product.price * cartItem.quantity;
+        orderItems.push({
+          productId: product.id,
+          productName: product.name,
+          quantity: cartItem.quantity,
+          unitPrice: product.price,
+          subtotal: itemSubtotal,
+        });
+        subtotal += itemSubtotal;
+      }
+
+      // Create order - use 'guest' if not authenticated
+      const bsimUserId = req.session.userInfo?.sub as string || 'guest';
+      order = await orderService.createOrder(store.id, {
+        bsimUserId,
+        items: orderItems,
+        subtotal,
+        currency: sessionRequest.currency || 'CAD',
+      });
+    }
+
+    // Authorize payment via NSIM
+    console.log('[Payment] Authorizing mobile wallet payment via NSIM...');
+    const authResult = await authorizePayment({
+      merchantId: config.merchantId,
+      amount: order.subtotal,
+      currency: order.currency,
+      cardToken,
+      walletCardToken,
+      orderId: order.id,
+    });
+
+    if (authResult.status === 'authorized') {
+      // Update order with payment details
+      await orderService.setOrderAuthorized(
+        store.id,
+        order.id,
+        authResult.transactionId,
+        authResult.authorizationCode || '',
+        'wallet'
+      );
+
+      // Clear cart and session state
+      req.session.cart = [];
+      delete req.session.mobilePaymentRequest;
+
+      console.log('[Payment] Mobile wallet payment authorized:', order.id);
+
+      res.json({
+        success: true,
+        status: 'authorized',
+        orderId: order.id,
+        transactionId: authResult.transactionId,
+      });
+    } else {
+      // Payment declined
+      sessionRequest.status = 'declined';
+
+      res.status(400).json({
+        success: false,
+        status: 'declined',
+        reason: authResult.declineReason || 'Payment declined',
+      });
+    }
+  } catch (error) {
+    console.error('[Payment] Mobile payment complete error:', error);
+    res.status(500).json({
+      error: 'Failed to complete payment',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * Handle return from mobile app
+ * This is called when the user is returned to the browser after completing
+ * payment in the mwsim app (optional UX enhancement - polling is primary)
+ */
+router.get('/mobile/return', async (req: Request, res: Response) => {
+  const { requestId, status, transactionId } = req.query;
+
+  console.log('[Payment] Mobile payment return:', {
+    requestId,
+    status,
+    transactionId,
+  });
+
+  // Update session state if we have a payment request
+  const paymentRequest = req.session.mobilePaymentRequest;
+  if (paymentRequest && paymentRequest.requestId === requestId) {
+    if (status === 'success' || status === 'authorized') {
+      paymentRequest.status = 'authorized';
+      paymentRequest.transactionId = transactionId as string;
+    } else if (status === 'failed' || status === 'declined') {
+      paymentRequest.status = 'declined';
+    } else if (status === 'cancelled') {
+      paymentRequest.status = 'cancelled';
+    }
+  }
+
+  // Redirect back to checkout - the page will poll for final status
+  res.redirect('/checkout');
 });
 
 export default router;

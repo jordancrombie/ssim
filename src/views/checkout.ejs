@@ -224,6 +224,78 @@
           </div>
           <% } %>
 
+          <!-- Mobile Wallet App Button (mobile devices only) -->
+          <% if (paymentSettings?.walletMobileEnabled !== false) { %>
+          <div id="mobileWalletButtonContainer" class="hidden mt-3">
+            <button
+              id="payMobileWalletButton"
+              onclick="initiateMobileWalletPayment()"
+              class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-purple-700 hover:to-pink-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+              </svg>
+              <span>Pay with Mobile Wallet</span>
+            </button>
+          </div>
+          <% } %>
+
+          <!-- Mobile Wallet Payment Status Container -->
+          <div id="mobileWalletStatusContainer" class="hidden mt-4">
+            <div class="border-2 border-purple-200 rounded-xl p-6 bg-purple-50">
+              <div class="flex justify-between items-center mb-4">
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-800">Mobile Wallet Payment</h3>
+                  <p class="text-xs text-purple-600">Complete payment in the mwsim app</p>
+                </div>
+                <button onclick="cancelMobileWalletPayment()" class="text-gray-400 hover:text-gray-600">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Waiting for app state -->
+              <div id="mobileWalletWaiting" class="text-center py-8">
+                <svg class="w-16 h-16 text-purple-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                </svg>
+                <p class="text-gray-700 font-medium mb-2">Opening Mobile Wallet...</p>
+                <p class="text-gray-500 text-sm">Complete payment in the mwsim app</p>
+                <div class="mt-4">
+                  <svg class="animate-spin h-6 w-6 text-purple-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+              </div>
+
+              <!-- App not installed state -->
+              <div id="mobileWalletNotInstalled" class="hidden text-center py-8">
+                <svg class="w-16 h-16 text-orange-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <p class="text-gray-700 font-medium mb-2">Mobile Wallet App Not Found</p>
+                <p class="text-gray-500 text-sm mb-4">The mwsim app doesn't appear to be installed on this device.</p>
+                <button
+                  onclick="cancelMobileWalletPayment()"
+                  class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Use Another Payment Method
+                </button>
+              </div>
+
+              <!-- Payment processing state -->
+              <div id="mobileWalletProcessing" class="hidden text-center py-8">
+                <svg class="animate-pulse w-16 h-16 text-purple-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <p class="text-gray-700 font-medium mb-2">Processing Payment...</p>
+                <p class="text-gray-500 text-sm">Waiting for confirmation from your mobile wallet</p>
+              </div>
+            </div>
+          </div>
+
           <!-- API Direct Card Picker UI -->
           <div id="apiDirectCardPickerContainer" class="hidden mt-4">
             <div class="border-2 border-cyan-200 rounded-xl p-6 bg-cyan-50">
@@ -553,6 +625,20 @@
     let walletPopup = null;
     let popupCheckInterval = null;
     const wsimPopupUrl = '<%= wsimPopupUrl || "" %>';
+
+    // Mobile device detection utility
+    // Used to show mobile-only payment options (e.g., Mobile Wallet App)
+    function isMobileDevice() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+    }
+
+    // Mobile Wallet Payment state
+    let mobilePaymentRequestId = null;
+    let mobilePaymentPollingInterval = null;
+    const MOBILE_PAYMENT_POLL_INTERVAL = 2000; // 2 seconds
+    const MOBILE_APP_LAUNCH_TIMEOUT = 2500; // 2.5 seconds to detect if app launched
 
     // WSIM Popup Wallet Integration
     function openWalletPopup() {
@@ -2514,6 +2600,14 @@
 
         document.getElementById('cartTotal').textContent = cartData.formattedTotal;
         cartContents.classList.remove('hidden');
+
+        // Show mobile wallet button only on mobile devices
+        if (isMobileDevice()) {
+          const mobileButtonContainer = document.getElementById('mobileWalletButtonContainer');
+          if (mobileButtonContainer) {
+            mobileButtonContainer.classList.remove('hidden');
+          }
+        }
       } catch (error) {
         console.error('Error loading cart:', error);
         loadingState.classList.add('hidden');
@@ -2612,6 +2706,350 @@
       }
     }
 
+    // ============================================
+    // Mobile Wallet Payment Functions
+    // ============================================
+
+    /**
+     * Initiate a mobile wallet payment
+     * This creates a payment request and opens the mwsim:// deep link
+     */
+    async function initiateMobileWalletPayment() {
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+
+      const button = document.getElementById('payMobileWalletButton');
+      button.disabled = true;
+      button.innerHTML = `
+        <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Opening Wallet...
+      `;
+
+      try {
+        // Cancel any existing mobile payment request
+        if (mobilePaymentRequestId) {
+          await cancelMobilePaymentRequest(mobilePaymentRequestId);
+        }
+
+        // Create payment request via SSIM backend (which proxies to WSIM)
+        const response = await fetch('/payment/mobile/initiate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: cartData.total,
+            currency: 'CAD',
+            orderId: 'order-' + Date.now(),
+            returnUrl: window.location.origin + '/payment/mobile/return',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create payment request');
+        }
+
+        mobilePaymentRequestId = data.requestId;
+
+        // Show the status container
+        showMobileWalletStatus('waiting');
+
+        // Store payment state in sessionStorage for recovery if user navigates away
+        sessionStorage.setItem('pendingMobilePayment', JSON.stringify({
+          requestId: data.requestId,
+          orderId: data.orderId,
+          timestamp: Date.now(),
+        }));
+
+        // Open the mwsim:// deep link
+        const deepLinkUrl = data.deepLinkUrl; // e.g., mwsim://payment/{requestId}
+
+        // Track if app launched using visibility change
+        let appLaunched = false;
+        const startTime = Date.now();
+
+        const handleVisibilityChange = () => {
+          if (document.hidden) {
+            appLaunched = true;
+          }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Attempt to open deep link
+        window.location.href = deepLinkUrl;
+
+        // Wait for app launch timeout, then check if app opened
+        setTimeout(() => {
+          document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+          if (!appLaunched && Date.now() - startTime < MOBILE_APP_LAUNCH_TIMEOUT + 500) {
+            // App probably not installed
+            showMobileWalletStatus('not-installed');
+            resetMobileWalletButton();
+          } else {
+            // App launched - start polling for payment status
+            showMobileWalletStatus('processing');
+            startMobilePaymentPolling(data.requestId);
+          }
+        }, MOBILE_APP_LAUNCH_TIMEOUT);
+
+      } catch (error) {
+        console.error('[Mobile Wallet] Payment initiation error:', error);
+        resetMobileWalletButton();
+        document.getElementById('errorState').classList.remove('hidden');
+        document.getElementById('genericError').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = error.message;
+      }
+    }
+
+    /**
+     * Start polling for mobile payment status
+     */
+    function startMobilePaymentPolling(requestId) {
+      // Clear any existing polling
+      if (mobilePaymentPollingInterval) {
+        clearInterval(mobilePaymentPollingInterval);
+      }
+
+      mobilePaymentPollingInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/payment/mobile/status/${requestId}`);
+          const data = await response.json();
+
+          console.log('[Mobile Wallet] Payment status:', data.status);
+
+          switch (data.status) {
+            case 'approved':
+              // User approved in mobile app - complete the payment
+              clearInterval(mobilePaymentPollingInterval);
+              showMobileWalletStatus('processing');
+
+              if (data.oneTimePaymentToken) {
+                // Complete the payment by exchanging the token
+                await completeMobilePayment(requestId, data.oneTimePaymentToken);
+              } else {
+                console.error('[Mobile Wallet] Missing oneTimePaymentToken');
+                document.getElementById('errorState').classList.remove('hidden');
+                document.getElementById('genericError').classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = 'Payment token missing. Please try again.';
+                sessionStorage.removeItem('pendingMobilePayment');
+                cancelMobileWalletPayment();
+              }
+              break;
+
+            case 'completed':
+            case 'authorized':
+              // Payment fully complete!
+              clearInterval(mobilePaymentPollingInterval);
+              sessionStorage.removeItem('pendingMobilePayment');
+              // Redirect to success page
+              window.location.href = `/orders/${data.orderId}?success=true&payment=mobile`;
+              break;
+
+            case 'failed':
+            case 'declined':
+              clearInterval(mobilePaymentPollingInterval);
+              sessionStorage.removeItem('pendingMobilePayment');
+              cancelMobileWalletPayment();
+              document.getElementById('errorState').classList.remove('hidden');
+              document.getElementById('genericError').classList.remove('hidden');
+              document.getElementById('errorMessage').textContent = data.message || 'Payment was declined';
+              break;
+
+            case 'cancelled':
+              clearInterval(mobilePaymentPollingInterval);
+              sessionStorage.removeItem('pendingMobilePayment');
+              cancelMobileWalletPayment();
+              break;
+
+            case 'expired':
+              clearInterval(mobilePaymentPollingInterval);
+              sessionStorage.removeItem('pendingMobilePayment');
+              cancelMobileWalletPayment();
+              document.getElementById('errorState').classList.remove('hidden');
+              document.getElementById('genericError').classList.remove('hidden');
+              document.getElementById('errorMessage').textContent = 'Payment request expired. Please try again.';
+              break;
+
+            case 'pending':
+            default:
+              // Still waiting - continue polling
+              break;
+          }
+        } catch (error) {
+          console.error('[Mobile Wallet] Error polling status:', error);
+          // Continue polling despite errors (network issues)
+        }
+      }, MOBILE_PAYMENT_POLL_INTERVAL);
+    }
+
+    /**
+     * Complete the mobile payment by exchanging the token
+     */
+    async function completeMobilePayment(requestId, oneTimePaymentToken) {
+      try {
+        console.log('[Mobile Wallet] Completing payment...');
+
+        const response = await fetch(`/payment/mobile/complete/${requestId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ oneTimePaymentToken }),
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.status === 'authorized') {
+          // Payment successful!
+          sessionStorage.removeItem('pendingMobilePayment');
+          window.location.href = `/orders/${data.orderId}?success=true&payment=mobile`;
+        } else {
+          // Payment failed
+          sessionStorage.removeItem('pendingMobilePayment');
+          cancelMobileWalletPayment();
+          document.getElementById('errorState').classList.remove('hidden');
+          document.getElementById('genericError').classList.remove('hidden');
+          document.getElementById('errorMessage').textContent = data.reason || data.error || 'Payment failed';
+        }
+      } catch (error) {
+        console.error('[Mobile Wallet] Error completing payment:', error);
+        sessionStorage.removeItem('pendingMobilePayment');
+        cancelMobileWalletPayment();
+        document.getElementById('errorState').classList.remove('hidden');
+        document.getElementById('genericError').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = 'Failed to complete payment. Please try again.';
+      }
+    }
+
+    /**
+     * Cancel the mobile wallet payment flow
+     */
+    async function cancelMobileWalletPayment() {
+      // Stop polling
+      if (mobilePaymentPollingInterval) {
+        clearInterval(mobilePaymentPollingInterval);
+        mobilePaymentPollingInterval = null;
+      }
+
+      // Cancel the payment request on the server
+      if (mobilePaymentRequestId) {
+        await cancelMobilePaymentRequest(mobilePaymentRequestId);
+        mobilePaymentRequestId = null;
+      }
+
+      // Clear sessionStorage
+      sessionStorage.removeItem('pendingMobilePayment');
+
+      // Hide status container
+      document.getElementById('mobileWalletStatusContainer').classList.add('hidden');
+
+      // Reset button
+      resetMobileWalletButton();
+    }
+
+    /**
+     * Cancel a mobile payment request on the server
+     */
+    async function cancelMobilePaymentRequest(requestId) {
+      try {
+        await fetch(`/payment/mobile/cancel/${requestId}`, {
+          method: 'POST',
+        });
+      } catch (error) {
+        console.error('[Mobile Wallet] Error cancelling payment:', error);
+      }
+    }
+
+    /**
+     * Show the appropriate mobile wallet status state
+     */
+    function showMobileWalletStatus(state) {
+      const container = document.getElementById('mobileWalletStatusContainer');
+      const waiting = document.getElementById('mobileWalletWaiting');
+      const notInstalled = document.getElementById('mobileWalletNotInstalled');
+      const processing = document.getElementById('mobileWalletProcessing');
+
+      // Show container
+      container.classList.remove('hidden');
+
+      // Hide all states
+      waiting.classList.add('hidden');
+      notInstalled.classList.add('hidden');
+      processing.classList.add('hidden');
+
+      // Show requested state
+      switch (state) {
+        case 'waiting':
+          waiting.classList.remove('hidden');
+          break;
+        case 'not-installed':
+          notInstalled.classList.remove('hidden');
+          break;
+        case 'processing':
+          processing.classList.remove('hidden');
+          break;
+      }
+
+      // Scroll to show status
+      setTimeout(() => {
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+    }
+
+    /**
+     * Reset the mobile wallet button to its default state
+     */
+    function resetMobileWalletButton() {
+      const button = document.getElementById('payMobileWalletButton');
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = `
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+          </svg>
+          <span>Pay with Mobile Wallet</span>
+        `;
+      }
+    }
+
+    /**
+     * Check for pending mobile payment on page load
+     * Recovers interrupted payment flows
+     */
+    function checkPendingMobilePayment() {
+      const pending = sessionStorage.getItem('pendingMobilePayment');
+      if (pending) {
+        try {
+          const data = JSON.parse(pending);
+          // Check if not too old (5 minutes)
+          if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+            console.log('[Mobile Wallet] Resuming pending payment:', data.requestId);
+            mobilePaymentRequestId = data.requestId;
+            showMobileWalletStatus('processing');
+            startMobilePaymentPolling(data.requestId);
+          } else {
+            // Too old - clear it
+            sessionStorage.removeItem('pendingMobilePayment');
+          }
+        } catch (e) {
+          sessionStorage.removeItem('pendingMobilePayment');
+        }
+      }
+    }
+
+    // ============================================
+    // End Mobile Wallet Payment Functions
+    // ============================================
+
     // Check for payment errors in URL
     function checkForErrors() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -2651,6 +3089,10 @@
     // Load cart on page load
     loadCart();
     checkForErrors();
+    // Check for pending mobile payment (interrupted flows)
+    if (isMobileDevice()) {
+      checkPendingMobilePayment();
+    }
   </script>
 </body>
 </html>

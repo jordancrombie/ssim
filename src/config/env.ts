@@ -60,4 +60,6 @@ export const config = {
   // WSIM Merchant API (for custom card selection UI)
   wsimApiKey: process.env.WSIM_API_KEY || '',
   wsimApiUrl: process.env.WSIM_API_URL || 'https://wsim-dev.banksim.ca/api/merchant',
+  // WSIM Mobile Payment API (for mwsim app integration)
+  wsimMobileApiUrl: process.env.WSIM_MOBILE_API_URL || 'https://wsim-dev.banksim.ca/api/mobile/payment',
 };

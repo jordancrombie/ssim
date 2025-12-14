@@ -259,6 +259,7 @@ export interface PaymentMethodSettings {
   walletInlineEnabled: boolean;
   walletQuickCheckoutEnabled: boolean;
   walletApiEnabled: boolean;
+  walletMobileEnabled: boolean;
 }
 
 /**
@@ -271,6 +272,7 @@ const DEFAULT_PAYMENT_SETTINGS: PaymentMethodSettings = {
   walletInlineEnabled: true,
   walletQuickCheckoutEnabled: true,
   walletApiEnabled: true,
+  walletMobileEnabled: true,
 };
 
 /**
@@ -286,6 +288,7 @@ export async function getPaymentMethodSettings(storeId: string): Promise<Payment
       walletInlineEnabled: true,
       walletQuickCheckoutEnabled: true,
       walletApiEnabled: true,
+      walletMobileEnabled: true,
     },
   });
 
@@ -300,6 +303,7 @@ export async function getPaymentMethodSettings(storeId: string): Promise<Payment
     walletInlineEnabled: store.walletInlineEnabled,
     walletQuickCheckoutEnabled: store.walletQuickCheckoutEnabled,
     walletApiEnabled: store.walletApiEnabled,
+    walletMobileEnabled: store.walletMobileEnabled,
   };
 }
 
