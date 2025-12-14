@@ -823,8 +823,20 @@ router.post('/refund/:orderId', async (req: Request, res: Response) => {
  * @param requestId - The payment request ID
  * @param returnUrl - The base return URL (e.g., https://ssim.example.com/checkout)
  * @param sourceBrowser - Browser type for return flow: 'safari', 'chrome', 'firefox', 'edge', 'opera', 'brave', 'samsung', 'other'
+ *
+ * NOTE: The returnUrl and sourceBrowser parameters are prepared for when mwsim implements
+ * browser-aware return flow. Until then, mwsim uses its own default return URL handling.
+ * Set MWSIM_BROWSER_AWARE=true to enable the new deep link format.
  */
 function buildMobileDeepLink(requestId: string, returnUrl: string, sourceBrowser?: string): string {
+  // Check if browser-aware mode is enabled (requires mwsim support)
+  const browserAwareEnabled = process.env.MWSIM_BROWSER_AWARE === 'true';
+
+  if (!browserAwareEnabled) {
+    // Use simple deep link format until mwsim implements browser-aware return
+    return `mwsim://payment/${requestId}`;
+  }
+
   // Build the return URL with the mwsim_return query param
   const fullReturnUrl = `${returnUrl}?mwsim_return=${requestId}`;
   const encodedReturnUrl = encodeURIComponent(fullReturnUrl);

@@ -2995,8 +2995,9 @@
                 document.removeEventListener('visibilitychange', mobilePaymentVisibilityHandler);
                 mobilePaymentVisibilityHandler = null;
               }
-              // Reload to get fresh state - if payment completed, server will redirect appropriately
-              window.location.reload();
+              // This is a stale tab - payment was completed in another tab/browser
+              // Redirect to store home instead of reloading (which would show empty cart)
+              window.location.href = '/store';
               break;
 
             case 'pending':
