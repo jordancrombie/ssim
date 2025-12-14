@@ -23,6 +23,16 @@ export interface PaymentState {
   provider: PaymentProvider;
 }
 
+export interface MobilePaymentRequest {
+  requestId: string;
+  amount: number;
+  currency: string;
+  orderId: string;
+  status: 'pending' | 'authorized' | 'declined' | 'cancelled' | 'expired';
+  createdAt: number;
+  transactionId?: string;
+}
+
 declare module 'express-session' {
   interface SessionData {
     // Existing OIDC fields
@@ -52,5 +62,7 @@ declare module 'express-session' {
     // WSIM JWT (from database, for Quick Checkout)
     wsimJwt?: string;
     wsimJwtExp?: number;
+    // Mobile wallet payment request (mwsim)
+    mobilePaymentRequest?: import('./session').MobilePaymentRequest;
   }
 }
