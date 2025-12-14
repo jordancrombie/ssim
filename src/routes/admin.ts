@@ -607,6 +607,7 @@ router.get('/payment-methods', async (req: Request, res: Response) => {
       title: 'Payment Methods',
       settings,
       wsimConfigured: config.wsimEnabled,
+      wsimMobileConfigured: config.wsimEnabled && !!config.wsimMobileApiUrl,
       bankConfigured: !!config.paymentApiKey,
       query: req.query,
     });
@@ -632,9 +633,11 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
     const walletInlineEnabled = config.wsimEnabled ? req.body.walletInlineEnabled === 'true' : false;
     const walletQuickCheckoutEnabled = config.wsimEnabled ? req.body.walletQuickCheckoutEnabled === 'true' : false;
     const walletApiEnabled = config.wsimEnabled ? req.body.walletApiEnabled === 'true' : false;
+    // Mobile wallet requires both WSIM enabled and mobile API URL configured
+    const walletMobileEnabled = (config.wsimEnabled && config.wsimMobileApiUrl) ? req.body.walletMobileEnabled === 'true' : false;
 
     // Validate at least one method is enabled (only count configured methods)
-    const anyEnabled = bankPaymentEnabled || walletRedirectEnabled || walletPopupEnabled || walletInlineEnabled || walletQuickCheckoutEnabled || walletApiEnabled;
+    const anyEnabled = bankPaymentEnabled || walletRedirectEnabled || walletPopupEnabled || walletInlineEnabled || walletQuickCheckoutEnabled || walletApiEnabled || walletMobileEnabled;
     const anyConfigured = !!config.paymentApiKey || config.wsimEnabled;
 
     if (anyConfigured && !anyEnabled) {
@@ -649,6 +652,7 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
       walletInlineEnabled,
       walletQuickCheckoutEnabled,
       walletApiEnabled,
+      walletMobileEnabled,
     });
 
     // Clear cached store to pick up changes

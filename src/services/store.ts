@@ -323,6 +323,7 @@ export async function updatePaymentMethodSettings(
       walletInlineEnabled: settings.walletInlineEnabled,
       walletQuickCheckoutEnabled: settings.walletQuickCheckoutEnabled,
       walletApiEnabled: settings.walletApiEnabled,
+      walletMobileEnabled: settings.walletMobileEnabled,
     },
   });
 }
