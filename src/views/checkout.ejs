@@ -2810,6 +2810,24 @@
       }
     }
 
+    // Visibility change handler for mobile payment polling (stored for cleanup)
+    let mobilePaymentVisibilityHandler = null;
+
+    /**
+     * Check mobile payment status once (used for immediate checks on visibility change)
+     */
+    async function checkMobilePaymentStatusOnce(requestId) {
+      try {
+        const response = await fetch(`/payment/mobile/status/${requestId}`);
+        const data = await response.json();
+        console.log('[Mobile Wallet] Immediate status check:', data.status);
+        return data;
+      } catch (error) {
+        console.error('[Mobile Wallet] Error checking status:', error);
+        return null;
+      }
+    }
+
     /**
      * Start polling for mobile payment status
      */
@@ -2818,6 +2836,52 @@
       if (mobilePaymentPollingInterval) {
         clearInterval(mobilePaymentPollingInterval);
       }
+
+      // Remove any existing visibility handler
+      if (mobilePaymentVisibilityHandler) {
+        document.removeEventListener('visibilitychange', mobilePaymentVisibilityHandler);
+      }
+
+      // Add visibility change handler to immediately check status when user returns to browser
+      // iOS Safari throttles/pauses setInterval when tab is in background
+      mobilePaymentVisibilityHandler = async () => {
+        if (!document.hidden && mobilePaymentPollingInterval) {
+          console.log('[Mobile Wallet] Tab visible - checking payment status immediately');
+          const data = await checkMobilePaymentStatusOnce(requestId);
+          if (data && data.status === 'approved' && data.oneTimePaymentToken) {
+            // User approved! Stop polling and complete payment
+            clearInterval(mobilePaymentPollingInterval);
+            mobilePaymentPollingInterval = null;
+            document.removeEventListener('visibilitychange', mobilePaymentVisibilityHandler);
+            mobilePaymentVisibilityHandler = null;
+            showMobileWalletStatus('processing');
+            await completeMobilePayment(requestId, data.oneTimePaymentToken);
+          } else if (data && ['completed', 'authorized'].includes(data.status)) {
+            // Payment already complete
+            clearInterval(mobilePaymentPollingInterval);
+            mobilePaymentPollingInterval = null;
+            document.removeEventListener('visibilitychange', mobilePaymentVisibilityHandler);
+            mobilePaymentVisibilityHandler = null;
+            sessionStorage.removeItem('pendingMobilePayment');
+            window.location.href = `/orders/${data.orderId}?success=true&payment=mobile`;
+          } else if (data && ['failed', 'declined', 'cancelled', 'expired'].includes(data.status)) {
+            // Payment failed/cancelled/expired
+            clearInterval(mobilePaymentPollingInterval);
+            mobilePaymentPollingInterval = null;
+            document.removeEventListener('visibilitychange', mobilePaymentVisibilityHandler);
+            mobilePaymentVisibilityHandler = null;
+            sessionStorage.removeItem('pendingMobilePayment');
+            cancelMobileWalletPayment();
+            if (data.status !== 'cancelled') {
+              document.getElementById('errorState').classList.remove('hidden');
+              document.getElementById('genericError').classList.remove('hidden');
+              document.getElementById('errorMessage').textContent = data.message || `Payment ${data.status}`;
+            }
+          }
+          // If still pending, let the regular polling continue
+        }
+      };
+      document.addEventListener('visibilitychange', mobilePaymentVisibilityHandler);
 
       mobilePaymentPollingInterval = setInterval(async () => {
         try {
@@ -2938,6 +3002,12 @@
       if (mobilePaymentPollingInterval) {
         clearInterval(mobilePaymentPollingInterval);
         mobilePaymentPollingInterval = null;
+      }
+
+      // Remove visibility change handler
+      if (mobilePaymentVisibilityHandler) {
+        document.removeEventListener('visibilitychange', mobilePaymentVisibilityHandler);
+        mobilePaymentVisibilityHandler = null;
       }
 
       // Cancel the payment request on the server
