@@ -3273,6 +3273,18 @@
       // Set up page-level visibility handler for iOS Safari recovery
       setupPageVisibilityHandler();
     }
+
+    // Handle bfcache restoration - when user navigates back to this page
+    // after being on order-confirmation, reload to get fresh state
+    window.addEventListener('pageshow', function(event) {
+      if (event.persisted) {
+        console.log('[Checkout] Page restored from bfcache');
+        // If we're being restored from bfcache after a payment was completed,
+        // the cart will be empty server-side but may show stale UI.
+        // Reload to get fresh state.
+        window.location.reload();
+      }
+    });
   </script>
 </body>
 </html>
