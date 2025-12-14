@@ -2863,7 +2863,7 @@
             document.removeEventListener('visibilitychange', mobilePaymentVisibilityHandler);
             mobilePaymentVisibilityHandler = null;
             sessionStorage.removeItem('pendingMobilePayment');
-            window.location.href = `/orders/${data.orderId}?success=true&payment=mobile`;
+            window.location.href = `/order-confirmation/${data.orderId}`;
           } else if (data && ['failed', 'declined', 'cancelled', 'expired'].includes(data.status)) {
             // Payment failed/cancelled/expired
             clearInterval(mobilePaymentPollingInterval);
@@ -2914,8 +2914,8 @@
               // Payment fully complete!
               clearInterval(mobilePaymentPollingInterval);
               sessionStorage.removeItem('pendingMobilePayment');
-              // Redirect to success page
-              window.location.href = `/orders/${data.orderId}?success=true&payment=mobile`;
+              // Redirect to order confirmation page
+              window.location.href = `/order-confirmation/${data.orderId}`;
               break;
 
             case 'failed':
@@ -2975,7 +2975,7 @@
         if (data.success && data.status === 'authorized') {
           // Payment successful!
           sessionStorage.removeItem('pendingMobilePayment');
-          window.location.href = `/orders/${data.orderId}?success=true&payment=mobile`;
+          window.location.href = `/order-confirmation/${data.orderId}`;
         } else {
           // Payment failed
           sessionStorage.removeItem('pendingMobilePayment');
@@ -3119,7 +3119,7 @@
           return;
         } else if (statusData && ['completed', 'authorized'].includes(statusData.status)) {
           sessionStorage.removeItem('pendingMobilePayment');
-          window.location.href = `/orders/${statusData.orderId}?success=true&payment=mobile`;
+          window.location.href = `/order-confirmation/${statusData.orderId}`;
           return;
         } else if (statusData && ['failed', 'declined', 'cancelled', 'expired'].includes(statusData.status)) {
           sessionStorage.removeItem('pendingMobilePayment');
@@ -3157,7 +3157,7 @@
                 return;
               } else if (statusData && ['completed', 'authorized'].includes(statusData.status)) {
                 sessionStorage.removeItem('pendingMobilePayment');
-                window.location.href = `/orders/${statusData.orderId}?success=true&payment=mobile`;
+                window.location.href = `/order-confirmation/${statusData.orderId}`;
                 return;
               } else if (statusData && ['failed', 'declined', 'cancelled', 'expired'].includes(statusData.status)) {
                 sessionStorage.removeItem('pendingMobilePayment');
