@@ -2746,7 +2746,8 @@
             amount: cartData.total,
             currency: 'CAD',
             orderId: 'order-' + Date.now(),
-            returnUrl: window.location.origin + '/payment/mobile/return',
+            // Note: Don't pass returnUrl - let backend use /checkout default
+            // mwsim will append ?mwsim_return=requestId when opening
           }),
         });
 
