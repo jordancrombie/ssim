@@ -35,7 +35,7 @@ SSIM is part of the BankSim ecosystem - a suite of applications that simulate re
 - **Product Management** - Add, edit, delete, and toggle products
 - **Order Management** - View all orders, capture/void/refund payments
 - **Branding Configuration** - Theme selection, logo/hero uploads, environment badge
-- **Payment Methods** - Toggle which payment options appear on checkout (Bank, Wallet Redirect, Popup, Inline, Quick Checkout, API)
+- **Payment Methods** - Toggle which payment options appear on checkout (Bank, Wallet Redirect, Popup, Inline, Quick Checkout, API, Mobile Wallet)
 - **Settings** - View configuration and environment settings
 - **Access Control** - Email-based admin authorization via BSIM auth
 
@@ -166,8 +166,29 @@ When `WSIM_ENABLED=true`, the checkout page displays both "Pay with BSIM" (bank 
 | **API** | Backend proxy to WSIM Merchant API |
 | **API (Direct)** | Browser calls WSIM directly (requires CORS) |
 | **API (Proxy)** | Same as API with explicit labeling |
+| **Mobile Wallet** | Deep link to mwsim app for biometric-approved payments |
 
 See [docs/WSIM-API-Integration-Plan.md](docs/WSIM-API-Integration-Plan.md) for implementation details.
+
+### Mobile Wallet Integration (mwsim)
+
+To enable mobile wallet payments via mwsim, configure these additional environment variables:
+
+```env
+# Mobile wallet payments (requires WSIM_ENABLED=true)
+WSIM_MOBILE_API_URL=https://wsim-dev.banksim.ca/api/mobile
+WSIM_API_KEY=<your-wsim-api-key>
+```
+
+When configured, a "Pay with Mobile Wallet" button appears on checkout for mobile users. The flow:
+
+1. User taps "Pay with Mobile Wallet" on checkout
+2. SSIM creates a payment request via WSIM Mobile API
+3. Deep link opens mwsim app: `mwsim://payment/{requestId}`
+4. User approves payment with biometric authentication in mwsim
+5. mwsim calls WSIM to approve and returns user to checkout
+6. SSIM detects approval and completes payment via NSIM
+7. User sees order confirmation
 
 ## Registering SSIM as an OAuth Client in BSIM
 
@@ -237,6 +258,9 @@ INSERT INTO oauth_clients (
 | `/payment/capture/:orderId` | POST | Capture authorized payment |
 | `/payment/void/:orderId` | POST | Void authorized payment |
 | `/payment/refund/:orderId` | POST | Refund captured payment |
+| `/payment/mobile/initiate` | POST | Create mobile wallet payment request |
+| `/payment/mobile/status/:requestId` | GET | Check mobile payment status |
+| `/payment/mobile/complete/:requestId` | POST | Complete approved mobile payment |
 
 ### Webhooks
 | Endpoint | Method | Description |
@@ -441,6 +465,7 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [x] **Store Branding** - Admin-configurable themes, logos, and environment badges (v1.10.0)
 - [x] **Payment Method Toggles** - Admin control over which payment options appear on checkout (v1.11.0)
 - [x] **Complete Payment Toggles** - Added Wallet Inline and Wallet API toggles, covering all 8 checkout buttons (v1.12.0)
+- [x] **Mobile Wallet Payments** - Deep link integration with mwsim app for biometric-approved payments (v1.13.0)
 
 ### Pending
 - [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period

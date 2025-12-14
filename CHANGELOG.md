@@ -2,6 +2,43 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.13.0] - 2025-12-14
+
+### Added
+- **Mobile Wallet Payments (mwsim)** - Deep link integration with mwsim mobile app
+  - New "Pay with Mobile Wallet" button on checkout for mobile users
+  - Deep link flow: `mwsim://payment/{requestId}` opens native mobile app
+  - Biometric authentication via mwsim app (Face ID, Touch ID)
+  - Automatic payment completion when user returns to browser
+  - iOS Safari visibility change handling for seamless app handoff
+  - URL query parameter (`?mwsim_return=requestId`) for automatic return flow
+
+- **Admin Mobile Wallet Toggle** - Control mobile wallet visibility from admin panel
+  - New toggle in Payment Methods admin page
+  - Infrastructure status indicator for WSIM Mobile API configuration
+  - Requires both `WSIM_ENABLED=true` and `WSIM_MOBILE_API_URL` to be set
+
+### New Routes
+- `POST /payment/mobile/initiate` - Create mobile wallet payment request
+- `GET /payment/mobile/status/:requestId` - Poll payment status
+- `POST /payment/mobile/complete/:requestId` - Complete approved payment
+
+### New Environment Variables
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `WSIM_MOBILE_API_URL` | For mobile wallet | WSIM Mobile API endpoint (e.g., `https://wsim-dev.banksim.ca/api/mobile`) |
+
+### Database Migrations
+- `20251213213546_add_wallet_mobile_enabled` - Adds `walletMobileEnabled` boolean field to Store model (default: `true`)
+
+### Technical Details
+- Payment status polling every 2 seconds with iOS Safari throttle mitigation
+- `visibilitychange` event listener for immediate status check on app return
+- Session storage for payment state recovery after iOS app handoff
+- Guest checkout support (no BSIM login required for mobile wallet)
+
+---
+
 ## [1.12.2] - 2025-12-13
 
 ### Added
