@@ -2945,6 +2945,22 @@
               document.getElementById('errorMessage').textContent = 'Payment request expired. Please try again.';
               break;
 
+            case 'not_found':
+              // Payment request no longer exists - another tab/session completed or processed it
+              // This happens on iOS Safari when the mobile app opens the return URL in a new tab
+              console.log('[Mobile Wallet] Payment request not found - stopping poll (likely completed in another tab)');
+              clearInterval(mobilePaymentPollingInterval);
+              mobilePaymentPollingInterval = null;
+              sessionStorage.removeItem('pendingMobilePayment');
+              // Remove the visibility handler since we're done
+              if (mobilePaymentVisibilityHandler) {
+                document.removeEventListener('visibilitychange', mobilePaymentVisibilityHandler);
+                mobilePaymentVisibilityHandler = null;
+              }
+              // Reload to get fresh state - if payment completed, server will redirect appropriately
+              window.location.reload();
+              break;
+
             case 'pending':
             default:
               // Still waiting - continue polling
