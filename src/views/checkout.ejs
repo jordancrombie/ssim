@@ -637,6 +637,7 @@
     // Mobile Wallet Payment state
     let mobilePaymentRequestId = null;
     let mobilePaymentPollingInterval = null;
+    let mobilePaymentCompleting = false; // Guard flag to prevent duplicate completion attempts
     const MOBILE_PAYMENT_POLL_INTERVAL = 2000; // 2 seconds
     const MOBILE_APP_LAUNCH_TIMEOUT = 2500; // 2.5 seconds to detect if app launched
 
@@ -2960,6 +2961,13 @@
      * Complete the mobile payment by exchanging the token
      */
     async function completeMobilePayment(requestId, oneTimePaymentToken) {
+      // Prevent duplicate completion attempts
+      if (mobilePaymentCompleting) {
+        console.log('[Mobile Wallet] Payment completion already in progress, skipping duplicate');
+        return;
+      }
+      mobilePaymentCompleting = true;
+
       try {
         console.log('[Mobile Wallet] Completing payment...');
 
@@ -2979,6 +2987,7 @@
           window.location.href = `/order-confirmation/${data.orderId}`;
         } else {
           // Payment failed
+          mobilePaymentCompleting = false;
           sessionStorage.removeItem('pendingMobilePayment');
           cancelMobileWalletPayment();
           document.getElementById('errorState').classList.remove('hidden');
@@ -2987,6 +2996,7 @@
         }
       } catch (error) {
         console.error('[Mobile Wallet] Error completing payment:', error);
+        mobilePaymentCompleting = false;
         sessionStorage.removeItem('pendingMobilePayment');
         cancelMobileWalletPayment();
         document.getElementById('errorState').classList.remove('hidden');
@@ -3098,12 +3108,22 @@
      * @param {boolean} fromVisibilityChange - true if called from visibility change event
      */
     async function checkPendingMobilePayment(fromVisibilityChange = false) {
+      // Skip if payment completion is already in progress
+      if (mobilePaymentCompleting) {
+        console.log('[Mobile Wallet] Payment completion in progress, skipping check');
+        return;
+      }
+
       // First check URL for mwsim return parameter
       const urlParams = new URLSearchParams(window.location.search);
       const mwsimReturn = urlParams.get('mwsim_return');
 
       if (mwsimReturn) {
         console.log('[Mobile Wallet] Detected mwsim return URL with requestId:', mwsimReturn);
+
+        // Immediately clear sessionStorage to prevent race conditions with visibility handlers
+        sessionStorage.removeItem('pendingMobilePayment');
+
         // Clean up URL
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
@@ -3119,11 +3139,11 @@
           await completeMobilePayment(mwsimReturn, statusData.oneTimePaymentToken);
           return;
         } else if (statusData && ['completed', 'authorized'].includes(statusData.status)) {
-          sessionStorage.removeItem('pendingMobilePayment');
+          // sessionStorage already cleared above
           window.location.href = `/order-confirmation/${statusData.orderId}`;
           return;
         } else if (statusData && ['failed', 'declined', 'cancelled', 'expired'].includes(statusData.status)) {
-          sessionStorage.removeItem('pendingMobilePayment');
+          // sessionStorage already cleared above
           cancelMobileWalletPayment();
           if (statusData.status !== 'cancelled') {
             document.getElementById('errorState').classList.remove('hidden');
