@@ -3092,28 +3092,115 @@
     }
 
     /**
-     * Check for pending mobile payment on page load
+     * Check for pending mobile payment on page load or visibility change
      * Recovers interrupted payment flows
+     * @param {boolean} fromVisibilityChange - true if called from visibility change event
      */
-    function checkPendingMobilePayment() {
+    async function checkPendingMobilePayment(fromVisibilityChange = false) {
+      // First check URL for mwsim return parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const mwsimReturn = urlParams.get('mwsim_return');
+
+      if (mwsimReturn) {
+        console.log('[Mobile Wallet] Detected mwsim return URL with requestId:', mwsimReturn);
+        // Clean up URL
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+
+        // Resume this payment
+        mobilePaymentRequestId = mwsimReturn;
+        showMobileWalletStatus('processing');
+
+        // Immediately check status since user just returned from app
+        const statusData = await checkMobilePaymentStatusOnce(mwsimReturn);
+        if (statusData && statusData.status === 'approved' && statusData.oneTimePaymentToken) {
+          console.log('[Mobile Wallet] Payment already approved, completing...');
+          await completeMobilePayment(mwsimReturn, statusData.oneTimePaymentToken);
+          return;
+        } else if (statusData && ['completed', 'authorized'].includes(statusData.status)) {
+          sessionStorage.removeItem('pendingMobilePayment');
+          window.location.href = `/orders/${statusData.orderId}?success=true&payment=mobile`;
+          return;
+        } else if (statusData && ['failed', 'declined', 'cancelled', 'expired'].includes(statusData.status)) {
+          sessionStorage.removeItem('pendingMobilePayment');
+          cancelMobileWalletPayment();
+          if (statusData.status !== 'cancelled') {
+            document.getElementById('errorState').classList.remove('hidden');
+            document.getElementById('genericError').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = statusData.message || `Payment ${statusData.status}`;
+          }
+          return;
+        }
+
+        // Still pending - start polling
+        startMobilePaymentPolling(mwsimReturn);
+        return;
+      }
+
+      // Check sessionStorage for pending payment
       const pending = sessionStorage.getItem('pendingMobilePayment');
       if (pending) {
         try {
           const data = JSON.parse(pending);
           // Check if not too old (5 minutes)
           if (Date.now() - data.timestamp < 5 * 60 * 1000) {
-            console.log('[Mobile Wallet] Resuming pending payment:', data.requestId);
+            console.log('[Mobile Wallet] Resuming pending payment:', data.requestId, fromVisibilityChange ? '(from visibility change)' : '(from page load)');
             mobilePaymentRequestId = data.requestId;
             showMobileWalletStatus('processing');
-            startMobilePaymentPolling(data.requestId);
+
+            // If returning from visibility change, immediately check status
+            if (fromVisibilityChange) {
+              const statusData = await checkMobilePaymentStatusOnce(data.requestId);
+              if (statusData && statusData.status === 'approved' && statusData.oneTimePaymentToken) {
+                console.log('[Mobile Wallet] Payment approved while away, completing...');
+                await completeMobilePayment(data.requestId, statusData.oneTimePaymentToken);
+                return;
+              } else if (statusData && ['completed', 'authorized'].includes(statusData.status)) {
+                sessionStorage.removeItem('pendingMobilePayment');
+                window.location.href = `/orders/${statusData.orderId}?success=true&payment=mobile`;
+                return;
+              } else if (statusData && ['failed', 'declined', 'cancelled', 'expired'].includes(statusData.status)) {
+                sessionStorage.removeItem('pendingMobilePayment');
+                cancelMobileWalletPayment();
+                if (statusData.status !== 'cancelled') {
+                  document.getElementById('errorState').classList.remove('hidden');
+                  document.getElementById('genericError').classList.remove('hidden');
+                  document.getElementById('errorMessage').textContent = statusData.message || `Payment ${statusData.status}`;
+                }
+                return;
+              }
+            }
+
+            // Start polling (or resume if already running)
+            if (!mobilePaymentPollingInterval) {
+              startMobilePaymentPolling(data.requestId);
+            }
           } else {
             // Too old - clear it
+            console.log('[Mobile Wallet] Pending payment too old, clearing');
             sessionStorage.removeItem('pendingMobilePayment');
           }
         } catch (e) {
           sessionStorage.removeItem('pendingMobilePayment');
         }
       }
+    }
+
+    /**
+     * Page-level visibility change handler for mobile payment recovery
+     * This catches the case where iOS Safari killed the page state
+     */
+    function setupPageVisibilityHandler() {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && isMobileDevice()) {
+          // Tab became visible - check if we have a pending payment to resume
+          const pending = sessionStorage.getItem('pendingMobilePayment');
+          if (pending && !mobilePaymentPollingInterval) {
+            console.log('[Mobile Wallet] Page visible with pending payment - checking status');
+            checkPendingMobilePayment(true);
+          }
+        }
+      });
     }
 
     // ============================================
@@ -3162,6 +3249,8 @@
     // Check for pending mobile payment (interrupted flows)
     if (isMobileDevice()) {
       checkPendingMobilePayment();
+      // Set up page-level visibility handler for iOS Safari recovery
+      setupPageVisibilityHandler();
     }
   </script>
 </body>

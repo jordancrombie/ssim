@@ -886,7 +886,10 @@ router.post('/mobile/initiate', async (req: Request, res: Response) => {
         amount: (amount / 100).toFixed(2), // Convert cents to dollars
         currency: currency || 'CAD',
         orderId,
-        returnUrl: returnUrl || `${config.appBaseUrl}/payment/mobile/return`,
+        // Note: We can't include requestId in returnUrl at this point since we don't have it yet
+        // WSIM will append the requestId to the returnUrl when the user approves
+        // mwsim should use: returnUrl + '?mwsim_return=' + requestId
+        returnUrl: returnUrl || `${config.appBaseUrl}/checkout`,
         merchantName: store.name,
         merchantLogoUrl: `${config.appBaseUrl}/logo-256.png`,
       }),
