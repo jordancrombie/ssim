@@ -31,6 +31,13 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 ### Database Migrations
 - `20251213213546_add_wallet_mobile_enabled` - Adds `walletMobileEnabled` boolean field to Store model (default: `true`)
 
+### Fixed
+- **iOS Safari Multi-Tab Handling** - Fixed redirect issue when mwsim opens return URL in new tab
+  - Added `not_found` status handler to stop polling when payment completed in another tab
+  - Prevents stale checkout tab from interfering with order confirmation
+  - Added `pageshow` event handler for bfcache restoration
+  - Added guard flag to prevent duplicate payment completion attempts
+
 ### Technical Details
 - Payment status polling every 2 seconds with iOS Safari throttle mitigation
 - `visibilitychange` event listener for immediate status check on app return
