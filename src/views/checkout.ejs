@@ -2636,10 +2636,14 @@
         cartContents.classList.remove('hidden');
 
         // Show mobile wallet button only on mobile devices
-        if (isMobileDevice()) {
+        const isMobile = isMobileDevice();
+        console.log('[Checkout] Mobile detection:', isMobile, 'UA:', navigator.userAgent);
+        if (isMobile) {
           const mobileButtonContainer = document.getElementById('mobileWalletButtonContainer');
+          console.log('[Checkout] Mobile button container:', mobileButtonContainer ? 'found' : 'not found');
           if (mobileButtonContainer) {
             mobileButtonContainer.classList.remove('hidden');
+            console.log('[Checkout] Mobile wallet button shown');
           }
         }
       } catch (error) {
