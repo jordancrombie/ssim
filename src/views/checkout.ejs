@@ -2893,6 +2893,12 @@
           console.log('[Mobile Wallet] Tab visible - checking payment status immediately');
           const data = await checkMobilePaymentStatusOnce(requestId);
           if (data && data.status === 'approved' && data.oneTimePaymentToken) {
+            // Check if this is a cross-session scenario (new tab polling for completion)
+            if (data._crossSession) {
+              // Don't complete payment in cross-session tab - let original tab handle it
+              console.log('[Mobile Wallet] Cross-session approved in visibility handler - waiting for original tab');
+              return;
+            }
             // User approved! Stop polling and complete payment
             clearInterval(mobilePaymentPollingInterval);
             mobilePaymentPollingInterval = null;
@@ -2907,7 +2913,16 @@
             document.removeEventListener('visibilitychange', mobilePaymentVisibilityHandler);
             mobilePaymentVisibilityHandler = null;
             sessionStorage.removeItem('pendingMobilePayment');
-            window.location.href = `/order-confirmation/${data.orderId}`;
+            if (data.orderId) {
+              window.location.href = `/order-confirmation/${data.orderId}`;
+            } else if (data._crossSession) {
+              // Cross-session: payment completed by other tab
+              document.getElementById('mobileWalletStatusText').textContent = 'Payment complete! Check your original browser tab for order details.';
+              setTimeout(() => window.location.href = '/store', 3000);
+            } else {
+              // Fallback - something odd happened, go to store
+              window.location.href = '/store';
+            }
           } else if (data && ['failed', 'declined', 'cancelled', 'expired'].includes(data.status)) {
             // Payment failed/cancelled/expired
             clearInterval(mobilePaymentPollingInterval);
@@ -2937,6 +2952,16 @@
           switch (data.status) {
             case 'approved':
               // User approved in mobile app - complete the payment
+              // But only if we're not in a cross-session tab (new tab opened by mwsim)
+              if (data._crossSession) {
+                // Don't complete payment in cross-session tab - let original tab handle it
+                console.log('[Mobile Wallet] Cross-session approved in polling - waiting for original tab');
+                showMobileWalletStatus('approved');
+                document.getElementById('mobileWalletStatusText').textContent = 'Payment approved! Your original browser tab will complete the order.';
+                // Don't stop polling - continue to detect when payment completes
+                break;
+              }
+
               clearInterval(mobilePaymentPollingInterval);
               showMobileWalletStatus('processing');
 
@@ -3189,7 +3214,21 @@
       if (mwsimReturn) {
         console.log('[Mobile Wallet] Detected mwsim return URL with requestId:', mwsimReturn);
 
-        // Immediately clear sessionStorage to prevent race conditions with visibility handlers
+        // Check if this is the original tab or a new tab opened by mwsim
+        // sessionStorage is per-tab, so if pendingMobilePayment exists, we're in the original tab
+        const pendingData = sessionStorage.getItem('pendingMobilePayment');
+        let isOriginalTab = false;
+        if (pendingData) {
+          try {
+            const parsed = JSON.parse(pendingData);
+            isOriginalTab = parsed.requestId === mwsimReturn;
+          } catch (e) {
+            console.warn('[Mobile Wallet] Failed to parse pendingMobilePayment:', e);
+          }
+        }
+        console.log('[Mobile Wallet] Tab detection:', isOriginalTab ? 'ORIGINAL tab' : 'NEW tab (opened by mwsim)');
+
+        // Clear sessionStorage to prevent race conditions with visibility handlers
         sessionStorage.removeItem('pendingMobilePayment');
 
         // Clean up URL
@@ -3204,14 +3243,16 @@
         const statusData = await checkMobilePaymentStatusOnce(mwsimReturn);
 
         // Handle cross-session scenario (Chrome/Firefox opens new tab)
-        // If we're in a new tab without the cart session, we can check status but can't complete payment
-        const isCrossSession = statusData && statusData._crossSession;
+        // In Chrome iOS, cookies may be shared between tabs, so _crossSession from server may be false
+        // Use client-side sessionStorage check as the primary indicator
+        const isNewTab = !isOriginalTab;
+        const isCrossSession = isNewTab || (statusData && statusData._crossSession);
 
         if (statusData && statusData.status === 'approved' && statusData.oneTimePaymentToken) {
           if (isCrossSession) {
-            // This is a new tab without cart session - can't complete payment here
+            // This is a new tab - can't/shouldn't complete payment here
             // The original tab should complete it via polling
-            console.log('[Mobile Wallet] Cross-session approved - showing success message');
+            console.log('[Mobile Wallet] Cross-session approved - showing success message (new tab detected)');
             showMobileWalletStatus('approved');
             document.getElementById('mobileWalletStatusText').textContent = 'Payment approved! Your original browser tab will complete the order.';
             // Poll to see when payment completes

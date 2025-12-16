@@ -2,6 +2,19 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.13.2] - 2025-12-15
+
+### Fixed
+- **Chrome iOS Multi-Tab Race Condition** - Fixed Chrome iOS handling when mwsim opens a new tab
+  - Chrome iOS shares session cookies between tabs (unlike Safari)
+  - Added client-side sessionStorage detection to identify "new tab" vs "original tab"
+  - New tab now correctly defers payment completion to original tab
+  - Fixed visibility handler to check for cross-session before redirecting
+  - Fixed polling handler to skip payment completion in cross-session scenario
+  - Prevents race condition where both tabs try to complete payment simultaneously
+
+---
+
 ## [1.13.1] - 2025-12-15
 
 ### Added
