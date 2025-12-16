@@ -13,6 +13,12 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Fixed polling handler to skip payment completion in cross-session scenario
   - Prevents race condition where both tabs try to complete payment simultaneously
 
+- **Empty Cart Flash on App Return** - Fixed brief empty cart display in new tab
+  - Early detection of `mwsim_return` URL parameter to identify app-opened tabs
+  - Skip empty cart display when tab was opened by mwsim app returning from payment
+  - Mobile payment handler takes over UI for proper status display
+  - Shows "Payment complete!" message before redirecting to store
+
 ---
 
 ## [1.13.1] - 2025-12-15

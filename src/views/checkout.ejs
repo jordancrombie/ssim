@@ -626,6 +626,15 @@
     let popupCheckInterval = null;
     const wsimPopupUrl = '<%= wsimPopupUrl || "" %>';
 
+    // Detect if this page was opened by mwsim app returning from payment
+    // This is checked EARLY before loadCart() runs to prevent empty cart flash
+    // The mwsim_return URL parameter is the definitive signal that an app opened this tab
+    const urlParamsEarly = new URLSearchParams(window.location.search);
+    const isAppOpenedTab = !!urlParamsEarly.get('mwsim_return');
+    if (isAppOpenedTab) {
+      console.log('[Checkout] Tab opened by mwsim app - will handle via mobile payment flow');
+    }
+
     // Mobile device detection utility
     // Used to show mobile-only payment options (e.g., Mobile Wallet App)
     function isMobileDevice() {
@@ -2606,6 +2615,15 @@
         loadingState.classList.add('hidden');
 
         if (!cartData.items || cartData.items.length === 0) {
+          // If this tab was opened by mwsim app returning from payment,
+          // DON'T show empty cart - the mobile payment handler will take over.
+          // The cart might be empty because another tab already completed the payment.
+          if (isAppOpenedTab) {
+            console.log('[Checkout] Cart is empty but tab was opened by app - deferring to mobile payment handler');
+            // Keep loading state hidden, don't show empty cart
+            // The checkPendingMobilePayment() handler will show appropriate UI
+            return;
+          }
           emptyState.classList.remove('hidden');
           return;
         }
@@ -3268,6 +3286,8 @@
             window.location.href = `/order-confirmation/${statusData.orderId}`;
           } else {
             // Cross-session completed - the other tab should have redirected
+            // Show the mobile wallet status container with success message
+            showMobileWalletStatus('approved');
             document.getElementById('mobileWalletStatusText').textContent = 'Payment complete! Check your original browser tab for order details.';
             setTimeout(() => window.location.href = '/store', 3000);
           }
