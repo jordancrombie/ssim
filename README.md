@@ -178,6 +178,9 @@ To enable mobile wallet payments via mwsim, configure these additional environme
 # Mobile wallet payments (requires WSIM_ENABLED=true)
 WSIM_MOBILE_API_URL=https://wsim-dev.banksim.ca/api/mobile
 WSIM_API_KEY=<your-wsim-api-key>
+
+# Optional: Enable browser-aware return flow (recommended)
+MWSIM_BROWSER_AWARE=true
 ```
 
 When configured, a "Pay with Mobile Wallet" button appears on checkout for mobile users. The flow:
@@ -189,6 +192,16 @@ When configured, a "Pay with Mobile Wallet" button appears on checkout for mobil
 5. mwsim calls WSIM to approve and returns user to checkout
 6. SSIM detects approval and completes payment via NSIM
 7. User sees order confirmation
+
+**Browser Compatibility (iOS):**
+| Browser | Status | Notes |
+|---------|--------|-------|
+| Safari | ✅ Tested | Returns to original tab seamlessly |
+| Chrome | ✅ Tested | Opens new tab, both tabs show order confirmation |
+| Firefox | ✅ Supported | Similar to Chrome behavior |
+| Edge | ✅ Supported | Similar to Chrome behavior |
+
+The `MWSIM_BROWSER_AWARE=true` flag enables browser-specific URL schemes so mwsim can return users to their original browser (Chrome, Firefox, Edge) instead of defaulting to Safari.
 
 ## Registering SSIM as an OAuth Client in BSIM
 
@@ -466,6 +479,7 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [x] **Payment Method Toggles** - Admin control over which payment options appear on checkout (v1.11.0)
 - [x] **Complete Payment Toggles** - Added Wallet Inline and Wallet API toggles, covering all 8 checkout buttons (v1.12.0)
 - [x] **Mobile Wallet Payments** - Deep link integration with mwsim app for biometric-approved payments (v1.13.0)
+- [x] **iOS Browser Compatibility** - Mobile wallet works on Safari and Chrome iOS with cross-tab order confirmation (v1.13.3)
 
 ### Pending
 - [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period

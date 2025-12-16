@@ -13,6 +13,12 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 ### Database Migrations
 - `20251216022842_add_mobile_payment_request_id` - Adds `mobilePaymentRequestId` field to Order model with index
 
+### Tested
+- **iOS Browser Compatibility Verified** ✅
+  - Safari: Returns to original tab seamlessly
+  - Chrome: Opens new tab, both tabs show order confirmation correctly
+  - Mobile wallet payment flow working end-to-end on both browsers
+
 ---
 
 ## [1.13.2] - 2025-12-15
