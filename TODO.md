@@ -31,6 +31,23 @@ This file tracks planned features and improvements for the Store Simulator.
 
 ## Priority: Low
 
+### Documentation (Public Repo Cleanup)
+- [ ] **Generic Production Deployment Guide** - Create sanitized version for public repo
+  - Source: `LOCAL_DEPLOYMENT_PLANS/SSIM-Production-Deployment-v1.13.md`
+  - Remove: AWS account IDs, internal URLs (banksim.ca), cluster names
+  - Use: Generic placeholders like `your-account-id`, `your-domain.com`
+- [ ] **Generic WSIM API Integration Guide** - Create sanitized version for public repo
+  - Source: `LOCAL_DEPLOYMENT_PLANS/WSIM-API-Integration-Plan.md`
+  - Remove: Internal dev URLs (wsim-dev.banksim.ca), sample API keys
+  - Note: `docs/Wallet-Integration-Guide.md` is already public-safe
+
+**Files Moved to LOCAL_DEPLOYMENT_PLANS (2025-12-16):**
+These files contain internal infrastructure details and should NOT be in the public repo:
+- `SSIM-Production-Deployment-v1.8.md` - Contains real AWS account ID, production secrets
+- `SSIM-Production-Deployment-v1.13.md` - Contains AWS account ID, internal URLs
+- `WSIM-API-Integration-Plan.md` - Contains internal dev URLs, sample API keys
+- `ssim-task-definition.json` - **CRITICAL** Contains real AWS account ID, production secrets (SESSION_SECRET, client secrets)
+
 ### Analytics
 - [ ] **Sales Dashboard** - Revenue, orders, popular products
 - [ ] **Payment Analytics** - Authorization rate, decline reasons

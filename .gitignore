@@ -43,4 +43,8 @@ certs/
 # Local deployment plans (shared via filesystem, not repo)
 LOCAL_DEPLOYMENT_PLANS/
 
+# AWS/ECS task definitions (contain secrets)
+*-task-definition.json
+task-definition*.json
+
 /src/generated/prisma
