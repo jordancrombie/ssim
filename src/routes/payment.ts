@@ -986,15 +986,17 @@ router.get('/mobile/status/:requestId', async (req: Request, res: Response) => {
   try {
     // Check if we have this request in session
     const sessionRequest = req.session.mobilePaymentRequest;
-    if (!sessionRequest || sessionRequest.requestId !== requestId) {
-      return res.status(404).json({
-        error: 'Payment request not found',
-        status: 'not_found',
-      });
-    }
+    const hasSession = sessionRequest && sessionRequest.requestId === requestId;
 
-    // If WSIM API is not configured, use session-based status (stub mode)
+    // If WSIM API is not configured, require session (stub mode)
     if (!config.wsimMobileApiUrl || !config.wsimApiKey) {
+      if (!hasSession) {
+        return res.status(404).json({
+          error: 'Payment request not found',
+          status: 'not_found',
+        });
+      }
+
       // Check if expired (5 minutes)
       const EXPIRATION_MS = 5 * 60 * 1000;
       if (Date.now() - sessionRequest.createdAt > EXPIRATION_MS) {
@@ -1011,6 +1013,8 @@ router.get('/mobile/status/:requestId', async (req: Request, res: Response) => {
     }
 
     // Query WSIM API for actual status
+    // Note: We query WSIM even without session - this handles the case where
+    // mwsim returns the user to a new browser tab (Chrome on iOS opens new tabs)
     const wsimResponse = await fetch(`${config.wsimMobileApiUrl}/${requestId}/status`, {
       method: 'GET',
       headers: {
@@ -1031,22 +1035,26 @@ router.get('/mobile/status/:requestId', async (req: Request, res: Response) => {
 
     const wsimData = await wsimResponse.json() as WsimPaymentStatusResponse;
 
-    // Update session with latest status
-    sessionRequest.status = wsimData.status as 'pending' | 'authorized' | 'declined' | 'cancelled' | 'expired';
-    if (wsimData.transactionId) {
-      sessionRequest.transactionId = wsimData.transactionId;
+    // Update session with latest status if we have session
+    if (hasSession) {
+      sessionRequest.status = wsimData.status as 'pending' | 'authorized' | 'declined' | 'cancelled' | 'expired';
+      if (wsimData.transactionId) {
+        sessionRequest.transactionId = wsimData.transactionId;
+      }
     }
 
-    console.log('[Payment] Mobile payment status:', requestId, wsimData.status);
+    console.log('[Payment] Mobile payment status:', requestId, wsimData.status, hasSession ? '(with session)' : '(no session)');
 
     // If approved, include the one-time token for completing the payment
     res.json({
       requestId,
       status: wsimData.status,
-      orderId: sessionRequest.orderId,
+      orderId: hasSession ? sessionRequest.orderId : undefined,
       message: wsimData.message,
       // Include token only when approved (for completing payment)
       oneTimePaymentToken: wsimData.status === 'approved' ? wsimData.oneTimePaymentToken : undefined,
+      // Flag to indicate this is a cross-session request (new tab scenario)
+      _crossSession: !hasSession,
     });
   } catch (error) {
     console.error('[Payment] Mobile payment status error:', error);

@@ -2,6 +2,33 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.13.1] - 2025-12-15
+
+### Added
+- **Browser-Aware Return Flow** - mwsim can now return users to their original browser
+  - Deep links include `sourceBrowser` parameter (chrome, firefox, edge, safari, etc.)
+  - Browser detected from User-Agent on checkout page
+  - Enables mwsim to use browser-specific URL schemes for return navigation
+  - Feature flag: `MWSIM_BROWSER_AWARE=true` environment variable
+
+- **Error Page** - New `error.ejs` view for graceful error handling
+  - Consistent styling with store branding
+  - Shows helpful error messages with navigation options
+
+### Fixed
+- **Cross-Session Payment Handling** - Fixed Chrome/Firefox on iOS opening new tabs
+  - Status endpoint now queries WSIM API directly without requiring session
+  - New tab shows "Payment approved! Your original browser tab will complete the order."
+  - Original tab continues polling and completes payment normally
+  - Graceful redirect to store after cross-session payment completes
+
+### New Environment Variables
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MWSIM_BROWSER_AWARE` | No | Set to `true` to enable browser-aware deep links for mwsim |
+
+---
+
 ## [1.13.0] - 2025-12-14
 
 ### Added

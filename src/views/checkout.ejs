@@ -2958,8 +2958,17 @@
               // Payment fully complete!
               clearInterval(mobilePaymentPollingInterval);
               sessionStorage.removeItem('pendingMobilePayment');
-              // Redirect to order confirmation page
-              window.location.href = `/order-confirmation/${data.orderId}`;
+              // Redirect to order confirmation page if we have orderId
+              if (data.orderId) {
+                window.location.href = `/order-confirmation/${data.orderId}`;
+              } else if (data._crossSession) {
+                // Cross-session: payment completed but we don't have orderId (other tab completed it)
+                document.getElementById('mobileWalletStatusText').textContent = 'Payment complete! Check your original browser tab for order details.';
+                setTimeout(() => window.location.href = '/store', 3000);
+              } else {
+                // Fallback - something odd happened
+                window.location.href = '/store';
+              }
               break;
 
             case 'failed':
@@ -3193,13 +3202,34 @@
 
         // Immediately check status since user just returned from app
         const statusData = await checkMobilePaymentStatusOnce(mwsimReturn);
+
+        // Handle cross-session scenario (Chrome/Firefox opens new tab)
+        // If we're in a new tab without the cart session, we can check status but can't complete payment
+        const isCrossSession = statusData && statusData._crossSession;
+
         if (statusData && statusData.status === 'approved' && statusData.oneTimePaymentToken) {
+          if (isCrossSession) {
+            // This is a new tab without cart session - can't complete payment here
+            // The original tab should complete it via polling
+            console.log('[Mobile Wallet] Cross-session approved - showing success message');
+            showMobileWalletStatus('approved');
+            document.getElementById('mobileWalletStatusText').textContent = 'Payment approved! Your original browser tab will complete the order.';
+            // Poll to see when payment completes
+            startMobilePaymentPolling(mwsimReturn);
+            return;
+          }
           console.log('[Mobile Wallet] Payment already approved, completing...');
           await completeMobilePayment(mwsimReturn, statusData.oneTimePaymentToken);
           return;
         } else if (statusData && ['completed', 'authorized'].includes(statusData.status)) {
-          // sessionStorage already cleared above
-          window.location.href = `/order-confirmation/${statusData.orderId}`;
+          // Payment already completed - redirect to order if we have orderId
+          if (statusData.orderId) {
+            window.location.href = `/order-confirmation/${statusData.orderId}`;
+          } else {
+            // Cross-session completed - the other tab should have redirected
+            document.getElementById('mobileWalletStatusText').textContent = 'Payment complete! Check your original browser tab for order details.';
+            setTimeout(() => window.location.href = '/store', 3000);
+          }
           return;
         } else if (statusData && ['failed', 'declined', 'cancelled', 'expired'].includes(statusData.status)) {
           // sessionStorage already cleared above
