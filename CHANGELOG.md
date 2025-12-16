@@ -2,6 +2,19 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.13.3] - 2025-12-15
+
+### Added
+- **Cross-Tab Order Confirmation** - New tab now redirects to order confirmation page
+  - Added `mobilePaymentRequestId` field to Order model for cross-tab lookup
+  - Status endpoint looks up order by request ID when session not available
+  - Both tabs can now show order confirmation instead of redirecting to store
+
+### Database Migrations
+- `20251216022842_add_mobile_payment_request_id` - Adds `mobilePaymentRequestId` field to Order model with index
+
+---
+
 ## [1.13.2] - 2025-12-15
 
 ### Fixed
@@ -17,7 +30,6 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Early detection of `mwsim_return` URL parameter to identify app-opened tabs
   - Skip empty cart display when tab was opened by mwsim app returning from payment
   - Mobile payment handler takes over UI for proper status display
-  - Shows "Payment complete!" message before redirecting to store
 
 ---
 

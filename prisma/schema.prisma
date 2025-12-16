@@ -141,6 +141,9 @@ model Order {
   // Payment details (stored as JSON for flexibility)
   paymentDetails Json? // {transactionId, authorizationCode, cardToken, walletCardToken, paymentMethod, capturedAmount, refundedAmount}
 
+  // Mobile wallet payment tracking (for cross-tab order lookup)
+  mobilePaymentRequestId String? // WSIM mobile payment request ID (for mwsim flow)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -148,6 +151,7 @@ model Order {
   @@index([storeId, status])
   @@index([storeId, bsimUserId])
   @@index([storeUserId])
+  @@index([mobilePaymentRequestId]) // Fast lookup for cross-tab scenarios
   @@map("orders")
 }
 

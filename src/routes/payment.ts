@@ -1045,11 +1045,25 @@ router.get('/mobile/status/:requestId', async (req: Request, res: Response) => {
 
     console.log('[Payment] Mobile payment status:', requestId, wsimData.status, hasSession ? '(with session)' : '(no session)');
 
+    // Determine orderId - from session if available, otherwise lookup by requestId
+    let orderId: string | undefined;
+    if (hasSession) {
+      orderId = sessionRequest.orderId;
+    } else if (['completed', 'authorized'].includes(wsimData.status)) {
+      // Cross-session: try to find the order by mobile payment request ID
+      const store = await ensureStore();
+      const order = await orderService.getOrderByMobilePaymentRequestId(store.id, requestId);
+      if (order) {
+        orderId = order.id;
+        console.log('[Payment] Found order for cross-session lookup:', orderId);
+      }
+    }
+
     // If approved, include the one-time token for completing the payment
     res.json({
       requestId,
       status: wsimData.status,
-      orderId: hasSession ? sessionRequest.orderId : undefined,
+      orderId,
       message: wsimData.message,
       // Include token only when approved (for completing payment)
       oneTimePaymentToken: wsimData.status === 'approved' ? wsimData.oneTimePaymentToken : undefined,
@@ -1203,6 +1217,7 @@ router.post('/mobile/complete/:requestId', async (req: Request, res: Response) =
         items: orderItems,
         subtotal,
         currency: sessionRequest.currency || 'CAD',
+        mobilePaymentRequestId: requestId, // For cross-tab lookup
       });
     }
 

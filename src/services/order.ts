@@ -34,6 +34,7 @@ export interface CreateOrderParams {
   items: OrderItem[];
   subtotal: number;
   currency: string;
+  mobilePaymentRequestId?: string; // For mwsim mobile wallet payments
 }
 
 /**
@@ -49,6 +50,7 @@ export async function createOrder(storeId: string, params: CreateOrderParams): P
       subtotal: params.subtotal,
       currency: params.currency,
       status: 'pending',
+      mobilePaymentRequestId: params.mobilePaymentRequestId,
     },
   });
 }
@@ -95,6 +97,19 @@ export async function getOrderByTransactionId(storeId: string, transactionId: st
   }
 
   return null;
+}
+
+/**
+ * Get order by mobile payment request ID
+ * Used for cross-tab lookup when mwsim opens a new tab
+ */
+export async function getOrderByMobilePaymentRequestId(storeId: string, requestId: string): Promise<Order | null> {
+  return prisma.order.findFirst({
+    where: {
+      storeId,
+      mobilePaymentRequestId: requestId,
+    },
+  });
 }
 
 /**
