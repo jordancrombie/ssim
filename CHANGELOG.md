@@ -51,6 +51,11 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Route expects `/payment/mobile/complete/:requestId` (requestId as URL parameter)
   - Fixed to use template literal: `` `/payment/mobile/complete/${requestId}` ``
 
+- **QR Payment Redirect to Login** - Fixed redirect to `/login` after successful payment
+  - QR payment was redirecting to `/orders/:orderId` which requires authentication
+  - Changed to use `/order-confirmation/:orderId` (same as mobile wallet flow)
+  - Order confirmation page allows guest orders without login
+
 ### Technical Details
 - QR code URL format: `https://wsim.banksim.ca/pay/{requestId}` (uses WSIM `qrCodeUrl` response when available)
 - Client-side QR generation using `qrcodejs` library (bundled locally at `/js/qrcode.min.js`)

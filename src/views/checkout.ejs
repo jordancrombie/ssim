@@ -3103,9 +3103,9 @@
             // Payment already completed
             stopQrPaymentPolling();
             showQrPaymentStatus('processing');
-            // Redirect to order confirmation
+            // Redirect to order confirmation (same route as mobile wallet)
             setTimeout(() => {
-              window.location.href = `/orders/${data.orderId || ''}?success=payment_complete`;
+              window.location.href = `/order-confirmation/${data.orderId || ''}`;
             }, 1000);
           } else if (data.status === 'expired') {
             // Payment expired
@@ -3175,8 +3175,8 @@
         qrPaymentRequestId = null;
         sessionStorage.removeItem('qrPaymentRequestId');
 
-        // Redirect to order confirmation
-        window.location.href = `/orders/${data.orderId}?success=payment_complete`;
+        // Redirect to order confirmation (same route as mobile wallet)
+        window.location.href = `/order-confirmation/${data.orderId}`;
 
       } catch (error) {
         console.error('[QR Payment] Completion error:', error);
