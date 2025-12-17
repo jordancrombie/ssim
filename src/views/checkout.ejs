@@ -7,8 +7,8 @@
   <link rel="stylesheet" href="/css/tailwind.css">
   <!-- Device detection utility for QR payment (desktop only) -->
   <script src="/js/device-detector.js"></script>
-  <!-- QR code generation library (for desktop QR payment) -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- QR code generation library (for desktop QR payment) - qrcodejs -->
+  <script src="/js/qrcode.min.js"></script>
   <style>
     <% if (typeof themeCSS !== 'undefined') { %>
       <%= themeCSS %>
@@ -2963,7 +2963,7 @@
         showQrPaymentStatus('waiting');
 
         // Generate the QR code
-        await generateQrCode(qrCodeUrl);
+        generateQrCode(qrCodeUrl);
 
         // Start expiry countdown
         startQrExpiryCountdown(QR_PAYMENT_EXPIRY_SECONDS);
@@ -2981,29 +2981,24 @@
 
     /**
      * Generate QR code and display it
+     * Uses qrcodejs library (https://github.com/davidshimjs/qrcodejs)
      */
-    async function generateQrCode(url) {
+    function generateQrCode(url) {
       const canvasContainer = document.getElementById('qrCodeCanvas');
       if (!canvasContainer) return;
 
       // Clear existing content
       canvasContainer.innerHTML = '';
 
-      // Create canvas element
-      const canvas = document.createElement('canvas');
-      canvas.id = 'qrCanvas';
-      canvasContainer.appendChild(canvas);
-
       try {
-        // Generate QR code using qrcode library
-        await QRCode.toCanvas(canvas, url, {
-          width: 192, // 48 * 4 for retina displays
-          margin: 2,
-          color: {
-            dark: '#0d9488', // teal-600
-            light: '#ffffff',
-          },
-          errorCorrectionLevel: 'M',
+        // Generate QR code using qrcodejs library
+        new QRCode(canvasContainer, {
+          text: url,
+          width: 192,
+          height: 192,
+          colorDark: '#0d9488', // teal-600
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M,
         });
         console.log('[QR Payment] QR code generated successfully');
       } catch (err) {

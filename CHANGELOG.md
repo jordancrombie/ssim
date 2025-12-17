@@ -41,9 +41,14 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Added `app.use('/js', express.static(path.join(__dirname, 'public', 'js')))` to server.ts
   - QR code generation now works as device-detector.js loads correctly
 
+- **QRCode Library CDN Failure** - Switched from CDN to local bundled library
+  - CDN URL `cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js` was returning 404 (incorrect path)
+  - Downloaded `qrcodejs` library locally to `/js/qrcode.min.js`
+  - Updated checkout.ejs to use qrcodejs API (`new QRCode(element, options)`)
+
 ### Technical Details
 - QR code URL format: `https://wsim.banksim.ca/pay/{requestId}` (uses WSIM `qrCodeUrl` response when available)
-- Client-side QR generation using `qrcode` library (CDN: `cdn.jsdelivr.net/npm/qrcode@1.5.3`)
+- Client-side QR generation using `qrcodejs` library (bundled locally at `/js/qrcode.min.js`)
 - Reuses existing Mobile Payment API endpoints (`/payment/mobile/initiate`, `/status`, `/complete`, `/cancel`)
 - QR code styling: Teal color theme (#0d9488) matching button gradient
 - Desktop detection falls back to `!isMobileDevice()` if DeviceDetector not loaded
@@ -53,6 +58,7 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 
 ### New Files
 - `src/public/js/device-detector.js` - Modular desktop/mobile detection utility
+- `src/public/js/qrcode.min.js` - QRCode generation library (qrcodejs, bundled locally)
 
 ### Modified Files
 - `prisma/schema.prisma` - Added `qrPaymentEnabled` field
@@ -64,7 +70,7 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 
 ### Dependencies
 - Uses existing WSIM Mobile Payment API (no new backend dependencies)
-- QR code library loaded via CDN (no npm install required)
+- QRCode library bundled locally (no npm install or CDN required)
 
 ---
 
