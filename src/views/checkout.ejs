@@ -2933,18 +2933,9 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            merchantId: '<%= merchantId %>',
-            merchantName: '<%= storeName %>',
             amount: cartData.total,
             currency: 'CAD',
-            description: 'Purchase from <%= storeName %>',
-            items: cartData.items.map(item => ({
-              productId: item.productId,
-              name: item.product.name,
-              quantity: item.quantity,
-              unitPrice: item.product.price,
-              subtotal: item.subtotal,
-            })),
+            orderId: 'qr-order-' + Date.now(), // Required by WSIM API
             // For QR payments, we don't need sourceBrowser since user won't be redirected back
             sourceBrowser: 'qr-desktop',
             isQrPayment: true, // Flag for analytics/tracking

@@ -30,6 +30,12 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - This fix allows BSIM payments to be enabled when API URL is configured, even without an API key
   - Affected lines in `src/routes/admin.ts`: `bankConfigured`, `bankPaymentEnabled`, `anyConfigured` checks
 
+- **QR Payment Missing orderId** - Fixed 400 error when initiating QR payment
+  - QR payment flow was missing required `orderId` field in WSIM API request
+  - WSIM returned: "amount, orderId, and returnUrl are required"
+  - Added `orderId: 'qr-order-' + Date.now()` to match mobile wallet flow
+  - Also cleaned up unused fields (merchantId, merchantName, description, items) from request body
+
 ### Technical Details
 - QR code URL format: `https://wsim.banksim.ca/pay/{requestId}` (uses WSIM `qrCodeUrl` response when available)
 - Client-side QR generation using `qrcode` library (CDN: `cdn.jsdelivr.net/npm/qrcode@1.5.3`)
