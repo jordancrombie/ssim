@@ -46,6 +46,11 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Downloaded `qrcodejs` library locally to `/js/qrcode.min.js`
   - Updated checkout.ejs to use qrcodejs API (`new QRCode(element, options)`)
 
+- **QR Payment Complete URL** - Fixed 404 error when completing QR payment
+  - QR payment was calling `/payment/mobile/complete` without requestId in URL
+  - Route expects `/payment/mobile/complete/:requestId` (requestId as URL parameter)
+  - Fixed to use template literal: `` `/payment/mobile/complete/${requestId}` ``
+
 ### Technical Details
 - QR code URL format: `https://wsim.banksim.ca/pay/{requestId}` (uses WSIM `qrCodeUrl` response when available)
 - Client-side QR generation using `qrcodejs` library (bundled locally at `/js/qrcode.min.js`)

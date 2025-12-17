@@ -3153,13 +3153,12 @@
       try {
         console.log('[QR Payment] Completing payment with token');
 
-        const response = await fetch('/payment/mobile/complete', {
+        const response = await fetch(`/payment/mobile/complete/${requestId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            requestId,
             oneTimePaymentToken,
           }),
         });
