@@ -635,8 +635,11 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
     const walletApiEnabled = config.wsimEnabled ? req.body.walletApiEnabled === 'true' : false;
     // Mobile wallet requires both WSIM enabled and mobile API URL configured
     const walletMobileEnabled = (config.wsimEnabled && config.wsimMobileApiUrl) ? req.body.walletMobileEnabled === 'true' : false;
+    // QR payment also requires mobile API URL (uses same backend)
+    const qrPaymentEnabled = (config.wsimEnabled && config.wsimMobileApiUrl) ? req.body.qrPaymentEnabled === 'true' : false;
 
     // Validate at least one method is enabled (only count configured methods)
+    // Note: qrPaymentEnabled is desktop-only alternative, not counted as primary payment method
     const anyEnabled = bankPaymentEnabled || walletRedirectEnabled || walletPopupEnabled || walletInlineEnabled || walletQuickCheckoutEnabled || walletApiEnabled || walletMobileEnabled;
     const anyConfigured = !!config.paymentApiKey || config.wsimEnabled;
 
@@ -653,6 +656,7 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
       walletQuickCheckoutEnabled,
       walletApiEnabled,
       walletMobileEnabled,
+      qrPaymentEnabled,
     });
 
     // Clear cached store to pick up changes

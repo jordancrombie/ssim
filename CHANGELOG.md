@@ -2,6 +2,53 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.14.0] - 2025-12-17
+
+### Added
+- **QR Code Payment (Desktop)** - New payment option for desktop users to pay by scanning a QR code with their mobile wallet app
+  - QR code displayed on checkout page for desktop browsers only
+  - Scan with mwsim app to approve payment using biometrics (Face ID / Touch ID)
+  - 5-minute expiry countdown timer with warning color at <60 seconds
+  - Real-time status polling (2 second interval) for payment confirmation
+  - Multiple UI states: waiting, expired, processing, error
+  - Cancel button to return to payment method selection
+
+- **Admin QR Payment Toggle** - Control QR code payment visibility from admin panel
+  - New toggle in Payment Methods admin page under "QR Code Payment (Desktop)"
+  - "Desktop Only" badge to indicate platform restriction
+  - Requires WSIM Mobile API to be configured (same as Mobile Wallet)
+
+- **Desktop Detection Utility** - Modular device detection for platform-specific UI
+  - New `/js/device-detector.js` utility with `DeviceDetector.isDesktop()` / `isMobile()` / `isTablet()`
+  - User-agent based detection (extensible for future techniques)
+  - Used to show QR button on desktop only, mobile wallet button on mobile only
+
+### Technical Details
+- QR code URL format: `https://wsim.banksim.ca/pay/{requestId}` (uses WSIM `qrCodeUrl` response when available)
+- Client-side QR generation using `qrcode` library (CDN: `cdn.jsdelivr.net/npm/qrcode@1.5.3`)
+- Reuses existing Mobile Payment API endpoints (`/payment/mobile/initiate`, `/status`, `/complete`, `/cancel`)
+- QR code styling: Teal color theme (#0d9488) matching button gradient
+- Desktop detection falls back to `!isMobileDevice()` if DeviceDetector not loaded
+
+### Database Migrations
+- `20251217152024_add_qr_payment_enabled` - Adds `qrPaymentEnabled` boolean field to Store model (default: `false`)
+
+### New Files
+- `src/public/js/device-detector.js` - Modular desktop/mobile detection utility
+
+### Modified Files
+- `prisma/schema.prisma` - Added `qrPaymentEnabled` field
+- `src/services/store.ts` - Added `qrPaymentEnabled` to PaymentMethodSettings
+- `src/routes/admin.ts` - Handle `qrPaymentEnabled` in POST handler
+- `src/views/admin/payment-methods.ejs` - Added QR Code Payment toggle
+- `src/views/checkout.ejs` - Added QR payment button, status container, and JavaScript functions
+
+### Dependencies
+- Uses existing WSIM Mobile Payment API (no new backend dependencies)
+- QR code library loaded via CDN (no npm install required)
+
+---
+
 ## [1.13.3] - 2025-12-15
 
 ### Added

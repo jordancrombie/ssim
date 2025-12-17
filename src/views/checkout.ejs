@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Checkout - <%= store?.name || 'SSIM Store' %></title>
   <link rel="stylesheet" href="/css/tailwind.css">
+  <!-- Device detection utility for QR payment (desktop only) -->
+  <script src="/js/device-detector.js"></script>
+  <!-- QR code generation library (for desktop QR payment) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <style>
     <% if (typeof themeCSS !== 'undefined') { %>
       <%= themeCSS %>
@@ -292,6 +296,114 @@
                 </svg>
                 <p class="text-gray-700 font-medium mb-2">Processing Payment...</p>
                 <p class="text-gray-500 text-sm">Waiting for confirmation from your mobile wallet</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- QR Code Payment Button (desktop devices only) -->
+          <% if (paymentSettings?.qrPaymentEnabled) { %>
+          <div id="qrPaymentButtonContainer" class="hidden mt-3">
+            <button
+              id="payQrCodeButton"
+              onclick="initiateQrPayment()"
+              class="w-full bg-gradient-to-r from-teal-600 to-cyan-600 text-white py-4 px-6 rounded-xl font-semibold text-center hover:from-teal-700 hover:to-cyan-700 transition transform hover:scale-[1.02] flex items-center justify-center space-x-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+              </svg>
+              <span>Pay with QR Code</span>
+            </button>
+            <p class="text-xs text-gray-500 text-center mt-2">Scan with your mobile wallet app</p>
+          </div>
+          <% } %>
+
+          <!-- QR Code Payment Status Container -->
+          <div id="qrPaymentStatusContainer" class="hidden mt-4">
+            <div class="border-2 border-teal-200 rounded-xl p-6 bg-teal-50">
+              <div class="flex justify-between items-center mb-4">
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-800">QR Code Payment</h3>
+                  <p class="text-xs text-teal-600">Scan with your mobile wallet app</p>
+                </div>
+                <button onclick="cancelQrPayment()" class="text-gray-400 hover:text-gray-600">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- QR Code Display -->
+              <div id="qrCodeWaiting" class="text-center py-4">
+                <div id="qrCodeCanvas" class="mx-auto mb-4 p-4 bg-white rounded-lg shadow-inner inline-block">
+                  <!-- QR code will be generated here -->
+                  <div class="w-48 h-48 flex items-center justify-center">
+                    <svg class="animate-spin h-8 w-8 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                </div>
+                <p class="text-gray-700 font-medium mb-1">Scan to Pay</p>
+                <p class="text-gray-500 text-sm mb-3">Open your mwsim app and scan this QR code</p>
+
+                <!-- Expiry Countdown -->
+                <div id="qrExpiryContainer" class="hidden">
+                  <div class="inline-flex items-center px-3 py-1.5 rounded-full bg-teal-100 text-teal-700 text-sm">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Expires in <span id="qrExpiryTime" class="font-semibold">5:00</span></span>
+                  </div>
+                </div>
+
+                <!-- Waiting indicator -->
+                <div class="mt-4">
+                  <p class="text-xs text-gray-400 mb-2">Waiting for payment...</p>
+                  <div class="flex justify-center space-x-1">
+                    <div class="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style="animation-delay: 0ms;"></div>
+                    <div class="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></div>
+                    <div class="w-2 h-2 bg-teal-400 rounded-full animate-bounce" style="animation-delay: 300ms;"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- QR Code Expired state -->
+              <div id="qrCodeExpired" class="hidden text-center py-8">
+                <svg class="w-16 h-16 text-orange-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p class="text-gray-700 font-medium mb-2">QR Code Expired</p>
+                <p class="text-gray-500 text-sm mb-4">The payment request has expired.</p>
+                <button
+                  onclick="initiateQrPayment()"
+                  class="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 transition"
+                >
+                  Generate New QR Code
+                </button>
+              </div>
+
+              <!-- Payment processing state -->
+              <div id="qrCodeProcessing" class="hidden text-center py-8">
+                <svg class="animate-pulse w-16 h-16 text-teal-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <p class="text-gray-700 font-medium mb-2">Processing Payment...</p>
+                <p class="text-gray-500 text-sm">Payment approved! Completing your order...</p>
+              </div>
+
+              <!-- Error state -->
+              <div id="qrCodeError" class="hidden text-center py-8">
+                <svg class="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <p class="text-gray-700 font-medium mb-2">Payment Failed</p>
+                <p id="qrErrorMessage" class="text-gray-500 text-sm mb-4">Something went wrong. Please try again.</p>
+                <button
+                  onclick="cancelQrPayment()"
+                  class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Try Another Method
+                </button>
               </div>
             </div>
           </div>
@@ -2664,6 +2776,18 @@
             console.log('[Checkout] Mobile wallet button shown');
           }
         }
+
+        // Show QR payment button only on desktop devices (using DeviceDetector utility)
+        const isDesktop = typeof DeviceDetector !== 'undefined' ? DeviceDetector.isDesktop() : !isMobile;
+        console.log('[Checkout] Desktop detection:', isDesktop);
+        if (isDesktop) {
+          const qrButtonContainer = document.getElementById('qrPaymentButtonContainer');
+          console.log('[Checkout] QR button container:', qrButtonContainer ? 'found' : 'not found');
+          if (qrButtonContainer) {
+            qrButtonContainer.classList.remove('hidden');
+            console.log('[Checkout] QR payment button shown');
+          }
+        }
       } catch (error) {
         console.error('Error loading cart:', error);
         loadingState.classList.add('hidden');
@@ -2759,6 +2883,418 @@
         document.getElementById('errorState').classList.remove('hidden');
         document.getElementById('genericError').classList.remove('hidden');
         document.getElementById('errorMessage').textContent = error.message;
+      }
+    }
+
+    // ============================================
+    // QR Code Payment Functions (Desktop Only)
+    // ============================================
+
+    // QR Payment state
+    let qrPaymentRequestId = null;
+    let qrPaymentPollingInterval = null;
+    let qrExpiryCountdownInterval = null;
+    let qrPaymentCompleting = false; // Guard flag to prevent duplicate completion attempts
+    const QR_PAYMENT_POLL_INTERVAL = 2000; // 2 seconds
+    const QR_PAYMENT_EXPIRY_SECONDS = 300; // 5 minutes
+
+    /**
+     * Initiate a QR code payment for desktop users
+     * Creates a payment request and generates a QR code for the payment URL
+     */
+    async function initiateQrPayment() {
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+
+      const button = document.getElementById('payQrCodeButton');
+      if (button) {
+        button.disabled = true;
+        button.innerHTML = `
+          <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Generating QR Code...
+        `;
+      }
+
+      try {
+        // Cancel any existing QR payment request
+        if (qrPaymentRequestId) {
+          await cancelQrPaymentRequest(qrPaymentRequestId);
+        }
+
+        // Create payment request via SSIM backend (same as mobile payment)
+        const response = await fetch('/payment/mobile/initiate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            merchantId: '<%= merchantId %>',
+            merchantName: '<%= storeName %>',
+            amount: cartData.total,
+            currency: 'CAD',
+            description: 'Purchase from <%= storeName %>',
+            items: cartData.items.map(item => ({
+              productId: item.productId,
+              name: item.product.name,
+              quantity: item.quantity,
+              unitPrice: item.product.price,
+              subtotal: item.subtotal,
+            })),
+            // For QR payments, we don't need sourceBrowser since user won't be redirected back
+            sourceBrowser: 'qr-desktop',
+            isQrPayment: true, // Flag for analytics/tracking
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to initiate QR payment');
+        }
+
+        console.log('[QR Payment] Payment request created:', data.requestId);
+
+        // Store payment request ID
+        qrPaymentRequestId = data.requestId;
+        sessionStorage.setItem('qrPaymentRequestId', data.requestId);
+
+        // Generate QR code URL - stub for now, will be replaced when WSIM implements
+        // The URL will be in the format: https://wsim.banksim.ca/pay/{requestId}
+        const qrCodeUrl = data.qrCodeUrl || `https://wsim.banksim.ca/pay/${data.requestId}`;
+        console.log('[QR Payment] QR Code URL:', qrCodeUrl);
+
+        // Show the QR payment status container
+        showQrPaymentStatus('waiting');
+
+        // Generate the QR code
+        await generateQrCode(qrCodeUrl);
+
+        // Start expiry countdown
+        startQrExpiryCountdown(QR_PAYMENT_EXPIRY_SECONDS);
+
+        // Start polling for payment status
+        startQrPaymentPolling(data.requestId);
+
+      } catch (error) {
+        console.error('[QR Payment] Error initiating payment:', error);
+        showQrPaymentStatus('error', error.message);
+      } finally {
+        resetQrPaymentButton();
+      }
+    }
+
+    /**
+     * Generate QR code and display it
+     */
+    async function generateQrCode(url) {
+      const canvasContainer = document.getElementById('qrCodeCanvas');
+      if (!canvasContainer) return;
+
+      // Clear existing content
+      canvasContainer.innerHTML = '';
+
+      // Create canvas element
+      const canvas = document.createElement('canvas');
+      canvas.id = 'qrCanvas';
+      canvasContainer.appendChild(canvas);
+
+      try {
+        // Generate QR code using qrcode library
+        await QRCode.toCanvas(canvas, url, {
+          width: 192, // 48 * 4 for retina displays
+          margin: 2,
+          color: {
+            dark: '#0d9488', // teal-600
+            light: '#ffffff',
+          },
+          errorCorrectionLevel: 'M',
+        });
+        console.log('[QR Payment] QR code generated successfully');
+      } catch (err) {
+        console.error('[QR Payment] Error generating QR code:', err);
+        canvasContainer.innerHTML = `
+          <div class="w-48 h-48 flex items-center justify-center bg-gray-100 rounded">
+            <p class="text-red-500 text-sm">Failed to generate QR code</p>
+          </div>
+        `;
+      }
+    }
+
+    /**
+     * Start countdown timer for QR code expiry
+     */
+    function startQrExpiryCountdown(seconds) {
+      // Show expiry container
+      const expiryContainer = document.getElementById('qrExpiryContainer');
+      if (expiryContainer) {
+        expiryContainer.classList.remove('hidden');
+      }
+
+      let remainingSeconds = seconds;
+      updateQrExpiryDisplay(remainingSeconds);
+
+      // Clear any existing interval
+      if (qrExpiryCountdownInterval) {
+        clearInterval(qrExpiryCountdownInterval);
+      }
+
+      qrExpiryCountdownInterval = setInterval(() => {
+        remainingSeconds--;
+        updateQrExpiryDisplay(remainingSeconds);
+
+        if (remainingSeconds <= 0) {
+          clearInterval(qrExpiryCountdownInterval);
+          qrExpiryCountdownInterval = null;
+          handleQrExpiry();
+        }
+
+        // Change color to warning when < 60 seconds
+        if (remainingSeconds < 60) {
+          const expiryBadge = expiryContainer?.querySelector('div');
+          if (expiryBadge) {
+            expiryBadge.className = 'inline-flex items-center px-3 py-1.5 rounded-full bg-orange-100 text-orange-700 text-sm';
+          }
+        }
+      }, 1000);
+    }
+
+    /**
+     * Update the expiry time display
+     */
+    function updateQrExpiryDisplay(seconds) {
+      const expiryTimeEl = document.getElementById('qrExpiryTime');
+      if (!expiryTimeEl) return;
+
+      const minutes = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      expiryTimeEl.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    /**
+     * Handle QR code expiry
+     */
+    function handleQrExpiry() {
+      console.log('[QR Payment] QR code expired');
+      stopQrPaymentPolling();
+
+      // Cancel the expired payment request
+      if (qrPaymentRequestId) {
+        cancelQrPaymentRequest(qrPaymentRequestId);
+      }
+
+      showQrPaymentStatus('expired');
+    }
+
+    /**
+     * Start polling for QR payment status
+     */
+    function startQrPaymentPolling(requestId) {
+      console.log('[QR Payment] Starting payment status polling for:', requestId);
+
+      // Clear any existing interval
+      if (qrPaymentPollingInterval) {
+        clearInterval(qrPaymentPollingInterval);
+      }
+
+      qrPaymentPollingInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/payment/mobile/status/${requestId}`);
+          const data = await response.json();
+
+          console.log('[QR Payment] Status poll result:', data.status);
+
+          if (data.status === 'approved' && data.oneTimePaymentToken) {
+            // Payment approved, complete the order
+            stopQrPaymentPolling();
+            showQrPaymentStatus('processing');
+            await completeQrPayment(requestId, data.oneTimePaymentToken);
+          } else if (data.status === 'completed' || data.status === 'authorized') {
+            // Payment already completed
+            stopQrPaymentPolling();
+            showQrPaymentStatus('processing');
+            // Redirect to order confirmation
+            setTimeout(() => {
+              window.location.href = `/orders/${data.orderId || ''}?success=payment_complete`;
+            }, 1000);
+          } else if (data.status === 'expired') {
+            // Payment expired
+            handleQrExpiry();
+          } else if (data.status === 'failed' || data.status === 'declined') {
+            // Payment failed
+            stopQrPaymentPolling();
+            showQrPaymentStatus('error', data.message || 'Payment was declined');
+          } else if (data.status === 'cancelled') {
+            // Payment cancelled
+            stopQrPaymentPolling();
+            cancelQrPayment();
+          }
+        } catch (error) {
+          console.error('[QR Payment] Polling error:', error);
+        }
+      }, QR_PAYMENT_POLL_INTERVAL);
+    }
+
+    /**
+     * Stop QR payment status polling
+     */
+    function stopQrPaymentPolling() {
+      if (qrPaymentPollingInterval) {
+        clearInterval(qrPaymentPollingInterval);
+        qrPaymentPollingInterval = null;
+      }
+      if (qrExpiryCountdownInterval) {
+        clearInterval(qrExpiryCountdownInterval);
+        qrExpiryCountdownInterval = null;
+      }
+    }
+
+    /**
+     * Complete the QR payment with the one-time token
+     */
+    async function completeQrPayment(requestId, oneTimePaymentToken) {
+      // Guard against duplicate completion attempts
+      if (qrPaymentCompleting) {
+        console.log('[QR Payment] Completion already in progress, skipping');
+        return;
+      }
+      qrPaymentCompleting = true;
+
+      try {
+        console.log('[QR Payment] Completing payment with token');
+
+        const response = await fetch('/payment/mobile/complete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            requestId,
+            oneTimePaymentToken,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to complete payment');
+        }
+
+        console.log('[QR Payment] Payment completed successfully, order:', data.orderId);
+
+        // Clean up
+        qrPaymentRequestId = null;
+        sessionStorage.removeItem('qrPaymentRequestId');
+
+        // Redirect to order confirmation
+        window.location.href = `/orders/${data.orderId}?success=payment_complete`;
+
+      } catch (error) {
+        console.error('[QR Payment] Completion error:', error);
+        showQrPaymentStatus('error', error.message);
+      } finally {
+        qrPaymentCompleting = false;
+      }
+    }
+
+    /**
+     * Cancel QR payment request
+     */
+    async function cancelQrPaymentRequest(requestId) {
+      try {
+        console.log('[QR Payment] Cancelling payment request:', requestId);
+        await fetch(`/payment/mobile/cancel/${requestId}`, {
+          method: 'POST',
+        });
+      } catch (error) {
+        console.error('[QR Payment] Error cancelling payment:', error);
+      }
+    }
+
+    /**
+     * Cancel QR payment and reset UI
+     */
+    function cancelQrPayment() {
+      console.log('[QR Payment] Cancelling QR payment');
+
+      // Stop polling
+      stopQrPaymentPolling();
+
+      // Cancel the payment request if exists
+      if (qrPaymentRequestId) {
+        cancelQrPaymentRequest(qrPaymentRequestId);
+        qrPaymentRequestId = null;
+        sessionStorage.removeItem('qrPaymentRequestId');
+      }
+
+      // Hide the status container
+      const statusContainer = document.getElementById('qrPaymentStatusContainer');
+      if (statusContainer) {
+        statusContainer.classList.add('hidden');
+      }
+
+      // Reset the button
+      resetQrPaymentButton();
+    }
+
+    /**
+     * Show QR payment status state
+     */
+    function showQrPaymentStatus(state, errorMessage = null) {
+      const container = document.getElementById('qrPaymentStatusContainer');
+      const waiting = document.getElementById('qrCodeWaiting');
+      const expired = document.getElementById('qrCodeExpired');
+      const processing = document.getElementById('qrCodeProcessing');
+      const error = document.getElementById('qrCodeError');
+      const errorMsg = document.getElementById('qrErrorMessage');
+
+      // Show container
+      if (container) {
+        container.classList.remove('hidden');
+      }
+
+      // Hide all states
+      [waiting, expired, processing, error].forEach(el => {
+        if (el) el.classList.add('hidden');
+      });
+
+      // Show the requested state
+      switch (state) {
+        case 'waiting':
+          if (waiting) waiting.classList.remove('hidden');
+          break;
+        case 'expired':
+          if (expired) expired.classList.remove('hidden');
+          break;
+        case 'processing':
+          if (processing) processing.classList.remove('hidden');
+          break;
+        case 'error':
+          if (error) error.classList.remove('hidden');
+          if (errorMsg && errorMessage) {
+            errorMsg.textContent = errorMessage;
+          }
+          break;
+      }
+    }
+
+    /**
+     * Reset QR payment button to default state
+     */
+    function resetQrPaymentButton() {
+      const button = document.getElementById('payQrCodeButton');
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = `
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+          </svg>
+          <span>Pay with QR Code</span>
+        `;
       }
     }
 

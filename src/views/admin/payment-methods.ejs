@@ -262,6 +262,36 @@
                 <% } %>
               </div>
 
+              <!-- QR Code Payment -->
+              <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h3 class="font-medium text-gray-900">QR Code Payment (Desktop)</h3>
+                      <% if (!wsimMobileConfigured) { %>
+                        <span class="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">Not Configured</span>
+                      <% } %>
+                      <span class="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">Desktop Only</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">
+                      Display QR code on desktop checkout for customers to scan with mwsim app. Uses same backend as Mobile Wallet.
+                    </p>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer ml-4">
+                    <input type="checkbox" name="qrPaymentEnabled" value="true"
+                      class="sr-only peer"
+                      <%= settings.qrPaymentEnabled ? 'checked' : '' %>
+                      <%= !wsimMobileConfigured ? 'disabled' : '' %>>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
+                  </label>
+                </div>
+                <% if (!wsimMobileConfigured) { %>
+                  <p class="text-xs text-yellow-700 mt-2">
+                    Requires WSIM_ENABLED=true and WSIM_MOBILE_API_URL to be configured.
+                  </p>
+                <% } %>
+              </div>
+
               <!-- Info Box -->
               <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div class="flex">
