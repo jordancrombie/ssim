@@ -36,6 +36,11 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Added `orderId: 'qr-order-' + Date.now()` to match mobile wallet flow
   - Also cleaned up unused fields (merchantId, merchantName, description, items) from request body
 
+- **Static File Serving for /js/** - Fixed 404 error for device-detector.js
+  - Express static routes were missing `/js` path mapping
+  - Added `app.use('/js', express.static(path.join(__dirname, 'public', 'js')))` to server.ts
+  - QR code generation now works as device-detector.js loads correctly
+
 ### Technical Details
 - QR code URL format: `https://wsim.banksim.ca/pay/{requestId}` (uses WSIM `qrCodeUrl` response when available)
 - Client-side QR generation using `qrcode` library (CDN: `cdn.jsdelivr.net/npm/qrcode@1.5.3`)
@@ -52,9 +57,10 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 ### Modified Files
 - `prisma/schema.prisma` - Added `qrPaymentEnabled` field
 - `src/services/store.ts` - Added `qrPaymentEnabled` to PaymentMethodSettings
-- `src/routes/admin.ts` - Handle `qrPaymentEnabled` in POST handler
+- `src/routes/admin.ts` - Handle `qrPaymentEnabled` in POST handler, fixed BSIM config checks
 - `src/views/admin/payment-methods.ejs` - Added QR Code Payment toggle
 - `src/views/checkout.ejs` - Added QR payment button, status container, and JavaScript functions
+- `src/server.ts` - Added static route for `/js` directory
 
 ### Dependencies
 - Uses existing WSIM Mobile Payment API (no new backend dependencies)
