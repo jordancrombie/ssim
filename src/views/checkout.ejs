@@ -709,8 +709,8 @@
       // Build popup URL with payment details
       const params = new URLSearchParams({
         origin: window.location.origin,
-        merchantId: 'ssim-merchant',
-        merchantName: 'SSIM Store',
+        merchantId: '<%= merchantId %>',
+        merchantName: '<%= storeName %>',
         amount: (cartData.total / 100).toString(),
         currency: 'CAD',
         orderId: 'order-' + Date.now()
@@ -905,8 +905,8 @@
       // Build embed URL with payment details
       const params = new URLSearchParams({
         origin: window.location.origin,
-        merchantId: 'ssim-merchant',
-        merchantName: 'SSIM Store',
+        merchantId: '<%= merchantId %>',
+        merchantName: '<%= storeName %>',
         amount: (cartData.total / 100).toString(),
         currency: 'CAD',
         orderId: 'order-' + Date.now()
@@ -1365,8 +1365,8 @@
       // Build popup URL for login
       const params = new URLSearchParams({
         origin: window.location.origin,
-        merchantId: 'ssim-merchant',
-        merchantName: 'SSIM Store',
+        merchantId: '<%= merchantId %>',
+        merchantName: '<%= storeName %>',
       });
 
       const popupUrl = wsimPopupUrl + '/popup/card-picker?' + params;
@@ -1730,8 +1730,8 @@
 
       const params = new URLSearchParams({
         origin: window.location.origin,
-        merchantId: 'ssim-merchant',
-        merchantName: 'SSIM Store',
+        merchantId: '<%= merchantId %>',
+        merchantName: '<%= storeName %>',
       });
 
       const popupUrl = wsimPopupUrl + '/popup/card-picker?' + params;
@@ -2538,8 +2538,8 @@
 
       const params = new URLSearchParams({
         origin: window.location.origin,
-        merchantId: 'ssim-merchant',
-        merchantName: 'SSIM Store',
+        merchantId: '<%= merchantId %>',
+        merchantName: '<%= storeName %>',
       });
 
       const popupUrl = wsimPopupUrl + '/popup/card-picker?' + params;

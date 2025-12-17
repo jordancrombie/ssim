@@ -188,6 +188,8 @@ router.get('/checkout', async (req: Request, res: Response) => {
       wsimApiKey: config.wsimApiKey,
       paymentSettings,
       themeCSS,
+      merchantId: config.merchantId,
+      storeName: branding?.name || store.name || 'Store',
     });
   } catch (error) {
     console.error('[Pages] Checkout error:', error);
