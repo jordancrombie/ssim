@@ -23,6 +23,13 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - User-agent based detection (extensible for future techniques)
   - Used to show QR button on desktop only, mobile wallet button on mobile only
 
+### Fixed
+- **Admin BSIM Configuration Check** - Fixed misleading "Not Configured" badge for BSIM payments
+  - Admin UI now checks `PAYMENT_API_URL` instead of `PAYMENT_API_KEY` to determine if BSIM is configured
+  - `PAYMENT_API_KEY` is optional (only adds X-API-Key header if present), but `PAYMENT_API_URL` is what actually enables payments
+  - This fix allows BSIM payments to be enabled when API URL is configured, even without an API key
+  - Affected lines in `src/routes/admin.ts`: `bankConfigured`, `bankPaymentEnabled`, `anyConfigured` checks
+
 ### Technical Details
 - QR code URL format: `https://wsim.banksim.ca/pay/{requestId}` (uses WSIM `qrCodeUrl` response when available)
 - Client-side QR generation using `qrcode` library (CDN: `cdn.jsdelivr.net/npm/qrcode@1.5.3`)

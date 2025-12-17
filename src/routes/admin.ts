@@ -608,7 +608,7 @@ router.get('/payment-methods', async (req: Request, res: Response) => {
       settings,
       wsimConfigured: config.wsimEnabled,
       wsimMobileConfigured: config.wsimEnabled && !!config.wsimMobileApiUrl,
-      bankConfigured: !!config.paymentApiKey,
+      bankConfigured: !!config.paymentApiUrl,
       query: req.query,
     });
   } catch (error) {
@@ -627,7 +627,7 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
 
     // Parse checkbox values (present = true, absent = false)
     // Only consider methods that are actually configured
-    const bankPaymentEnabled = config.paymentApiKey ? req.body.bankPaymentEnabled === 'true' : false;
+    const bankPaymentEnabled = config.paymentApiUrl ? req.body.bankPaymentEnabled === 'true' : false;
     const walletRedirectEnabled = config.wsimEnabled ? req.body.walletRedirectEnabled === 'true' : false;
     const walletPopupEnabled = config.wsimEnabled ? req.body.walletPopupEnabled === 'true' : false;
     const walletInlineEnabled = config.wsimEnabled ? req.body.walletInlineEnabled === 'true' : false;
@@ -641,7 +641,7 @@ router.post('/payment-methods', async (req: Request, res: Response) => {
     // Validate at least one method is enabled (only count configured methods)
     // Note: qrPaymentEnabled is desktop-only alternative, not counted as primary payment method
     const anyEnabled = bankPaymentEnabled || walletRedirectEnabled || walletPopupEnabled || walletInlineEnabled || walletQuickCheckoutEnabled || walletApiEnabled || walletMobileEnabled;
-    const anyConfigured = !!config.paymentApiKey || config.wsimEnabled;
+    const anyConfigured = !!config.paymentApiUrl || config.wsimEnabled;
 
     if (anyConfigured && !anyEnabled) {
       res.redirect('/admin/payment-methods?error=at_least_one');
