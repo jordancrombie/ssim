@@ -59,6 +59,7 @@ describe('Store Service', () => {
       walletQuickCheckoutEnabled: true,
       walletApiEnabled: true,
       walletMobileEnabled: true,
+      qrPaymentEnabled: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -560,6 +561,7 @@ describe('Store Service', () => {
           walletQuickCheckoutEnabled: true,
           walletApiEnabled: true,
           walletMobileEnabled: true,
+          qrPaymentEnabled: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -612,6 +614,7 @@ describe('Store Service', () => {
           walletQuickCheckoutEnabled: true,
           walletApiEnabled: true,
           walletMobileEnabled: true,
+          qrPaymentEnabled: false,
           createdAt: new Date(),
           updatedAt: new Date(),
         };

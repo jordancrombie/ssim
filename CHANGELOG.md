@@ -2,6 +2,97 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.14.0] - 2025-12-17
+
+### Added
+- **QR Code Payment (Desktop)** - New payment option for desktop users to pay by scanning a QR code with their mobile wallet app
+  - QR code displayed on checkout page for desktop browsers only
+  - Scan with mwsim app to approve payment using biometrics (Face ID / Touch ID)
+  - 5-minute expiry countdown timer with warning color at <60 seconds
+  - Real-time status polling (2 second interval) for payment confirmation
+  - Multiple UI states: waiting, expired, processing, error
+  - Cancel button to return to payment method selection
+
+- **Admin QR Payment Toggle** - Control QR code payment visibility from admin panel
+  - New toggle in Payment Methods admin page under "QR Code Payment (Desktop)"
+  - "Desktop Only" badge to indicate platform restriction
+  - Requires WSIM Mobile API to be configured (same as Mobile Wallet)
+
+- **Desktop Detection Utility** - Modular device detection for platform-specific UI
+  - New `/js/device-detector.js` utility with `DeviceDetector.isDesktop()` / `isMobile()` / `isTablet()`
+  - User-agent based detection (extensible for future techniques)
+  - Used to show QR button on desktop only, mobile wallet button on mobile only
+
+### Fixed
+- **Admin BSIM Configuration Check** - Fixed misleading "Not Configured" badge for BSIM payments
+  - Admin UI now checks `PAYMENT_API_URL` instead of `PAYMENT_API_KEY` to determine if BSIM is configured
+  - `PAYMENT_API_KEY` is optional (only adds X-API-Key header if present), but `PAYMENT_API_URL` is what actually enables payments
+  - This fix allows BSIM payments to be enabled when API URL is configured, even without an API key
+  - Affected lines in `src/routes/admin.ts`: `bankConfigured`, `bankPaymentEnabled`, `anyConfigured` checks
+
+- **QR Payment Missing orderId** - Fixed 400 error when initiating QR payment
+  - QR payment flow was missing required `orderId` field in WSIM API request
+  - WSIM returned: "amount, orderId, and returnUrl are required"
+  - Added `orderId: 'qr-order-' + Date.now()` to match mobile wallet flow
+  - Also cleaned up unused fields (merchantId, merchantName, description, items) from request body
+
+- **Static File Serving for /js/** - Fixed 404 error for device-detector.js
+  - Express static routes were missing `/js` path mapping
+  - Added `app.use('/js', express.static(path.join(__dirname, 'public', 'js')))` to server.ts
+  - QR code generation now works as device-detector.js loads correctly
+
+- **QRCode Library CDN Failure** - Switched from CDN to local bundled library
+  - CDN URL `cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js` was returning 404 (incorrect path)
+  - Downloaded `qrcodejs` library locally to `/js/qrcode.min.js`
+  - Updated checkout.ejs to use qrcodejs API (`new QRCode(element, options)`)
+
+- **QR Payment Complete URL** - Fixed 404 error when completing QR payment
+  - QR payment was calling `/payment/mobile/complete` without requestId in URL
+  - Route expects `/payment/mobile/complete/:requestId` (requestId as URL parameter)
+  - Fixed to use template literal: `` `/payment/mobile/complete/${requestId}` ``
+
+- **QR Payment Redirect to Login** - Fixed redirect to `/login` after successful payment
+  - QR payment was redirecting to `/orders/:orderId` which requires authentication
+  - Changed to use `/order-confirmation/:orderId` (same as mobile wallet flow)
+  - Order confirmation page allows guest orders without login
+
+- **QR Code URL Using Production Domain in Development** - Fixed hardcoded production URL
+  - QR codes were always pointing to `https://wsim.banksim.ca/pay/{requestId}` regardless of environment
+  - Added new `WSIM_QR_BASE_URL` config variable (defaults to `https://wsim-dev.banksim.ca/pay`)
+  - Server now returns `qrCodeUrl` in `/payment/mobile/initiate` response
+  - Frontend uses server-provided URL instead of hardcoded fallback
+  - Production deployments should set `WSIM_QR_BASE_URL=https://wsim.banksim.ca/pay`
+
+### Technical Details
+- QR code URL format: `{WSIM_QR_BASE_URL}/{requestId}` (configurable via environment variable)
+- Client-side QR generation using `qrcodejs` library (bundled locally at `/js/qrcode.min.js`)
+- Reuses existing Mobile Payment API endpoints (`/payment/mobile/initiate`, `/status`, `/complete`, `/cancel`)
+- QR code styling: Teal color theme (#0d9488) matching button gradient
+- Desktop detection falls back to `!isMobileDevice()` if DeviceDetector not loaded
+
+### Database Migrations
+- `20251217152024_add_qr_payment_enabled` - Adds `qrPaymentEnabled` boolean field to Store model (default: `false`)
+
+### New Files
+- `src/public/js/device-detector.js` - Modular desktop/mobile detection utility
+- `src/public/js/qrcode.min.js` - QRCode generation library (qrcodejs, bundled locally)
+
+### Modified Files
+- `prisma/schema.prisma` - Added `qrPaymentEnabled` field
+- `src/services/store.ts` - Added `qrPaymentEnabled` to PaymentMethodSettings
+- `src/routes/admin.ts` - Handle `qrPaymentEnabled` in POST handler, fixed BSIM config checks
+- `src/views/admin/payment-methods.ejs` - Added QR Code Payment toggle
+- `src/views/checkout.ejs` - Added QR payment button, status container, and JavaScript functions
+- `src/server.ts` - Added static route for `/js` directory
+- `src/config/env.ts` - Added `WSIM_QR_BASE_URL` config variable
+- `src/routes/payment.ts` - Return `qrCodeUrl` in mobile initiate response
+
+### Dependencies
+- Uses existing WSIM Mobile Payment API (no new backend dependencies)
+- QRCode library bundled locally (no npm install or CDN required)
+
+---
+
 ## [1.13.3] - 2025-12-15
 
 ### Added

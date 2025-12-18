@@ -35,7 +35,7 @@ SSIM is part of the BankSim ecosystem - a suite of applications that simulate re
 - **Product Management** - Add, edit, delete, and toggle products
 - **Order Management** - View all orders, capture/void/refund payments
 - **Branding Configuration** - Theme selection, logo/hero uploads, environment badge
-- **Payment Methods** - Toggle which payment options appear on checkout (Bank, Wallet Redirect, Popup, Inline, Quick Checkout, API, Mobile Wallet)
+- **Payment Methods** - Toggle which payment options appear on checkout (Bank, Wallet Redirect, Popup, Inline, Quick Checkout, API, Mobile Wallet, QR Code)
 - **Settings** - View configuration and environment settings
 - **Access Control** - Email-based admin authorization via BSIM auth
 
@@ -167,6 +167,7 @@ When `WSIM_ENABLED=true`, the checkout page displays both "Pay with BSIM" (bank 
 | **API (Direct)** | Browser calls WSIM directly (requires CORS) |
 | **API (Proxy)** | Same as API with explicit labeling |
 | **Mobile Wallet** | Deep link to mwsim app for biometric-approved payments |
+| **QR Code Payment** | Desktop users scan QR code with mwsim app to pay |
 
 See [docs/WSIM-API-Integration-Plan.md](docs/WSIM-API-Integration-Plan.md) for implementation details.
 
@@ -202,6 +203,37 @@ When configured, a "Pay with Mobile Wallet" button appears on checkout for mobil
 | Edge | ✅ Supported | Similar to Chrome behavior |
 
 The `MWSIM_BROWSER_AWARE=true` flag enables browser-specific URL schemes so mwsim can return users to their original browser (Chrome, Firefox, Edge) instead of defaulting to Safari.
+
+### QR Code Payment (Desktop)
+
+QR Code Payment allows desktop users to pay by scanning a QR code with the mwsim mobile app. This uses the same WSIM Mobile API as Mobile Wallet payments but targets desktop browsers.
+
+```env
+# QR Code payments require mobile wallet to be configured
+WSIM_ENABLED=true
+WSIM_MOBILE_API_URL=https://wsim.banksim.ca/api/mobile/payment
+WSIM_API_KEY=<your-wsim-api-key>
+
+# QR code URL base (the URL users scan)
+# Development: https://wsim-dev.banksim.ca/pay (default)
+# Production: https://wsim.banksim.ca/pay
+WSIM_QR_BASE_URL=https://wsim.banksim.ca/pay
+```
+
+**Flow:**
+1. Desktop user clicks "Pay with QR Code" on checkout
+2. SSIM creates a payment request via WSIM Mobile API
+3. QR code is displayed with URL: `{WSIM_QR_BASE_URL}/{requestId}`
+4. User scans QR code with mwsim app on their phone
+5. User approves payment with biometric authentication (Face ID / Touch ID)
+6. Desktop page polls for status and completes payment when approved
+7. User sees order confirmation on desktop
+
+**Features:**
+- 5-minute expiry countdown with warning at <60 seconds
+- Real-time status polling (2 second interval)
+- Cancel button to return to payment selection
+- Admin toggle to enable/disable in Payment Methods settings
 
 ## Registering SSIM as an OAuth Client in BSIM
 
@@ -480,6 +512,7 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [x] **Complete Payment Toggles** - Added Wallet Inline and Wallet API toggles, covering all 8 checkout buttons (v1.12.0)
 - [x] **Mobile Wallet Payments** - Deep link integration with mwsim app for biometric-approved payments (v1.13.0)
 - [x] **iOS Browser Compatibility** - Mobile wallet works on Safari and Chrome iOS with cross-tab order confirmation (v1.13.3)
+- [x] **QR Code Payment (Desktop)** - Desktop users scan QR code with mwsim app for biometric-approved payments (v1.14.0)
 
 ### Pending
 - [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period

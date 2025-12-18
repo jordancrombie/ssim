@@ -260,6 +260,7 @@ export interface PaymentMethodSettings {
   walletQuickCheckoutEnabled: boolean;
   walletApiEnabled: boolean;
   walletMobileEnabled: boolean;
+  qrPaymentEnabled: boolean;
 }
 
 /**
@@ -273,6 +274,7 @@ const DEFAULT_PAYMENT_SETTINGS: PaymentMethodSettings = {
   walletQuickCheckoutEnabled: true,
   walletApiEnabled: true,
   walletMobileEnabled: true,
+  qrPaymentEnabled: false, // Desktop QR code payment - disabled by default
 };
 
 /**
@@ -289,6 +291,7 @@ export async function getPaymentMethodSettings(storeId: string): Promise<Payment
       walletQuickCheckoutEnabled: true,
       walletApiEnabled: true,
       walletMobileEnabled: true,
+      qrPaymentEnabled: true,
     },
   });
 
@@ -304,6 +307,7 @@ export async function getPaymentMethodSettings(storeId: string): Promise<Payment
     walletQuickCheckoutEnabled: store.walletQuickCheckoutEnabled,
     walletApiEnabled: store.walletApiEnabled,
     walletMobileEnabled: store.walletMobileEnabled,
+    qrPaymentEnabled: store.qrPaymentEnabled,
   };
 }
 
@@ -324,6 +328,7 @@ export async function updatePaymentMethodSettings(
       walletQuickCheckoutEnabled: settings.walletQuickCheckoutEnabled,
       walletApiEnabled: settings.walletApiEnabled,
       walletMobileEnabled: settings.walletMobileEnabled,
+      qrPaymentEnabled: settings.qrPaymentEnabled,
     },
   });
 }
