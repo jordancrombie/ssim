@@ -4,6 +4,12 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 
 ## [1.14.1] - 2025-12-18
 
+### Changed
+- **Replaced ts-node-dev with tsx** - Eliminates deprecated dependency warnings
+  - `rimraf@2.7.1`, `glob@7.2.3`, `inflight@1.0.6` no longer in dependency tree
+  - tsx is faster (esbuild-based) and actively maintained
+  - Dev scripts updated: `tsx watch` replaces `ts-node-dev --respawn --transpile-only`
+
 ### Fixed
 - **Admin Order Detail Items Display** - Fixed $NaN and missing product names in order items table
   - Template was using wrong field names: `item.name` → `item.productName`, `item.price` → `item.unitPrice`
