@@ -94,11 +94,11 @@
                   <% order.items.forEach(item => { %>
                   <tr class="border-b">
                     <td class="py-3">
-                      <p class="font-medium text-gray-800"><%= item.name %></p>
+                      <p class="font-medium text-gray-800"><%= item.productName %></p>
                     </td>
                     <td class="py-3 text-center text-gray-600"><%= item.quantity %></td>
-                    <td class="py-3 text-right text-gray-600"><%= formatPrice(item.price, order.currency) %></td>
-                    <td class="py-3 text-right font-medium text-gray-800"><%= formatPrice(item.price * item.quantity, order.currency) %></td>
+                    <td class="py-3 text-right text-gray-600"><%= formatPrice(item.unitPrice, order.currency) %></td>
+                    <td class="py-3 text-right font-medium text-gray-800"><%= formatPrice(item.subtotal, order.currency) %></td>
                   </tr>
                   <% }); %>
                 </tbody>

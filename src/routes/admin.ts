@@ -374,7 +374,11 @@ router.post('/orders/:id/capture', async (req: Request, res: Response) => {
 
     const result = await capturePayment(paymentDetails.transactionId);
     if (result.status === 'captured') {
-      await orderService.setOrderCaptured(store.id, order.id, result.capturedAmount);
+      // NSIM returns capturedAmount in dollars, convert to cents for storage
+      // Fall back to order subtotal if capturedAmount not returned
+      const capturedAmountDollars = result.capturedAmount ?? (order.subtotal / 100);
+      const capturedAmountCents = Math.round(capturedAmountDollars * 100);
+      await orderService.setOrderCaptured(store.id, order.id, capturedAmountCents);
       res.redirect(`/admin/orders/${order.id}?success=captured`);
     } else {
       res.redirect(`/admin/orders/${order.id}?error=capture_failed`);

@@ -2,6 +2,22 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.14.1] - 2025-12-18
+
+### Fixed
+- **Admin Order Detail Items Display** - Fixed $NaN and missing product names in order items table
+  - Template was using wrong field names: `item.name` → `item.productName`, `item.price` → `item.unitPrice`
+  - Total column now uses `item.subtotal` instead of recalculating
+  - Affected file: `src/views/admin/order-detail.ejs`
+
+- **Admin Order Detail Captured Amount** - Fixed captured amount showing wrong value (e.g., $0.90 instead of $89.99)
+  - NSIM returns `capturedAmount` in dollars, but `formatPrice()` expects cents
+  - Now converts dollars to cents (`Math.round(capturedAmount * 100)`) before storing
+  - Falls back to order subtotal if `capturedAmount` not returned
+  - Affected file: `src/routes/admin.ts`
+
+---
+
 ## [1.14.0] - 2025-12-17
 
 ### Added
