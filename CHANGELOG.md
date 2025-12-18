@@ -22,6 +22,11 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - `autoprefixer`: 10.4.22 → 10.4.23
   - `ts-jest`: 29.4.5 → 29.4.6
 
+### Removed
+- **Legacy in-memory data files** - Deleted unused files replaced by Prisma in v1.9.0
+  - `src/data/orders.ts` - In-memory order storage (replaced by `src/services/order.ts`)
+  - `src/data/products.ts` - In-memory product storage (replaced by `src/services/product.ts`)
+
 ### Fixed
 - **Admin Order Detail Items Display** - Fixed $NaN and missing product names in order items table
   - Template was using wrong field names: `item.name` → `item.productName`, `item.price` → `item.unitPrice`
