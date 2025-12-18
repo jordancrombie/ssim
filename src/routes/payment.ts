@@ -893,6 +893,7 @@ router.post('/mobile/initiate', async (req: Request, res: Response) => {
         requestId,
         orderId,
         deepLinkUrl: buildMobileDeepLink(requestId, baseReturnUrl, sourceBrowser),
+        qrCodeUrl: `${config.wsimQrBaseUrl}/${requestId}`,
         merchant: {
           id: config.merchantId,
           name: store.name,
@@ -955,6 +956,7 @@ router.post('/mobile/initiate', async (req: Request, res: Response) => {
       requestId: wsimData.requestId,
       orderId,
       deepLinkUrl: buildMobileDeepLink(wsimData.requestId, baseReturnUrl, sourceBrowser),
+      qrCodeUrl: `${config.wsimQrBaseUrl}/${wsimData.requestId}`,
       expiresAt: wsimData.expiresAt,
       merchant: {
         id: config.merchantId,

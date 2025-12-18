@@ -56,8 +56,15 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Changed to use `/order-confirmation/:orderId` (same as mobile wallet flow)
   - Order confirmation page allows guest orders without login
 
+- **QR Code URL Using Production Domain in Development** - Fixed hardcoded production URL
+  - QR codes were always pointing to `https://wsim.banksim.ca/pay/{requestId}` regardless of environment
+  - Added new `WSIM_QR_BASE_URL` config variable (defaults to `https://wsim-dev.banksim.ca/pay`)
+  - Server now returns `qrCodeUrl` in `/payment/mobile/initiate` response
+  - Frontend uses server-provided URL instead of hardcoded fallback
+  - Production deployments should set `WSIM_QR_BASE_URL=https://wsim.banksim.ca/pay`
+
 ### Technical Details
-- QR code URL format: `https://wsim.banksim.ca/pay/{requestId}` (uses WSIM `qrCodeUrl` response when available)
+- QR code URL format: `{WSIM_QR_BASE_URL}/{requestId}` (configurable via environment variable)
 - Client-side QR generation using `qrcodejs` library (bundled locally at `/js/qrcode.min.js`)
 - Reuses existing Mobile Payment API endpoints (`/payment/mobile/initiate`, `/status`, `/complete`, `/cancel`)
 - QR code styling: Teal color theme (#0d9488) matching button gradient
@@ -77,6 +84,8 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 - `src/views/admin/payment-methods.ejs` - Added QR Code Payment toggle
 - `src/views/checkout.ejs` - Added QR payment button, status container, and JavaScript functions
 - `src/server.ts` - Added static route for `/js` directory
+- `src/config/env.ts` - Added `WSIM_QR_BASE_URL` config variable
+- `src/routes/payment.ts` - Return `qrCodeUrl` in mobile initiate response
 
 ### Dependencies
 - Uses existing WSIM Mobile Payment API (no new backend dependencies)

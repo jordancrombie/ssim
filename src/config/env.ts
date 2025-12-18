@@ -62,4 +62,7 @@ export const config = {
   wsimApiUrl: process.env.WSIM_API_URL || 'https://wsim-dev.banksim.ca/api/merchant',
   // WSIM Mobile Payment API (for mwsim app integration)
   wsimMobileApiUrl: process.env.WSIM_MOBILE_API_URL || 'https://wsim-dev.banksim.ca/api/mobile/payment',
+  // WSIM QR Payment URL base (for generating QR code payment links)
+  // This is the user-facing URL that QR codes point to, which redirects to mwsim app
+  wsimQrBaseUrl: process.env.WSIM_QR_BASE_URL || 'https://wsim-dev.banksim.ca/pay',
 };

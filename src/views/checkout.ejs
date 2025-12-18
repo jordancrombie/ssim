@@ -2954,9 +2954,11 @@
         qrPaymentRequestId = data.requestId;
         sessionStorage.setItem('qrPaymentRequestId', data.requestId);
 
-        // Generate QR code URL - stub for now, will be replaced when WSIM implements
-        // The URL will be in the format: https://wsim.banksim.ca/pay/{requestId}
-        const qrCodeUrl = data.qrCodeUrl || `https://wsim.banksim.ca/pay/${data.requestId}`;
+        // QR code URL is provided by the server based on WSIM_QR_BASE_URL config
+        const qrCodeUrl = data.qrCodeUrl;
+        if (!qrCodeUrl) {
+          console.error('[QR Payment] Server did not return qrCodeUrl');
+        }
         console.log('[QR Payment] QR Code URL:', qrCodeUrl);
 
         // Show the QR payment status container
