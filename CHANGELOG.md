@@ -10,6 +10,12 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - tsx is faster (esbuild-based) and actively maintained
   - Dev scripts updated: `tsx watch` replaces `ts-node-dev --respawn --transpile-only`
 
+- **Updated dev dependencies (Phase 1 maintenance)** - Patch/minor updates with no breaking changes
+  - `tailwindcss`: 4.1.17 → 4.1.18
+  - `@tailwindcss/cli`: 4.1.17 → 4.1.18
+  - `autoprefixer`: 10.4.22 → 10.4.23
+  - `ts-jest`: 29.4.5 → 29.4.6
+
 ### Fixed
 - **Admin Order Detail Items Display** - Fixed $NaN and missing product names in order items table
   - Template was using wrong field names: `item.name` → `item.productName`, `item.price` → `item.unitPrice`
