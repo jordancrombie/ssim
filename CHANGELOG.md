@@ -4,6 +4,12 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 
 ## [1.14.1] - 2025-12-18
 
+### Added
+- **New Unit Tests for themes and WSIM API** - Improved test coverage from 60% to 67%
+  - `src/__tests__/config/themes.test.ts` - 21 tests for theme configuration (0% → 100%)
+  - `src/__tests__/routes/wsim-api.test.ts` - 30 tests for WSIM Merchant API proxy (0% → 100%)
+  - Total tests: 352 → 403 (+51 tests)
+
 ### Changed
 - **Replaced ts-node-dev with tsx** - Eliminates deprecated dependency warnings
   - `rimraf@2.7.1`, `glob@7.2.3`, `inflight@1.0.6` no longer in dependency tree
