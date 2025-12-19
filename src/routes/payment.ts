@@ -7,6 +7,7 @@ import * as orderService from '../services/order';
 import { authorizePayment, capturePayment, voidPayment, refundPayment } from '../services/payment';
 import type { Store, Order } from '@prisma/client';
 import '../types/session';
+import { buildOrderDetails, buildOrderDescription, type CartItem } from '../utils/orderDetails';
 
 // WSIM Mobile Payment API response types
 interface WsimPaymentRequestResponse {
@@ -872,6 +873,21 @@ router.post('/mobile/initiate', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Cart is empty' });
     }
 
+    // Fetch products for cart items to build orderDetails
+    const productMap = new Map<string, productService.Product>();
+    for (const item of cart) {
+      const product = await productService.getProductById(store.id, item.productId);
+      if (product) {
+        productMap.set(item.productId, product);
+      }
+    }
+
+    // Build orderDetails and orderDescription for enhanced payment approval screen
+    const orderDetails = buildOrderDetails(cart as CartItem[], productMap);
+    const orderDescription = buildOrderDescription(cart as CartItem[], productMap);
+
+    console.log('[Payment] Built orderDetails:', JSON.stringify(orderDetails, null, 2));
+
     // Check if WSIM mobile API is configured
     if (!config.wsimMobileApiUrl || !config.wsimApiKey) {
       console.warn('[Payment] WSIM mobile API not configured, using stub mode');
@@ -921,12 +937,14 @@ router.post('/mobile/initiate', async (req: Request, res: Response) => {
         amount: (amount / 100).toFixed(2), // Convert cents to dollars
         currency: currency || 'CAD',
         orderId,
+        orderDescription, // Human-readable summary for fallback/accessibility
         // Note: We can't include requestId in returnUrl at this point since we don't have it yet
         // WSIM will append the requestId to the returnUrl when the user approves
         // mwsim should use: returnUrl + '?mwsim_return=' + requestId
         returnUrl: returnUrl || `${config.appBaseUrl}/checkout`,
         merchantName: store.name,
         merchantLogoUrl: `${config.appBaseUrl}/logo-256.png`,
+        orderDetails, // Enhanced purchase info for mwsim approval screen
       }),
     });
 
