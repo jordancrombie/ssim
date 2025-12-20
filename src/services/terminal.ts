@@ -376,6 +376,7 @@ export async function initiatePayment(params: {
         currency,
         orderId: reference || paymentId,
         orderDescription: `Terminal payment: ${reference || paymentId}`,
+        returnUrl: `${config.appBaseUrl}/terminal/payment-complete`,
         merchantName: storeName || 'SSIM Store',
         merchantLogoUrl: `${config.appBaseUrl}/logo-256.png`,
       }),
