@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - SSIM Admin</title>
+  <link rel="stylesheet" href="/css/tailwind.css">
+</head>
+<body class="min-h-screen bg-gray-100">
+  <div class="flex h-screen">
+    <%- include('_sidebar', { currentPage: 'terminals', userInfo: userInfo }) %>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Top Bar -->
+      <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <a href="/admin/terminals" class="text-gray-500 hover:text-gray-700 mr-4">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+              </a>
+              <div>
+                <h1 class="text-2xl font-semibold text-gray-800"><%= title %></h1>
+                <span class="inline-flex items-center text-sm <%= terminal.status === 'online' ? 'text-green-600' : terminal.status === 'pairing' ? 'text-yellow-600' : 'text-gray-500' %>">
+                  <span class="w-2 h-2 rounded-full mr-2 <%= terminal.status === 'online' ? 'bg-green-500' : terminal.status === 'pairing' ? 'bg-yellow-500' : 'bg-gray-400' %>"></span>
+                  <%= terminal.status === 'online' ? 'Online' : terminal.status === 'pairing' ? 'Awaiting Pairing' : 'Offline' %>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="flex-1 overflow-y-auto p-6 bg-gray-100">
+        <div class="max-w-2xl mx-auto space-y-6">
+
+          <% if (success) { %>
+            <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+              <% if (success === 'code_reset') { %>
+                Pairing code has been reset.
+              <% } else { %>
+                Operation completed successfully.
+              <% } %>
+            </div>
+          <% } %>
+
+          <% if (error) { %>
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <% if (error === 'reset_failed') { %>
+                Failed to reset pairing code.
+              <% } else if (error === 'delete_failed') { %>
+                Failed to delete terminal.
+              <% } else { %>
+                An error occurred.
+              <% } %>
+            </div>
+          <% } %>
+
+          <% if (pairingCode) { %>
+            <!-- Pairing Code Card -->
+            <div class="bg-white rounded-xl shadow-sm p-6 border-2 border-blue-200">
+              <div class="text-center">
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">Pairing Code</h2>
+                <p class="text-sm text-gray-500 mb-4">Enter this code on your terminal device</p>
+
+                <div class="bg-gray-100 rounded-xl py-6 px-8 inline-block mb-4">
+                  <span class="text-4xl font-mono font-bold tracking-widest text-gray-900">
+                    <%= pairingCode.slice(0, 3) %> <%= pairingCode.slice(3) %>
+                  </span>
+                </div>
+
+                <p class="text-sm text-gray-500">
+                  <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  Expires in 10 minutes
+                </p>
+              </div>
+            </div>
+          <% } else if (terminal.status === 'pairing') { %>
+            <!-- Need new pairing code -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+              <div class="text-center">
+                <h2 class="text-lg font-semibold text-yellow-800 mb-2">Terminal Awaiting Pairing</h2>
+                <p class="text-sm text-yellow-700 mb-4">Generate a new pairing code to connect this terminal.</p>
+                <form action="/admin/terminals/<%= terminal.id %>/reset" method="POST" class="inline">
+                  <button type="submit"
+                          class="bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-yellow-700 transition">
+                    Generate Pairing Code
+                  </button>
+                </form>
+              </div>
+            </div>
+          <% } %>
+
+          <!-- Terminal Info Card -->
+          <div class="bg-white rounded-xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Terminal Information</h2>
+
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Name</dt>
+                <dd class="text-sm text-gray-900 mt-1"><%= terminal.name %></dd>
+              </div>
+
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Status</dt>
+                <dd class="text-sm mt-1">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= terminal.status === 'online' ? 'bg-green-100 text-green-800' : terminal.status === 'pairing' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800' %>">
+                    <%= terminal.status === 'online' ? 'Online' : terminal.status === 'pairing' ? 'Awaiting Pairing' : 'Offline' %>
+                  </span>
+                </dd>
+              </div>
+
+              <% if (terminal.deviceModel) { %>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Device Model</dt>
+                  <dd class="text-sm text-gray-900 mt-1"><%= terminal.deviceModel %></dd>
+                </div>
+              <% } %>
+
+              <% if (terminal.firmwareVersion) { %>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Firmware Version</dt>
+                  <dd class="text-sm text-gray-900 mt-1">v<%= terminal.firmwareVersion %></dd>
+                </div>
+              <% } %>
+
+              <% if (terminal.macAddress) { %>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">MAC Address</dt>
+                  <dd class="text-sm text-gray-900 mt-1 font-mono"><%= terminal.macAddress %></dd>
+                </div>
+              <% } %>
+
+              <% if (terminal.lastIpAddress) { %>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">IP Address</dt>
+                  <dd class="text-sm text-gray-900 mt-1 font-mono"><%= terminal.lastIpAddress %></dd>
+                </div>
+              <% } %>
+
+              <% if (terminal.lastSeenAt) { %>
+                <div>
+                  <dt class="text-sm font-medium text-gray-500">Last Seen</dt>
+                  <dd class="text-sm text-gray-900 mt-1"><%= new Date(terminal.lastSeenAt).toLocaleString() %></dd>
+                </div>
+              <% } %>
+
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Created</dt>
+                <dd class="text-sm text-gray-900 mt-1"><%= new Date(terminal.createdAt).toLocaleString() %></dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- Actions Card -->
+          <div class="bg-white rounded-xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Actions</h2>
+
+            <div class="space-y-4">
+              <% if (terminal.status === 'online') { %>
+                <a href="/terminal"
+                   class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                      <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <p class="font-medium text-gray-900">Send Payment</p>
+                      <p class="text-sm text-gray-500">Display a QR code on this terminal</p>
+                    </div>
+                  </div>
+                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                  </svg>
+                </a>
+              <% } %>
+
+              <form action="/admin/terminals/<%= terminal.id %>/reset" method="POST">
+                <button type="submit"
+                        class="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition text-left">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
+                      <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <p class="font-medium text-gray-900">Reset Pairing Code</p>
+                      <p class="text-sm text-gray-500">Generate a new code to re-pair this terminal</p>
+                    </div>
+                  </div>
+                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-red-200">
+            <h2 class="text-lg font-semibold text-red-600 mb-4">Danger Zone</h2>
+
+            <form action="/admin/terminals/<%= terminal.id %>/delete" method="POST"
+                  onsubmit="return confirm('Are you sure you want to delete this terminal? This action cannot be undone.')">
+              <button type="submit"
+                      class="w-full flex items-center justify-between p-4 border border-red-200 rounded-lg hover:bg-red-50 transition text-left">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="font-medium text-red-600">Delete Terminal</p>
+                    <p class="text-sm text-gray-500">Permanently remove this terminal</p>
+                  </div>
+                </div>
+              </button>
+            </form>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

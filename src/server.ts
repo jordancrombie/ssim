@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import path from 'path';
+import { createServer } from 'http';
 import { config } from './config/env';
 import { initializeProviders } from './config/oidc';
 import authRoutes from './routes/auth';
@@ -14,7 +15,10 @@ import webhookRoutes from './routes/webhooks';
 import adminRoutes from './routes/admin';
 import wsimApiRoutes from './routes/wsim-api';
 import userApiRoutes from './routes/user-api';
+import terminalRoutes from './routes/terminal';
+import terminalApiRoutes from './routes/terminal-api';
 import { registerWebhook } from './services/payment';
+import { initializeWebSocket } from './services/terminal-websocket';
 
 const app = express();
 
@@ -67,6 +71,8 @@ app.use('/webhooks', webhookRoutes);
 app.use('/admin', adminRoutes);
 app.use('/api/wsim', wsimApiRoutes);
 app.use('/api/user', userApiRoutes);
+app.use('/terminal', terminalRoutes);
+app.use('/api/terminal', terminalApiRoutes);
 app.use('/', pageRoutes);
 
 // Health check
@@ -112,15 +118,22 @@ async function registerPaymentWebhook(): Promise<void> {
   }
 }
 
+// Create HTTP server from Express app
+const server = createServer(app);
+
 // Start server
 async function start() {
   try {
     // Initialize OIDC providers
     await initializeProviders();
 
-    app.listen(config.port, () => {
+    // Initialize WebSocket server for terminals
+    initializeWebSocket(server);
+
+    server.listen(config.port, () => {
       console.log(`SSIM Store Simulator running on port ${config.port}`);
       console.log(`Visit: ${config.appBaseUrl}`);
+      console.log(`Terminal WebSocket: ${config.appBaseUrl.replace('http', 'ws')}/terminal/ws`);
     });
 
     // Register webhook after server is listening (non-blocking)

@@ -695,4 +695,143 @@ router.get('/api/stats', async (req: Request, res: Response) => {
   }
 });
 
+// =============================================================================
+// Terminal Management
+// =============================================================================
+
+import * as terminalService from '../services/terminal';
+
+/**
+ * GET /admin/terminals - List all terminals
+ */
+router.get('/terminals', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const userInfo = req.session.userInfo;
+    const terminals = await terminalService.getTerminals(store.id);
+
+    res.render('admin/terminals', {
+      title: 'Terminals',
+      currentPage: 'terminals',
+      userInfo,
+      terminals,
+      success: req.query.success,
+      error: req.query.error,
+    });
+  } catch (error) {
+    console.error('[Admin] Terminals list error:', error);
+    res.status(500).render('error', {
+      title: 'Error',
+      message: 'Failed to load terminals',
+      isAuthenticated: true,
+      userInfo: req.session.userInfo,
+      cartCount: req.session.cart?.length || 0,
+    });
+  }
+});
+
+/**
+ * GET /admin/terminals/new - Form to create a new terminal
+ */
+router.get('/terminals/new', async (req: Request, res: Response) => {
+  try {
+    const userInfo = req.session.userInfo;
+
+    res.render('admin/terminal-new', {
+      title: 'Add Terminal',
+      currentPage: 'terminals',
+      userInfo,
+      error: req.query.error,
+    });
+  } catch (error) {
+    console.error('[Admin] Terminal new form error:', error);
+    res.redirect('/admin/terminals?error=load_failed');
+  }
+});
+
+/**
+ * POST /admin/terminals - Create a new terminal
+ */
+router.post('/terminals', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const { name } = req.body;
+
+    if (!name || name.trim().length === 0) {
+      return res.redirect('/admin/terminals/new?error=name_required');
+    }
+
+    const { terminal, pairingCode } = await terminalService.createTerminal(store.id, name.trim());
+
+    // Redirect to terminal detail page showing pairing code
+    res.redirect(`/admin/terminals/${terminal.id}?pairing_code=${pairingCode}`);
+  } catch (error) {
+    console.error('[Admin] Terminal create error:', error);
+    res.redirect('/admin/terminals/new?error=create_failed');
+  }
+});
+
+/**
+ * GET /admin/terminals/:id - Terminal detail page
+ */
+router.get('/terminals/:id', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const userInfo = req.session.userInfo;
+    const { id } = req.params;
+
+    const terminal = await terminalService.getTerminal(id);
+    if (!terminal || terminal.storeId !== store.id) {
+      return res.redirect('/admin/terminals?error=not_found');
+    }
+
+    res.render('admin/terminal-detail', {
+      title: terminal.name,
+      currentPage: 'terminals',
+      userInfo,
+      terminal,
+      pairingCode: req.query.pairing_code || null,
+      success: req.query.success,
+      error: req.query.error,
+    });
+  } catch (error) {
+    console.error('[Admin] Terminal detail error:', error);
+    res.redirect('/admin/terminals?error=load_failed');
+  }
+});
+
+/**
+ * POST /admin/terminals/:id/reset - Generate new pairing code
+ */
+router.post('/terminals/:id/reset', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const { id } = req.params;
+
+    const pairingCode = await terminalService.regeneratePairingCode(store.id, id);
+
+    res.redirect(`/admin/terminals/${id}?pairing_code=${pairingCode}&success=code_reset`);
+  } catch (error) {
+    console.error('[Admin] Terminal reset error:', error);
+    res.redirect(`/admin/terminals/${req.params.id}?error=reset_failed`);
+  }
+});
+
+/**
+ * POST /admin/terminals/:id/delete - Delete a terminal
+ */
+router.post('/terminals/:id/delete', async (req: Request, res: Response) => {
+  try {
+    const store = await ensureStore();
+    const { id } = req.params;
+
+    await terminalService.deleteTerminal(store.id, id);
+
+    res.redirect('/admin/terminals?success=deleted');
+  } catch (error) {
+    console.error('[Admin] Terminal delete error:', error);
+    res.redirect(`/admin/terminals/${req.params.id}?error=delete_failed`);
+  }
+});
+
 export default router;

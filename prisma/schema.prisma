@@ -42,10 +42,11 @@ model Store {
   walletMobileEnabled        Boolean @default(true)  // WSIM mobile app payment (mwsim deep link)
   qrPaymentEnabled           Boolean @default(false) // QR code payment for desktop (scan with mwsim)
 
-  users    StoreUser[]
-  products Product[]
-  orders   Order[]
-  admins   StoreAdmin[]
+  users     StoreUser[]
+  products  Product[]
+  orders    Order[]
+  admins    StoreAdmin[]
+  terminals Terminal[]
 
   @@map("stores")
 }
@@ -184,4 +185,61 @@ model StoreAdmin {
   @@index([storeId])
   @@index([email])
   @@map("store_admins")
+}
+
+// ============================================
+// Payment Terminals (ESP32 hardware devices)
+// ============================================
+
+// Registered hardware terminals that display QR codes for payments
+model Terminal {
+  id        String   @id @default(uuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  // Terminal identity
+  name      String   // Display name, e.g., "Register 1", "Front Counter"
+  apiKey    String   @unique // Long-lived API key for authentication
+
+  // Device info (populated during pairing)
+  deviceModel     String?  // e.g., "ESP32-S3", "Waveshare AMOLED"
+  firmwareVersion String?  // e.g., "1.0.0"
+  macAddress      String?  // Device MAC for identification
+
+  // Status tracking
+  status    String   @default("offline") // online, offline, pairing
+  lastSeenAt DateTime?
+  lastIpAddress String?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId])
+  @@index([apiKey])
+  @@index([storeId, status])
+  @@map("terminals")
+}
+
+// One-time pairing codes for terminal registration
+model TerminalPairingCode {
+  id        String   @id @default(uuid())
+  storeId   String
+
+  // Pairing code (6 digits, displayed to user)
+  code      String   @unique
+
+  // Terminal assignment (set after successful pairing)
+  terminalId String?
+  terminalName String? // Pre-assigned name for the terminal
+
+  // Expiry and usage
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([code])
+  @@index([storeId])
+  @@map("terminal_pairing_codes")
 }

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - SSIM Admin</title>
+  <link rel="stylesheet" href="/css/tailwind.css">
+</head>
+<body class="min-h-screen bg-gray-100">
+  <div class="flex h-screen">
+    <%- include('../admin/_sidebar', { currentPage: 'terminal', userInfo: userInfo }) %>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Top Bar -->
+      <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="px-6 py-4 flex justify-between items-center">
+          <div>
+            <h1 class="text-2xl font-semibold text-gray-800"><%= title %></h1>
+            <p class="text-sm text-gray-500 mt-1">Send QR code payments to connected terminals</p>
+          </div>
+          <a href="/admin/terminals" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+            Manage Terminals &rarr;
+          </a>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="flex-1 overflow-y-auto p-6 bg-gray-100">
+        <div class="max-w-4xl mx-auto">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Payment Form Card -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">New Payment</h2>
+
+              <% if (terminals.length === 0) { %>
+                <!-- No Terminals Warning -->
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <div class="flex items-start">
+                    <svg class="w-5 h-5 text-yellow-500 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    <div>
+                      <h3 class="text-sm font-medium text-yellow-800">No Terminals Configured</h3>
+                      <p class="text-sm text-yellow-700 mt-1">
+                        You need to add and pair at least one terminal before you can accept payments.
+                      </p>
+                      <a href="/admin/terminals/new" class="inline-block mt-2 text-sm font-medium text-yellow-800 hover:text-yellow-900 underline">
+                        Add Terminal
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              <% } else { %>
+                <form id="paymentForm" class="space-y-4">
+                  <!-- Terminal Selection -->
+                  <div>
+                    <label for="terminalId" class="block text-sm font-medium text-gray-700 mb-1">
+                      Terminal
+                    </label>
+                    <select id="terminalId" name="terminalId" required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                      <option value="">Select a terminal...</option>
+                      <% terminals.forEach(function(terminal) { %>
+                        <option value="<%= terminal.id %>"
+                                data-status="<%= terminal.status %>"
+                                <%= terminal.status !== 'online' ? 'disabled' : '' %>>
+                          <%= terminal.name %>
+                          (<%= terminal.status === 'online' ? 'Online' : terminal.status === 'offline' ? 'Offline' : 'Pairing' %>)
+                        </option>
+                      <% }); %>
+                    </select>
+                  </div>
+
+                  <!-- Amount Input -->
+                  <div>
+                    <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">
+                      Amount (CAD)
+                    </label>
+                    <div class="relative">
+                      <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                      <input type="number" id="amount" name="amount" required
+                             min="0.01" step="0.01" placeholder="0.00"
+                             class="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-semibold">
+                    </div>
+                  </div>
+
+                  <!-- Reference (Optional) -->
+                  <div>
+                    <label for="reference" class="block text-sm font-medium text-gray-700 mb-1">
+                      Reference <span class="text-gray-400">(optional)</span>
+                    </label>
+                    <input type="text" id="reference" name="reference"
+                           placeholder="Order #, invoice, etc."
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  </div>
+
+                  <!-- Submit Button -->
+                  <button type="submit" id="submitBtn"
+                          class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    Send to Terminal
+                  </button>
+                </form>
+              <% } %>
+            </div>
+
+            <!-- Payment Status Card -->
+            <div class="bg-white rounded-xl shadow-sm p-6">
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">Payment Status</h2>
+
+              <div id="statusContainer">
+                <!-- Idle State -->
+                <div id="idleState" class="text-center py-8">
+                  <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                    </svg>
+                  </div>
+                  <p class="text-gray-500">No active payment</p>
+                  <p class="text-sm text-gray-400 mt-1">Enter an amount and send to a terminal</p>
+                </div>
+
+                <!-- Pending State -->
+                <div id="pendingState" class="hidden text-center py-8">
+                  <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                  </div>
+                  <p class="text-lg font-semibold text-gray-800">Waiting for Payment</p>
+                  <p class="text-2xl font-bold text-blue-600 mt-2" id="pendingAmount">$0.00</p>
+                  <p class="text-sm text-gray-500 mt-2">QR code displayed on terminal</p>
+                  <p class="text-sm text-gray-400 mt-1">Expires in <span id="countdown">5:00</span></p>
+
+                  <button id="cancelBtn"
+                          class="mt-4 px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition">
+                    Cancel Payment
+                  </button>
+                </div>
+
+                <!-- Approved State -->
+                <div id="approvedState" class="hidden text-center py-8">
+                  <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </div>
+                  <p class="text-lg font-semibold text-green-700">Payment Approved</p>
+                  <p class="text-2xl font-bold text-gray-800 mt-2" id="approvedAmount">$0.00</p>
+                  <button id="newPaymentBtn" class="mt-4 text-blue-600 hover:text-blue-700 font-medium">
+                    New Payment
+                  </button>
+                </div>
+
+                <!-- Declined State -->
+                <div id="declinedState" class="hidden text-center py-8">
+                  <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </div>
+                  <p class="text-lg font-semibold text-red-700">Payment Declined</p>
+                  <p class="text-sm text-gray-500 mt-2">The payment was not approved</p>
+                  <button id="retryBtn" class="mt-4 text-blue-600 hover:text-blue-700 font-medium">
+                    Try Again
+                  </button>
+                </div>
+
+                <!-- Error State -->
+                <div id="errorState" class="hidden text-center py-8">
+                  <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                  </div>
+                  <p class="text-lg font-semibold text-yellow-700">Payment Error</p>
+                  <p class="text-sm text-gray-500 mt-2" id="errorMessage">An error occurred</p>
+                  <button id="dismissErrorBtn" class="mt-4 text-blue-600 hover:text-blue-700 font-medium">
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Connected Terminals Status -->
+          <div class="mt-6 bg-white rounded-xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Terminal Status</h2>
+
+            <% if (terminals.length === 0) { %>
+              <p class="text-gray-500 text-center py-4">No terminals configured</p>
+            <% } else { %>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <% terminals.forEach(function(terminal) { %>
+                  <div class="border rounded-lg p-4 <%= terminal.status === 'online' ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50' %>">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center">
+                        <div class="w-3 h-3 rounded-full mr-3 <%= terminal.status === 'online' ? 'bg-green-500' : 'bg-gray-400' %>"></div>
+                        <div>
+                          <p class="font-medium text-gray-800"><%= terminal.name %></p>
+                          <p class="text-xs text-gray-500">
+                            <%= terminal.status === 'online' ? 'Connected' : terminal.status === 'pairing' ? 'Awaiting pairing' : 'Offline' %>
+                          </p>
+                        </div>
+                      </div>
+                      <% if (terminal.status === 'online') { %>
+                        <span class="text-xs text-green-600 font-medium">Ready</span>
+                      <% } %>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+            <% } %>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // Payment state management
+    let currentPaymentId = null;
+    let pollInterval = null;
+    let countdownInterval = null;
+    let expiresAt = null;
+
+    // DOM elements
+    const form = document.getElementById('paymentForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const newPaymentBtn = document.getElementById('newPaymentBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const dismissErrorBtn = document.getElementById('dismissErrorBtn');
+
+    // State containers
+    const idleState = document.getElementById('idleState');
+    const pendingState = document.getElementById('pendingState');
+    const approvedState = document.getElementById('approvedState');
+    const declinedState = document.getElementById('declinedState');
+    const errorState = document.getElementById('errorState');
+
+    // Show a specific state
+    function showState(stateName) {
+      [idleState, pendingState, approvedState, declinedState, errorState].forEach(el => {
+        if (el) el.classList.add('hidden');
+      });
+
+      const stateEl = document.getElementById(stateName + 'State');
+      if (stateEl) stateEl.classList.remove('hidden');
+    }
+
+    // Format currency
+    function formatCurrency(cents) {
+      return '$' + (cents / 100).toFixed(2);
+    }
+
+    // Update countdown timer
+    function updateCountdown() {
+      if (!expiresAt) return;
+
+      const now = Date.now();
+      const remaining = Math.max(0, expiresAt - now);
+
+      if (remaining === 0) {
+        clearInterval(countdownInterval);
+        showState('error');
+        document.getElementById('errorMessage').textContent = 'Payment expired';
+        return;
+      }
+
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      document.getElementById('countdown').textContent =
+        minutes + ':' + seconds.toString().padStart(2, '0');
+    }
+
+    // Poll for payment status
+    async function pollStatus() {
+      if (!currentPaymentId) return;
+
+      try {
+        const res = await fetch('/terminal/payment/' + currentPaymentId + '/status');
+        const data = await res.json();
+
+        if (data.status === 'approved') {
+          clearIntervals();
+          document.getElementById('approvedAmount').textContent = formatCurrency(data.amount || 0);
+          showState('approved');
+        } else if (data.status === 'declined') {
+          clearIntervals();
+          showState('declined');
+        } else if (data.status === 'failed' || data.status === 'cancelled' || data.status === 'expired') {
+          clearIntervals();
+          document.getElementById('errorMessage').textContent =
+            data.status === 'cancelled' ? 'Payment cancelled' :
+            data.status === 'expired' ? 'Payment expired' : 'Payment failed';
+          showState('error');
+        }
+      } catch (err) {
+        console.error('Error polling status:', err);
+      }
+    }
+
+    // Clear all intervals
+    function clearIntervals() {
+      if (pollInterval) clearInterval(pollInterval);
+      if (countdownInterval) clearInterval(countdownInterval);
+      pollInterval = null;
+      countdownInterval = null;
+    }
+
+    // Reset to idle state
+    function resetToIdle() {
+      clearIntervals();
+      currentPaymentId = null;
+      expiresAt = null;
+      if (form) form.reset();
+      showState('idle');
+    }
+
+    // Form submission
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const terminalId = document.getElementById('terminalId').value;
+        const amount = document.getElementById('amount').value;
+        const reference = document.getElementById('reference').value;
+
+        if (!terminalId || !amount) return;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending...';
+
+        try {
+          const res = await fetch('/terminal/payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ terminalId, amount, reference })
+          });
+
+          const data = await res.json();
+
+          if (data.success) {
+            currentPaymentId = data.paymentId;
+            expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+            document.getElementById('pendingAmount').textContent = '$' + parseFloat(amount).toFixed(2);
+            showState('pending');
+
+            // Start polling and countdown
+            pollInterval = setInterval(pollStatus, 2000);
+            countdownInterval = setInterval(updateCountdown, 1000);
+            updateCountdown();
+          } else {
+            throw new Error(data.error || 'Failed to initiate payment');
+          }
+        } catch (err) {
+          document.getElementById('errorMessage').textContent = err.message;
+          showState('error');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Send to Terminal';
+        }
+      });
+    }
+
+    // Cancel button
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', async () => {
+        if (!currentPaymentId) return;
+
+        try {
+          await fetch('/terminal/payment/' + currentPaymentId + '/cancel', { method: 'POST' });
+          resetToIdle();
+        } catch (err) {
+          console.error('Error cancelling:', err);
+        }
+      });
+    }
+
+    // New payment / retry / dismiss buttons
+    [newPaymentBtn, retryBtn, dismissErrorBtn].forEach(btn => {
+      if (btn) btn.addEventListener('click', resetToIdle);
+    });
+  </script>
+</body>
+</html>

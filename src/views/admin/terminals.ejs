@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - SSIM Admin</title>
+  <link rel="stylesheet" href="/css/tailwind.css">
+</head>
+<body class="min-h-screen bg-gray-100">
+  <div class="flex h-screen">
+    <%- include('_sidebar', { currentPage: 'terminals', userInfo: userInfo }) %>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Top Bar -->
+      <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="px-6 py-4 flex justify-between items-center">
+          <div>
+            <h1 class="text-2xl font-semibold text-gray-800"><%= title %></h1>
+            <p class="text-sm text-gray-500 mt-1">Manage QR code payment terminals</p>
+          </div>
+          <a href="/admin/terminals/new"
+             class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Add Terminal
+          </a>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="flex-1 overflow-y-auto p-6 bg-gray-100">
+        <% if (success) { %>
+          <div class="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+            <% if (success === 'deleted') { %>
+              Terminal deleted successfully.
+            <% } else { %>
+              Operation completed successfully.
+            <% } %>
+          </div>
+        <% } %>
+
+        <% if (error) { %>
+          <div class="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <% if (error === 'not_found') { %>
+              Terminal not found.
+            <% } else if (error === 'load_failed') { %>
+              Failed to load terminals.
+            <% } else { %>
+              An error occurred.
+            <% } %>
+          </div>
+        <% } %>
+
+        <% if (terminals.length === 0) { %>
+          <!-- Empty State -->
+          <div class="bg-white rounded-xl shadow-sm p-12 text-center">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Terminals</h3>
+            <p class="text-gray-500 mb-6">Get started by adding a payment terminal.</p>
+            <a href="/admin/terminals/new"
+               class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+              </svg>
+              Add Terminal
+            </a>
+          </div>
+        <% } else { %>
+          <!-- Terminals Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <% terminals.forEach(function(terminal) { %>
+              <div class="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
+                <div class="flex items-start justify-between mb-4">
+                  <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center <%= terminal.status === 'online' ? 'bg-green-100' : terminal.status === 'pairing' ? 'bg-yellow-100' : 'bg-gray-100' %>">
+                      <svg class="w-5 h-5 <%= terminal.status === 'online' ? 'text-green-600' : terminal.status === 'pairing' ? 'text-yellow-600' : 'text-gray-400' %>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <h3 class="font-semibold text-gray-900"><%= terminal.name %></h3>
+                      <span class="inline-flex items-center text-xs font-medium <%= terminal.status === 'online' ? 'text-green-600' : terminal.status === 'pairing' ? 'text-yellow-600' : 'text-gray-500' %>">
+                        <span class="w-2 h-2 rounded-full mr-1 <%= terminal.status === 'online' ? 'bg-green-500' : terminal.status === 'pairing' ? 'bg-yellow-500' : 'bg-gray-400' %>"></span>
+                        <%= terminal.status === 'online' ? 'Online' : terminal.status === 'pairing' ? 'Awaiting Pairing' : 'Offline' %>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <% if (terminal.deviceModel) { %>
+                  <p class="text-sm text-gray-500 mb-2">
+                    <span class="font-medium">Device:</span> <%= terminal.deviceModel %>
+                  </p>
+                <% } %>
+
+                <% if (terminal.firmwareVersion) { %>
+                  <p class="text-sm text-gray-500 mb-2">
+                    <span class="font-medium">Firmware:</span> v<%= terminal.firmwareVersion %>
+                  </p>
+                <% } %>
+
+                <% if (terminal.lastSeenAt) { %>
+                  <p class="text-sm text-gray-500 mb-4">
+                    <span class="font-medium">Last seen:</span>
+                    <%= new Date(terminal.lastSeenAt).toLocaleString() %>
+                  </p>
+                <% } %>
+
+                <div class="flex justify-end pt-4 border-t border-gray-100">
+                  <a href="/admin/terminals/<%= terminal.id %>"
+                     class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                    Manage &rarr;
+                  </a>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -2,6 +2,68 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.15.0] - 2025-12-19
+
+### Added
+- **Hardware Payment Terminal Support** - ESP32-based terminals for displaying QR codes
+  - WebSocket server at `/terminal/ws` for real-time terminal communication
+  - Terminal pairing with 6-digit codes (10-minute expiry)
+  - API key authentication for terminals
+  - Heartbeat monitoring with 30-second intervals
+  - Payment request push to connected terminals
+
+- **Terminal Management Admin UI** - Manage hardware terminals from admin panel
+  - `/admin/terminals` - List all terminals with status indicators
+  - `/admin/terminals/new` - Add new terminal and generate pairing code
+  - `/admin/terminals/:id` - Terminal details, device info, and management actions
+  - Real-time status display (online/offline/pairing)
+
+- **Merchant Terminal Interface** - Initiate payments on terminals
+  - `/terminal` - Admin-only page for initiating QR payments
+  - Terminal selection dropdown with status indicators
+  - Amount entry and reference field
+  - Real-time payment status polling
+
+### New Routes
+- `POST /api/terminal/pair` - Complete terminal pairing with 6-digit code
+- `GET /api/terminal/config` - Get terminal configuration (requires API key)
+- `POST /api/terminal/heartbeat` - HTTP heartbeat fallback
+- `GET /api/terminal/payment/pending` - Poll for pending payments
+- `POST /terminal/payment` - Initiate payment on terminal
+- `GET /terminal/payment/:id/status` - Get payment status
+- `POST /terminal/payment/:id/cancel` - Cancel pending payment
+
+### Database Migrations
+- `20251219192251_add_terminal_models` - Adds `terminals` and `terminal_pairing_codes` tables
+
+### New Files
+- `src/services/terminal.ts` - Terminal CRUD, pairing, payment session management
+- `src/services/terminal-websocket.ts` - WebSocket server with heartbeat monitoring
+- `src/routes/terminal.ts` - Merchant-facing terminal payment routes
+- `src/routes/terminal-api.ts` - ESP32 terminal API endpoints
+- `src/views/terminal/index.ejs` - Payment initiation form
+- `src/views/admin/terminals.ejs` - Terminal list
+- `src/views/admin/terminal-new.ejs` - Add terminal form
+- `src/views/admin/terminal-detail.ejs` - Terminal details with pairing code
+
+### Dependencies
+- Added `ws` package for WebSocket server
+
+### Fixed
+- **Terminal Heartbeat Database Update** - Heartbeats now update database status and device info
+  - Previous: Heartbeats only updated in-memory state, admin UI showed "Offline"
+  - Fixed: Each heartbeat sets `status='online'`, updates `lastSeenAt`, `firmwareVersion`, `ipAddress`
+  - Terminal device info (firmware version, IP address) now extracted from heartbeat payload
+
+### Documentation
+- Added [SSIM_TERMINAL_INTEGRATION_PROPOSAL.md](LOCAL_DEPLOYMENT_PLANS/SSIM_TERMINAL_INTEGRATION_PROPOSAL.md)
+  - Phase 1 (SSIM backend) complete
+  - Phase 2 (ESP32 firmware) ready for ssimTerminal team
+  - WebSocket protocol specification
+  - API endpoints and message formats
+
+---
+
 ## [1.14.1] - 2025-12-18
 
 ### Added
