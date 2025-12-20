@@ -26,20 +26,54 @@ async function ensureStore(): Promise<Store> {
  * GET /terminal/payment-complete - Handle return from WSIM after mobile payment
  * This is a PUBLIC route - user returns here after paying via mwsim app
  *
- * Query params from WSIM:
- * - requestId: The WSIM payment request ID
- * - status: Payment status (approved, declined, cancelled, expired)
+ * Query params from mwsim:
+ * - mwsim_return: The WSIM payment request ID (mwsim appends this)
+ * - requestId: Alternative param name (fallback)
+ * - status: Payment status if provided directly
  */
 router.get('/payment-complete', async (req: Request, res: Response) => {
-  const { requestId, status } = req.query;
+  // mwsim uses 'mwsim_return' parameter containing the requestId
+  const requestId = (req.query.mwsim_return || req.query.requestId) as string | undefined;
+  let status = req.query.status as string | undefined;
 
-  console.log('[Terminal] Payment complete return:', { requestId, status });
+  console.log('[Terminal] Payment complete return:', {
+    mwsim_return: req.query.mwsim_return,
+    requestId: req.query.requestId,
+    status,
+    resolvedRequestId: requestId,
+  });
 
   try {
-    const store = await ensureStore();
+    // If we have a requestId but no status, query WSIM for the actual status
+    if (requestId && !status && config.wsimMobileApiUrl && config.wsimApiKey) {
+      try {
+        console.log('[Terminal] Querying WSIM for payment status...');
+        const wsimResponse = await fetch(
+          `${config.wsimMobileApiUrl}/${requestId}/status`,
+          {
+            method: 'GET',
+            headers: {
+              'X-API-Key': config.wsimApiKey,
+            },
+          }
+        );
+
+        if (wsimResponse.ok) {
+          const wsimData = await wsimResponse.json() as { status: string };
+          status = wsimData.status;
+          console.log('[Terminal] WSIM status:', status);
+        } else {
+          console.warn('[Terminal] WSIM status query failed:', wsimResponse.status);
+        }
+      } catch (wsimError) {
+        console.error('[Terminal] Failed to query WSIM status:', wsimError);
+      }
+    }
 
     // Find the terminal payment session by WSIM request ID
-    const paymentSession = terminalService.getPaymentSessionByWsimRequestId(requestId as string);
+    const paymentSession = requestId
+      ? terminalService.getPaymentSessionByWsimRequestId(requestId)
+      : null;
 
     if (!paymentSession) {
       console.warn('[Terminal] Payment session not found for requestId:', requestId);
