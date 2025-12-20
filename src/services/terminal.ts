@@ -374,8 +374,12 @@ export async function initiatePayment(params: {
       body: JSON.stringify({
         amount: (amount / 100).toFixed(2), // Convert cents to dollars
         currency,
-        orderId: reference || paymentId,
-        orderDescription: `Terminal payment: ${reference || paymentId}`,
+        // Always use unique paymentId as orderId to avoid WSIM unique constraint violation
+        // on (merchantId, orderId, status) - user's reference goes in description
+        orderId: paymentId,
+        orderDescription: reference
+          ? `Terminal payment - Ref: ${reference}`
+          : `Terminal payment`,
         returnUrl: `${config.appBaseUrl}/terminal/payment-complete`,
         merchantName: storeName || 'SSIM Store',
         merchantLogoUrl: `${config.appBaseUrl}/logo-256.png`,
