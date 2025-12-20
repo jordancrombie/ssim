@@ -179,7 +179,7 @@ describe('Terminal Service', () => {
         usedAt: new Date(),
       });
 
-      const result = await terminalService.completePairing('123456', {
+      const result = await terminalService.completePairing('store-123', '123456', {
         model: 'ESP32-S3',
         firmwareVersion: '1.0.0',
         macAddress: 'AA:BB:CC:DD:EE:FF',
@@ -201,7 +201,7 @@ describe('Terminal Service', () => {
     it('should return null for invalid pairing code', async () => {
       (prisma.terminalPairingCode.findFirst as jest.Mock).mockResolvedValue(null);
 
-      const result = await terminalService.completePairing('000000', {});
+      const result = await terminalService.completePairing('store-123', '000000', {});
 
       expect(result).toBeNull();
     });
@@ -209,7 +209,7 @@ describe('Terminal Service', () => {
     it('should return null for expired pairing code', async () => {
       (prisma.terminalPairingCode.findFirst as jest.Mock).mockResolvedValue(null);
 
-      const result = await terminalService.completePairing('123456', {});
+      const result = await terminalService.completePairing('store-123', '123456', {});
 
       expect(result).toBeNull();
     });

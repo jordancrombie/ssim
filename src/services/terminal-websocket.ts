@@ -4,6 +4,9 @@
  * Handles real-time communication with ESP32 payment terminals.
  * Terminals connect via WebSocket for receiving payment requests
  * and sending status updates.
+ *
+ * IMPORTANT: Only accepts connections from terminals belonging to THIS instance's store.
+ * This ensures proper isolation when multiple SSIM instances share a database.
  */
 
 import { WebSocket, WebSocketServer } from 'ws';
@@ -12,6 +15,18 @@ import { Server } from 'http';
 import { URL } from 'url';
 import * as terminalService from './terminal';
 import { config } from '../config/env';
+import { getOrCreateStore } from './store';
+import type { Store } from '@prisma/client';
+
+// Store reference (cached for process lifecycle)
+let currentStore: Store | null = null;
+
+async function ensureStore(): Promise<Store> {
+  if (!currentStore) {
+    currentStore = await getOrCreateStore();
+  }
+  return currentStore;
+}
 
 // Message types from terminal
 interface TerminalMessage {
@@ -73,6 +88,7 @@ export function initializeWebSocket(server: Server): void {
 /**
  * Verify client connection before upgrade
  * Checks for valid API key in query string or header
+ * IMPORTANT: Only accepts terminals belonging to THIS store
  */
 async function verifyClient(
   info: { origin: string; secure: boolean; req: IncomingMessage },
@@ -93,6 +109,14 @@ async function verifyClient(
     if (!terminal) {
       console.log('[Terminal WS] Connection rejected: Invalid API key');
       callback(false, 401, 'Invalid API key');
+      return;
+    }
+
+    // Verify terminal belongs to THIS store - critical for multi-instance isolation
+    const store = await ensureStore();
+    if (terminal.storeId !== store.id) {
+      console.warn(`[Terminal WS] Connection rejected: Terminal ${terminal.id} belongs to store ${terminal.storeId}, not ${store.id} (${store.name})`);
+      callback(false, 401, 'Terminal not registered with this store');
       return;
     }
 

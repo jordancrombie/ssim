@@ -19,6 +19,8 @@ import terminalRoutes from './routes/terminal';
 import terminalApiRoutes from './routes/terminal-api';
 import { registerWebhook } from './services/payment';
 import { initializeWebSocket } from './services/terminal-websocket';
+import { resetTerminalStatuses } from './services/terminal';
+import { getOrCreateStore } from './services/store';
 
 const app = express();
 
@@ -126,6 +128,14 @@ async function start() {
   try {
     // Initialize OIDC providers
     await initializeProviders();
+
+    // Get or create this instance's store
+    const store = await getOrCreateStore();
+    console.log(`[Startup] Store initialized: ${store.name} (${store.id})`);
+
+    // Reset terminal statuses to offline on startup for THIS store only
+    // (In-memory WebSocket registry is empty until terminals reconnect)
+    await resetTerminalStatuses(store.id);
 
     // Initialize WebSocket server for terminals
     initializeWebSocket(server);

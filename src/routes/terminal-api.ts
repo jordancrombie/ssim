@@ -3,19 +3,35 @@
  *
  * API endpoints for ESP32 hardware terminals.
  * These endpoints are called by the terminal firmware, not the browser.
+ *
+ * IMPORTANT: All endpoints validate that terminals belong to THIS instance's store.
+ * This ensures proper isolation when multiple SSIM instances share a database.
  */
 
 import { Router, Request, Response } from 'express';
 import { config } from '../config/env';
 import * as terminalService from '../services/terminal';
+import { getOrCreateStore } from '../services/store';
+import type { Store } from '@prisma/client';
 
 const router = Router();
+
+// Store reference (cached for process lifecycle)
+let currentStore: Store | null = null;
+
+async function ensureStore(): Promise<Store> {
+  if (!currentStore) {
+    currentStore = await getOrCreateStore();
+  }
+  return currentStore;
+}
 
 /**
  * POST /api/terminal/pair
  * Complete terminal pairing with a 6-digit code
  *
  * Called by ESP32 terminal during initial setup.
+ * Only accepts pairing codes created by THIS SSIM instance's store.
  */
 router.post('/pair', async (req: Request, res: Response) => {
   try {
@@ -38,8 +54,11 @@ router.post('/pair', async (req: Request, res: Response) => {
       });
     }
 
-    // Complete pairing
-    const result = await terminalService.completePairing(cleanCode, {
+    // Get this instance's store - pairing codes are store-scoped
+    const store = await ensureStore();
+
+    // Complete pairing - only accepts codes from THIS store
+    const result = await terminalService.completePairing(store.id, cleanCode, {
       model: deviceInfo?.model,
       firmwareVersion: deviceInfo?.firmwareVersion,
       macAddress: deviceInfo?.macAddress,
@@ -64,7 +83,7 @@ router.post('/pair', async (req: Request, res: Response) => {
       },
     });
 
-    console.log(`[Terminal API] Terminal paired: ${result.terminal.name} (${result.terminal.id})`);
+    console.log(`[Terminal API] Terminal paired: ${result.terminal.name} (${result.terminal.id}) for store ${store.name}`);
   } catch (error) {
     console.error('[Terminal API] Pairing error:', error);
     res.status(500).json({
@@ -80,6 +99,7 @@ router.post('/pair', async (req: Request, res: Response) => {
  *
  * Called by ESP32 terminal to get updated config.
  * Requires API key authentication.
+ * Only returns config for terminals belonging to THIS store.
  */
 router.get('/config', async (req: Request, res: Response) => {
   try {
@@ -97,6 +117,16 @@ router.get('/config', async (req: Request, res: Response) => {
       return res.status(401).json({
         success: false,
         error: 'Invalid API key',
+      });
+    }
+
+    // Verify terminal belongs to THIS store
+    const store = await ensureStore();
+    if (terminal.storeId !== store.id) {
+      console.warn(`[Terminal API] Terminal ${terminal.id} belongs to store ${terminal.storeId}, not ${store.id}`);
+      return res.status(401).json({
+        success: false,
+        error: 'Terminal not registered with this store',
       });
     }
 
@@ -124,6 +154,7 @@ router.get('/config', async (req: Request, res: Response) => {
  * Terminal heartbeat (for HTTP fallback when WebSocket is not used)
  *
  * Requires API key authentication.
+ * Only accepts heartbeats from terminals belonging to THIS store.
  */
 router.post('/heartbeat', async (req: Request, res: Response) => {
   try {
@@ -141,6 +172,16 @@ router.post('/heartbeat', async (req: Request, res: Response) => {
       return res.status(401).json({
         success: false,
         error: 'Invalid API key',
+      });
+    }
+
+    // Verify terminal belongs to THIS store
+    const store = await ensureStore();
+    if (terminal.storeId !== store.id) {
+      console.warn(`[Terminal API] Heartbeat rejected: Terminal ${terminal.id} belongs to store ${terminal.storeId}, not ${store.id}`);
+      return res.status(401).json({
+        success: false,
+        error: 'Terminal not registered with this store',
       });
     }
 
@@ -166,6 +207,7 @@ router.post('/heartbeat', async (req: Request, res: Response) => {
  * Check for pending payments (for HTTP polling fallback)
  *
  * Requires API key authentication.
+ * Only returns payments for terminals belonging to THIS store.
  */
 router.get('/payment/pending', async (req: Request, res: Response) => {
   try {
@@ -183,6 +225,16 @@ router.get('/payment/pending', async (req: Request, res: Response) => {
       return res.status(401).json({
         success: false,
         error: 'Invalid API key',
+      });
+    }
+
+    // Verify terminal belongs to THIS store
+    const store = await ensureStore();
+    if (terminal.storeId !== store.id) {
+      console.warn(`[Terminal API] Payment pending rejected: Terminal ${terminal.id} belongs to store ${terminal.storeId}, not ${store.id}`);
+      return res.status(401).json({
+        success: false,
+        error: 'Terminal not registered with this store',
       });
     }
 

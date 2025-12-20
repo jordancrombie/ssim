@@ -120,8 +120,13 @@ export async function createTerminal(
 
 /**
  * Complete terminal pairing
+ *
+ * IMPORTANT: storeId is required to ensure terminals can only pair with
+ * the SSIM instance that created the pairing code. This prevents cross-instance
+ * pairing when multiple SSIM instances share the same database.
  */
 export async function completePairing(
+  storeId: string,
   pairingCode: string,
   deviceInfo: {
     model?: string;
@@ -129,10 +134,11 @@ export async function completePairing(
     macAddress?: string;
   }
 ): Promise<{ terminal: Terminal; apiKey: string } | null> {
-  // Find valid pairing code
+  // Find valid pairing code - MUST belong to this instance's store
   const pairing = await prisma.terminalPairingCode.findFirst({
     where: {
       code: pairingCode,
+      storeId, // Only accept codes from THIS store
       usedAt: null,
       expiresAt: { gt: new Date() },
     },
@@ -309,6 +315,36 @@ export function getConnectedTerminalIds(): string[] {
   return Array.from(connectedTerminals.keys());
 }
 
+/**
+ * Reset terminal statuses to offline on server startup
+ *
+ * This is important because when the server restarts:
+ * 1. The in-memory WebSocket registry is empty
+ * 2. But the database may still show terminals as "online" from before the restart
+ * 3. Terminals will reconnect and status will be updated to "online" again
+ *
+ * IMPORTANT: Only resets terminals belonging to the specified store.
+ * This ensures proper isolation when multiple SSIM instances share a database.
+ */
+export async function resetTerminalStatuses(storeId: string): Promise<number> {
+  try {
+    const result = await prisma.terminal.updateMany({
+      where: {
+        storeId, // Only reset terminals for THIS store
+        status: 'online',
+      },
+      data: {
+        status: 'offline',
+      },
+    });
+    console.log(`[Terminal] Reset ${result.count} terminal(s) to offline on startup for store ${storeId}`);
+    return result.count;
+  } catch (error) {
+    console.error('[Terminal] Failed to reset terminal statuses:', error);
+    return 0;
+  }
+}
+
 // ============================================
 // Payment Sessions
 // ============================================
@@ -423,6 +459,15 @@ function sendPaymentToTerminal(terminalId: string, session: PaymentSession): voi
   // Dynamic import to avoid circular dependency
   // The WebSocket module is imported at runtime
   try {
+    // Debug: Check in-memory connection registry
+    const connection = connectedTerminals.get(terminalId);
+    console.log(`[Terminal] Attempting to send payment to terminal ${terminalId}:`, {
+      paymentId: session.paymentId,
+      inMemoryConnected: !!connection,
+      connectedTerminalCount: connectedTerminals.size,
+      allConnectedIds: Array.from(connectedTerminals.keys()),
+    });
+
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const wsModule = require('./terminal-websocket');
     if (wsModule.sendPaymentRequest) {
@@ -438,7 +483,7 @@ function sendPaymentToTerminal(terminalId: string, session: PaymentSession): voi
       if (sent) {
         console.log(`[Terminal] Payment ${session.paymentId} sent to terminal ${terminalId}`);
       } else {
-        console.warn(`[Terminal] Could not send payment to terminal ${terminalId} (not connected)`);
+        console.warn(`[Terminal] Could not send payment to terminal ${terminalId} - WebSocket not connected (DB may show online but WS registry is empty)`);
       }
     }
   } catch (error) {

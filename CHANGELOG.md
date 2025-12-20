@@ -50,6 +50,16 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 - Added `ws` package for WebSocket server
 
 ### Fixed
+- **Multi-Instance Terminal Isolation** - Terminals now properly isolated per store in shared database deployments
+  - **Issue**: When multiple SSIM instances share a database, terminals could pair with and connect to any instance
+  - **Root Cause**: Pairing codes, WebSocket auth, and status resets weren't validating store ownership
+  - **Fix**: All terminal operations now validate `storeId` before processing:
+    - `completePairing()` only accepts pairing codes created by THIS store
+    - WebSocket `verifyClient()` rejects terminals from other stores
+    - `/api/terminal/*` endpoints verify terminal belongs to THIS store's storeId
+    - `resetTerminalStatuses(storeId)` only resets terminals for THIS store on startup
+  - **Affected files**: `terminal.ts`, `terminal-websocket.ts`, `terminal-api.ts`, `server.ts`
+
 - **Terminal Heartbeat Database Update** - Heartbeats now update database status and device info
   - Previous: Heartbeats only updated in-memory state, admin UI showed "Offline"
   - Fixed: Each heartbeat sets `status='online'`, updates `lastSeenAt`, `firmwareVersion`, `ipAddress`
