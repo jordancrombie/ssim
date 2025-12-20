@@ -17,6 +17,108 @@ async function ensureStore(): Promise<Store> {
   return currentStore;
 }
 
+// ============================================
+// PUBLIC ROUTES (no auth required)
+// These must be defined BEFORE the requireAdmin middleware
+// ============================================
+
+/**
+ * GET /terminal/payment-complete - Handle return from WSIM after mobile payment
+ * This is a PUBLIC route - user returns here after paying via mwsim app
+ *
+ * Query params from WSIM:
+ * - requestId: The WSIM payment request ID
+ * - status: Payment status (approved, declined, cancelled, expired)
+ */
+router.get('/payment-complete', async (req: Request, res: Response) => {
+  const { requestId, status } = req.query;
+
+  console.log('[Terminal] Payment complete return:', { requestId, status });
+
+  try {
+    const store = await ensureStore();
+
+    // Find the terminal payment session by WSIM request ID
+    const paymentSession = terminalService.getPaymentSessionByWsimRequestId(requestId as string);
+
+    if (!paymentSession) {
+      console.warn('[Terminal] Payment session not found for requestId:', requestId);
+      // Still show a generic success page - the payment may have completed
+      return res.render('terminal/payment-complete', {
+        title: 'Payment Complete',
+        success: status === 'approved',
+        status: status || 'unknown',
+        requestId,
+        paymentId: null,
+        amount: null,
+        message: status === 'approved'
+          ? 'Your payment has been processed successfully.'
+          : 'Payment was not completed.',
+      });
+    }
+
+    // Update payment session status based on WSIM response
+    if (status === 'approved') {
+      terminalService.updatePaymentStatus(paymentSession.paymentId, 'approved');
+
+      // Notify terminal via WebSocket that payment is complete
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const wsModule = require('../services/terminal-websocket');
+        if (wsModule.sendToTerminal) {
+          wsModule.sendToTerminal(paymentSession.terminalId, {
+            type: 'payment_complete',
+            payload: {
+              paymentId: paymentSession.paymentId,
+              status: 'approved',
+            },
+          });
+          console.log(`[Terminal] Notified terminal ${paymentSession.terminalId} of payment completion`);
+        }
+      } catch (wsError) {
+        console.error('[Terminal] Failed to notify terminal:', wsError);
+      }
+    } else if (status === 'declined') {
+      terminalService.updatePaymentStatus(paymentSession.paymentId, 'declined');
+    } else if (status === 'cancelled') {
+      terminalService.updatePaymentStatus(paymentSession.paymentId, 'cancelled');
+    } else if (status === 'expired') {
+      terminalService.updatePaymentStatus(paymentSession.paymentId, 'expired');
+    }
+
+    // Render success/failure page
+    res.render('terminal/payment-complete', {
+      title: status === 'approved' ? 'Payment Successful' : 'Payment Not Completed',
+      success: status === 'approved',
+      status,
+      requestId,
+      paymentId: paymentSession.paymentId,
+      amount: paymentSession.amount,
+      currency: paymentSession.currency,
+      reference: paymentSession.reference,
+      message: status === 'approved'
+        ? 'Thank you! Your payment has been processed successfully.'
+        : status === 'declined'
+        ? 'Your payment was declined. Please try again or use a different payment method.'
+        : status === 'cancelled'
+        ? 'Payment was cancelled.'
+        : 'Payment session expired. Please try again.',
+    });
+  } catch (error) {
+    console.error('[Terminal] Error handling payment complete:', error);
+    res.status(500).render('error', {
+      title: 'Error',
+      message: 'An error occurred while processing your payment.',
+      isAuthenticated: false,
+      cartCount: 0,
+    });
+  }
+});
+
+// ============================================
+// ADMIN ROUTES (auth required below)
+// ============================================
+
 // Admin authentication middleware (same as admin.ts)
 async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (!config.adminEnabled) {

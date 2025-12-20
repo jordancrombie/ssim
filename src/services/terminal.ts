@@ -443,12 +443,16 @@ function sendPaymentToTerminal(terminalId: string, session: PaymentSession): voi
 }
 
 /**
- * Get payment status
+ * Get payment status (with optional WSIM polling for pending payments)
+ *
+ * For pending payments, this polls WSIM to get real-time status updates.
+ * This ensures the merchant sees the status change even if the customer
+ * doesn't return via the returnUrl.
  */
-export function getPaymentStatus(
+export async function getPaymentStatus(
   storeId: string,
   paymentId: string
-): PaymentSession | null {
+): Promise<PaymentSession | null> {
   const session = paymentSessions.get(paymentId);
   if (!session || session.storeId !== storeId) {
     return null;
@@ -457,6 +461,64 @@ export function getPaymentStatus(
   // Check if expired
   if (session.status === 'pending' && new Date() > session.expiresAt) {
     session.status = 'expired';
+    return session;
+  }
+
+  // For pending payments with WSIM request ID, poll WSIM for real-time status
+  if (
+    session.status === 'pending' &&
+    session.wsimRequestId &&
+    config.wsimMobileApiUrl &&
+    config.wsimApiKey
+  ) {
+    try {
+      const wsimResponse = await fetch(
+        `${config.wsimMobileApiUrl}/${session.wsimRequestId}/status`,
+        {
+          method: 'GET',
+          headers: {
+            'X-API-Key': config.wsimApiKey,
+          },
+        }
+      );
+
+      if (wsimResponse.ok) {
+        const wsimData = (await wsimResponse.json()) as WsimPaymentStatusResponse;
+        console.log(`[Terminal] WSIM status for ${paymentId}: ${wsimData.status}`);
+
+        // Update session based on WSIM status
+        if (wsimData.status === 'approved') {
+          session.status = 'approved';
+
+          // Notify terminal via WebSocket
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const wsModule = require('./terminal-websocket');
+            if (wsModule.sendToTerminal) {
+              wsModule.sendToTerminal(session.terminalId, {
+                type: 'payment_complete',
+                payload: {
+                  paymentId: session.paymentId,
+                  status: 'approved',
+                },
+              });
+            }
+          } catch (wsError) {
+            console.error('[Terminal] Failed to notify terminal:', wsError);
+          }
+        } else if (wsimData.status === 'declined') {
+          session.status = 'declined';
+        } else if (wsimData.status === 'cancelled') {
+          session.status = 'cancelled';
+        } else if (wsimData.status === 'expired') {
+          session.status = 'expired';
+        }
+        // 'pending' status - no change needed
+      }
+    } catch (error) {
+      // Log but don't fail - session status is still valid
+      console.warn('[Terminal] Failed to poll WSIM status (non-fatal):', error);
+    }
   }
 
   return session;
@@ -472,7 +534,23 @@ export function updatePaymentStatus(
   const session = paymentSessions.get(paymentId);
   if (session) {
     session.status = status;
+    console.log(`[Terminal] Payment ${paymentId} status updated to: ${status}`);
   }
+}
+
+/**
+ * Get payment session by WSIM request ID
+ * Used when processing return URL or webhook from WSIM
+ */
+export function getPaymentSessionByWsimRequestId(
+  wsimRequestId: string
+): PaymentSession | null {
+  for (const session of paymentSessions.values()) {
+    if (session.wsimRequestId === wsimRequestId) {
+      return session;
+    }
+  }
+  return null;
 }
 
 /**

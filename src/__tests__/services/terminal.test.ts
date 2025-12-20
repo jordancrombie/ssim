@@ -340,15 +340,15 @@ describe('Terminal Service', () => {
         currency: 'CAD',
       });
 
-      const status = terminalService.getPaymentStatus('store-123', payment.paymentId);
+      const status = await terminalService.getPaymentStatus('store-123', payment.paymentId);
 
       expect(status).toBeTruthy();
       expect(status?.status).toBe('pending');
       expect(status?.amount).toBe(2000);
     });
 
-    it('should return null for payment not found', () => {
-      const status = terminalService.getPaymentStatus('store-123', 'unknown');
+    it('should return null for payment not found', async () => {
+      const status = await terminalService.getPaymentStatus('store-123', 'unknown');
       expect(status).toBeNull();
     });
 
@@ -360,7 +360,7 @@ describe('Terminal Service', () => {
         currency: 'CAD',
       });
 
-      const status = terminalService.getPaymentStatus('different-store', payment.paymentId);
+      const status = await terminalService.getPaymentStatus('different-store', payment.paymentId);
       expect(status).toBeNull();
     });
 
@@ -374,7 +374,7 @@ describe('Terminal Service', () => {
 
       terminalService.updatePaymentStatus(payment.paymentId, 'approved');
 
-      const status = terminalService.getPaymentStatus('store-123', payment.paymentId);
+      const status = await terminalService.getPaymentStatus('store-123', payment.paymentId);
       expect(status?.status).toBe('approved');
     });
 
@@ -388,7 +388,7 @@ describe('Terminal Service', () => {
 
       await terminalService.cancelPayment('store-123', payment.paymentId);
 
-      const status = terminalService.getPaymentStatus('store-123', payment.paymentId);
+      const status = await terminalService.getPaymentStatus('store-123', payment.paymentId);
       expect(status?.status).toBe('cancelled');
     });
 
