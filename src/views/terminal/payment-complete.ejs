@@ -28,15 +28,17 @@
         <div class="bg-gray-50 rounded-xl p-6 mb-6">
           <div class="space-y-3">
             ${paymentId ? `
-            <div class="flex justify-between">
-              <span class="text-gray-500">Payment ID</span>
-              <span class="font-mono text-sm text-gray-700">${paymentId}</span>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-gray-500 flex-shrink-0">Payment ID</span>
+              <span class="font-mono text-xs text-gray-700 truncate" title="${paymentId}">
+                ...${paymentId.slice(-12)}
+              </span>
             </div>
             ` : ''}
             ${reference ? `
-            <div class="flex justify-between">
-              <span class="text-gray-500">Reference</span>
-              <span class="font-medium text-gray-700">${reference}</span>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-gray-500 flex-shrink-0">Reference</span>
+              <span class="font-medium text-gray-700 truncate">${reference}</span>
             </div>
             ` : ''}
             <div class="flex justify-between border-t border-gray-200 pt-3 mt-3">

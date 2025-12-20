@@ -21,7 +21,7 @@ interface TerminalMessage {
 
 // Message types to terminal
 interface ServerMessage {
-  type: 'payment_request' | 'payment_cancel' | 'config_update' | 'pong';
+  type: 'payment_request' | 'payment_cancel' | 'payment_complete' | 'config_update' | 'pong';
   payload?: Record<string, unknown>;
 }
 
