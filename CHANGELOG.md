@@ -73,6 +73,13 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
   - Fixed: Each heartbeat sets `status='online'`, updates `lastSeenAt`, `firmwareVersion`, `ipAddress`
   - Terminal device info (firmware version, IP address) now extracted from heartbeat payload
 
+### Added
+- **Terminal Session ID Tracking** - Connection debugging support for terminal firmware
+  - Terminals can now include a `sessionId` in heartbeat payloads (e.g., `"12345_6789"`)
+  - Server logs session ID changes: `[Terminal] Session ID changed for XXX: none -> 12345_6789`
+  - Session ID logged when stale close events are ignored (helps identify race conditions)
+  - Enables correlation between terminal-side and server-side connection logs
+
 ### Documentation
 - Added [SSIM_TERMINAL_INTEGRATION_PROPOSAL.md](LOCAL_DEPLOYMENT_PLANS/SSIM_TERMINAL_INTEGRATION_PROPOSAL.md)
   - Phase 1 (SSIM backend) complete
