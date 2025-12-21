@@ -177,7 +177,9 @@ async function handleConnection(
   // Handle close
   ws.on('close', async () => {
     console.log(`[Terminal WS] Terminal disconnected: ${terminal.name} (${terminal.id})`);
-    terminalService.unregisterTerminalConnection(terminal.id);
+    // Pass ws reference to prevent race condition where stale close event
+    // removes a newer connection's entry from the registry
+    terminalService.unregisterTerminalConnection(terminal.id, ws);
     await terminalService.updateTerminalStatus(terminal.id, 'offline');
   });
 

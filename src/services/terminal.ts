@@ -225,10 +225,19 @@ export function registerTerminalConnection(terminalId: string, ws: unknown): voi
 
 /**
  * Unregister a terminal connection
+ *
+ * IMPORTANT: Only removes the connection if the provided WebSocket matches
+ * the one currently registered. This prevents a race condition where a stale
+ * connection's close event could remove a newer connection's entry.
  */
-export function unregisterTerminalConnection(terminalId: string): void {
-  connectedTerminals.delete(terminalId);
-  console.log(`[Terminal] WebSocket connection unregistered for terminal ${terminalId}, remaining connections: ${connectedTerminals.size}`);
+export function unregisterTerminalConnection(terminalId: string, ws: unknown): void {
+  const current = connectedTerminals.get(terminalId);
+  if (current && current.ws === ws) {
+    connectedTerminals.delete(terminalId);
+    console.log(`[Terminal] WebSocket connection unregistered for terminal ${terminalId}, remaining connections: ${connectedTerminals.size}`);
+  } else {
+    console.log(`[Terminal] Ignoring unregister for stale connection for terminal ${terminalId} (current connection is different)`);
+  }
 }
 
 /**

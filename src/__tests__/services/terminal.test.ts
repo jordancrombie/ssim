@@ -273,7 +273,7 @@ describe('Terminal Service', () => {
       terminalService.registerTerminalConnection('terminal-1', mockWs);
       expect(terminalService.isTerminalConnected('terminal-1')).toBe(true);
 
-      terminalService.unregisterTerminalConnection('terminal-1');
+      terminalService.unregisterTerminalConnection('terminal-1', mockWs);
       expect(terminalService.isTerminalConnected('terminal-1')).toBe(false);
     });
 
@@ -289,8 +289,8 @@ describe('Terminal Service', () => {
       expect(connectedIds).toContain('terminal-2');
 
       // Cleanup
-      terminalService.unregisterTerminalConnection('terminal-1');
-      terminalService.unregisterTerminalConnection('terminal-2');
+      terminalService.unregisterTerminalConnection('terminal-1', mockWs1);
+      terminalService.unregisterTerminalConnection('terminal-2', mockWs2);
     });
 
     it('should update heartbeat', () => {
@@ -309,7 +309,32 @@ describe('Terminal Service', () => {
       expect(updatedConnection?.lastHeartbeat).toBeDefined();
 
       // Cleanup
-      terminalService.unregisterTerminalConnection('terminal-1');
+      terminalService.unregisterTerminalConnection('terminal-1', mockWs);
+    });
+
+    it('should not unregister connection if ws reference does not match (race condition prevention)', () => {
+      const mockWs1 = { send: jest.fn(), readyState: 1 };
+      const mockWs2 = { send: jest.fn(), readyState: 1 };
+
+      // Register first connection
+      terminalService.registerTerminalConnection('terminal-1', mockWs1);
+      expect(terminalService.isTerminalConnected('terminal-1')).toBe(true);
+
+      // Simulate reconnection - new ws registered
+      terminalService.registerTerminalConnection('terminal-1', mockWs2);
+      expect(terminalService.isTerminalConnected('terminal-1')).toBe(true);
+
+      // Simulate stale close event from old connection - should NOT remove new connection
+      terminalService.unregisterTerminalConnection('terminal-1', mockWs1);
+      expect(terminalService.isTerminalConnected('terminal-1')).toBe(true); // Still connected!
+
+      // Verify the connection is the new one
+      const connection = terminalService.getTerminalConnection('terminal-1');
+      expect(connection?.ws).toBe(mockWs2);
+
+      // Cleanup with correct ws
+      terminalService.unregisterTerminalConnection('terminal-1', mockWs2);
+      expect(terminalService.isTerminalConnected('terminal-1')).toBe(false);
     });
   });
 

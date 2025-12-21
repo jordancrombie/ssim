@@ -50,6 +50,12 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 - Added `ws` package for WebSocket server
 
 ### Fixed
+- **WebSocket Connection Race Condition** - Fixed intermittent message delivery failure when terminal reconnects
+  - **Issue**: When a terminal reconnects, the old connection's delayed `close` event could remove the new connection's registry entry
+  - **Symptom**: Messages sometimes not delivered; offline→online flicker followed by payment failures
+  - **Fix**: `unregisterTerminalConnection()` now requires the WebSocket reference and only removes the entry if it matches the currently registered connection
+  - **Affected files**: `terminal.ts`, `terminal-websocket.ts`
+
 - **Duplicate terminal payment notifications** - When a mobile payment is approved and user clicks "Return to Store", the terminal was receiving a second `payment_complete` notification. The `/terminal/payment-complete` route now checks if the payment was already marked as approved before sending WebSocket notifications.
 
 - **Multi-Instance Terminal Isolation** - Terminals now properly isolated per store in shared database deployments
