@@ -92,31 +92,39 @@ router.get('/payment-complete', async (req: Request, res: Response) => {
     }
 
     // Update payment session status based on WSIM response
-    if (status === 'approved') {
-      terminalService.updatePaymentStatus(paymentSession.paymentId, 'approved');
+    // IMPORTANT: Only update and notify if status is changing (prevents duplicate notifications)
+    const previousStatus = paymentSession.status;
 
-      // Notify terminal via WebSocket that payment is complete
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const wsModule = require('../services/terminal-websocket');
-        if (wsModule.sendToTerminal) {
-          wsModule.sendToTerminal(paymentSession.terminalId, {
-            type: 'payment_complete',
-            payload: {
-              paymentId: paymentSession.paymentId,
-              status: 'approved',
-            },
-          });
-          console.log(`[Terminal] Notified terminal ${paymentSession.terminalId} of payment completion`);
+    if (status === 'approved') {
+      if (previousStatus === 'approved') {
+        // Payment was already approved - skip duplicate notification
+        console.log(`[Terminal] Payment ${paymentSession.paymentId} already approved, skipping duplicate notification`);
+      } else {
+        terminalService.updatePaymentStatus(paymentSession.paymentId, 'approved');
+
+        // Notify terminal via WebSocket that payment is complete
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const wsModule = require('../services/terminal-websocket');
+          if (wsModule.sendToTerminal) {
+            wsModule.sendToTerminal(paymentSession.terminalId, {
+              type: 'payment_complete',
+              payload: {
+                paymentId: paymentSession.paymentId,
+                status: 'approved',
+              },
+            });
+            console.log(`[Terminal] Notified terminal ${paymentSession.terminalId} of payment completion`);
+          }
+        } catch (wsError) {
+          console.error('[Terminal] Failed to notify terminal:', wsError);
         }
-      } catch (wsError) {
-        console.error('[Terminal] Failed to notify terminal:', wsError);
       }
-    } else if (status === 'declined') {
+    } else if (status === 'declined' && previousStatus !== 'declined') {
       terminalService.updatePaymentStatus(paymentSession.paymentId, 'declined');
-    } else if (status === 'cancelled') {
+    } else if (status === 'cancelled' && previousStatus !== 'cancelled') {
       terminalService.updatePaymentStatus(paymentSession.paymentId, 'cancelled');
-    } else if (status === 'expired') {
+    } else if (status === 'expired' && previousStatus !== 'expired') {
       terminalService.updatePaymentStatus(paymentSession.paymentId, 'expired');
     }
 

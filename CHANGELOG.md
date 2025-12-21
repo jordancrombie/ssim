@@ -50,6 +50,8 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 - Added `ws` package for WebSocket server
 
 ### Fixed
+- **Duplicate terminal payment notifications** - When a mobile payment is approved and user clicks "Return to Store", the terminal was receiving a second `payment_complete` notification. The `/terminal/payment-complete` route now checks if the payment was already marked as approved before sending WebSocket notifications.
+
 - **Multi-Instance Terminal Isolation** - Terminals now properly isolated per store in shared database deployments
   - **Issue**: When multiple SSIM instances share a database, terminals could pair with and connect to any instance
   - **Root Cause**: Pairing codes, WebSocket auth, and status resets weren't validating store ownership
