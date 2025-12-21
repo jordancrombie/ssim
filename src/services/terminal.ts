@@ -28,6 +28,7 @@ interface WsimPaymentStatusResponse {
 interface TerminalConnection {
   ws: unknown; // WebSocket instance (set by WebSocket server)
   lastHeartbeat: Date;
+  sessionId?: string; // Unique session ID from terminal (for debugging connection issues)
 }
 
 const connectedTerminals = new Map<string, TerminalConnection>();
@@ -235,8 +236,11 @@ export function unregisterTerminalConnection(terminalId: string, ws: unknown): v
   if (current && current.ws === ws) {
     connectedTerminals.delete(terminalId);
     console.log(`[Terminal] WebSocket connection unregistered for terminal ${terminalId}, remaining connections: ${connectedTerminals.size}`);
+  } else if (current) {
+    // Stale close event - current connection is different (likely a reconnect happened)
+    console.log(`[Terminal] Ignoring unregister for stale connection for terminal ${terminalId} (current session: ${current.sessionId || 'unknown'})`);
   } else {
-    console.log(`[Terminal] Ignoring unregister for stale connection for terminal ${terminalId} (current connection is different)`);
+    console.log(`[Terminal] Ignoring unregister for terminal ${terminalId} - no active connection in registry`);
   }
 }
 
@@ -307,6 +311,17 @@ export async function processHeartbeat(
       }
       if (typeof payload.ipAddress === 'string') {
         updateData.lastIpAddress = payload.ipAddress;
+      }
+      // Track session ID for debugging connection issues
+      if (typeof payload.sessionId === 'string') {
+        const connection = connectedTerminals.get(terminalId);
+        if (connection) {
+          const previousSessionId = connection.sessionId;
+          if (previousSessionId !== payload.sessionId) {
+            console.log(`[Terminal] Session ID changed for ${terminalId}: ${previousSessionId || 'none'} -> ${payload.sessionId}`);
+            connection.sessionId = payload.sessionId;
+          }
+        }
       }
     }
 
