@@ -220,6 +220,7 @@ export function registerTerminalConnection(terminalId: string, ws: unknown): voi
     ws,
     lastHeartbeat: new Date(),
   });
+  console.log(`[Terminal] WebSocket connection registered for terminal ${terminalId}, total connections: ${connectedTerminals.size}`);
 }
 
 /**
@@ -227,6 +228,7 @@ export function registerTerminalConnection(terminalId: string, ws: unknown): voi
  */
 export function unregisterTerminalConnection(terminalId: string): void {
   connectedTerminals.delete(terminalId);
+  console.log(`[Terminal] WebSocket connection unregistered for terminal ${terminalId}, remaining connections: ${connectedTerminals.size}`);
 }
 
 /**
