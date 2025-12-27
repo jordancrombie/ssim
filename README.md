@@ -204,6 +204,36 @@ When configured, a "Pay with Mobile Wallet" button appears on checkout for mobil
 
 The `MWSIM_BROWSER_AWARE=true` flag enables browser-specific URL schemes so mwsim can return users to their original browser (Chrome, Firefox, Edge) instead of defaulting to Safari.
 
+### Hardware Payment Terminals
+
+SSIM supports ESP32-based hardware terminals for displaying QR codes in physical retail locations. Terminals connect via WebSocket for real-time communication.
+
+```env
+# Terminal support is enabled by default when WSIM Mobile API is configured
+WSIM_MOBILE_API_URL=https://wsim.banksim.ca/api/mobile/payment
+WSIM_API_KEY=<your-wsim-api-key>
+```
+
+**Terminal Features:**
+- WebSocket server at `/terminal/ws` for real-time communication
+- Terminal pairing with 6-digit codes (10-minute expiry)
+- API key authentication for terminals
+- Heartbeat monitoring with 30-second intervals
+- Multi-instance store isolation (terminals scoped to their SSIM instance)
+
+**Admin UI:**
+- `/admin/terminals` - List all terminals with status indicators (online/offline/pairing)
+- `/admin/terminals/new` - Add new terminal and generate pairing code
+- `/admin/terminals/:id` - Terminal details, device info, and management actions
+
+**Merchant Terminal Interface:**
+- `/terminal` - Initiate QR payments on connected terminals
+- Enter amount, select terminal, and payment request is pushed via WebSocket
+- Terminal displays QR code, customer scans with mwsim app
+- Real-time status updates as payment progresses
+
+**Terminal Firmware:** See the [ssimTerminal](https://github.com/jordancrombie/ssimTerminal) repository for ESP32 firmware.
+
 ### QR Code Payment (Desktop)
 
 QR Code Payment allows desktop users to pay by scanning a QR code with the mwsim mobile app. This uses the same WSIM Mobile API as Mobile Wallet payments but targets desktop browsers.
@@ -313,6 +343,23 @@ INSERT INTO oauth_clients (
 | `/webhooks/payment` | POST | Receive payment status updates from NSIM |
 | `/webhooks/health` | GET | Webhook endpoint health check |
 
+### Terminal (Hardware Payment Terminals)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/terminal` | GET | Merchant terminal payment interface |
+| `/terminal/payment` | POST | Initiate payment on terminal |
+| `/terminal/payment/:id/status` | GET | Get payment status (polling) |
+| `/terminal/payment/:id/cancel` | POST | Cancel pending payment |
+| `/terminal/payment-complete` | GET | Handle return from mwsim after mobile payment |
+
+### Terminal API (ESP32 Firmware)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/terminal/pair` | POST | Complete terminal pairing with 6-digit code |
+| `/api/terminal/config` | GET | Get terminal configuration (requires API key) |
+| `/api/terminal/heartbeat` | POST | HTTP heartbeat fallback |
+| `/api/terminal/payment/pending` | GET | Poll for pending payments |
+
 ### Admin (Protected)
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -334,6 +381,11 @@ INSERT INTO oauth_clients (
 | `/admin/settings` | GET | View settings |
 | `/admin/payment-methods` | GET | Payment method configuration |
 | `/admin/payment-methods` | POST | Update payment method settings |
+| `/admin/terminals` | GET | Terminal management list |
+| `/admin/terminals/new` | GET/POST | Add new terminal |
+| `/admin/terminals/:id` | GET | Terminal details |
+| `/admin/terminals/:id/regenerate-code` | POST | Generate new pairing code |
+| `/admin/terminals/:id/delete` | POST | Delete terminal |
 | `/admin/api/stats` | GET | Get dashboard statistics (JSON) |
 
 ### Other
@@ -362,13 +414,17 @@ ssim/
 │   │   ├── cart.ts         # Shopping cart routes
 │   │   ├── payment.ts      # NSIM payment integration
 │   │   ├── webhooks.ts     # NSIM webhook handlers
-│   │   └── pages.ts        # Page routes
+│   │   ├── pages.ts        # Page routes
+│   │   ├── terminal.ts     # Merchant terminal payment routes
+│   │   └── terminal-api.ts # ESP32 terminal API endpoints
 │   ├── services/
 │   │   ├── payment.ts      # NSIM Payment API client
 │   │   ├── store.ts        # Store and branding service
 │   │   ├── product.ts      # Product service
 │   │   ├── order.ts        # Order service
-│   │   └── upload.ts       # File upload service (multer)
+│   │   ├── upload.ts       # File upload service (multer)
+│   │   ├── terminal.ts     # Terminal CRUD, pairing, payment sessions
+│   │   └── terminal-websocket.ts  # WebSocket server for terminals
 │   ├── types/
 │   │   └── session.ts      # Session type extensions
 │   ├── views/
@@ -381,7 +437,13 @@ ssim/
 │   │   │   ├── product-form.ejs   # Add/edit product
 │   │   │   ├── orders.ejs         # Order list
 │   │   │   ├── order-detail.ejs   # Order detail with actions
-│   │   │   └── settings.ejs       # Settings display
+│   │   │   ├── settings.ejs       # Settings display
+│   │   │   ├── terminals.ejs      # Terminal list
+│   │   │   ├── terminal-new.ejs   # Add terminal form
+│   │   │   └── terminal-detail.ejs # Terminal details with pairing code
+│   │   ├── terminal/        # Terminal payment views
+│   │   │   ├── index.ejs          # Payment initiation form
+│   │   │   └── payment-complete.ejs # Mobile payment return page
 │   │   ├── layout.ejs      # Base layout with theme support
 │   │   ├── homepage.ejs    # E-commerce homepage
 │   │   ├── demo.ejs        # OIDC demo page
@@ -513,6 +575,7 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [x] **Mobile Wallet Payments** - Deep link integration with mwsim app for biometric-approved payments (v1.13.0)
 - [x] **iOS Browser Compatibility** - Mobile wallet works on Safari and Chrome iOS with cross-tab order confirmation (v1.13.3)
 - [x] **QR Code Payment (Desktop)** - Desktop users scan QR code with mwsim app for biometric-approved payments (v1.14.0)
+- [x] **Hardware Payment Terminals** - ESP32-based terminals for displaying QR codes in physical retail (v1.15.0)
 
 ### Pending
 - [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period
