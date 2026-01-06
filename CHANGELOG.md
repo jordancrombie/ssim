@@ -2,6 +2,28 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.16.0] - 2026-01-06
+
+### Added
+- **Buildkite CI/CD Pipeline Configuration** - Added pipeline files for automated builds and deployments
+  - `pipeline.yaml` - Full pipeline: tests, build, ECR push, dev deploy (auto), production deploy (manual gate)
+  - `pipeline-dev.yaml` - Development only: tests and local docker-compose deployment
+  - `pipeline-build.yaml` - Build only: tests and ECR push without deployment
+  - Pipelines support both SSIM Store (ssim.banksim.ca) and Regalmoose Store (regalmoose.ca)
+  - Uses BSIM docker-compose infrastructure for deployments
+
+### Changed
+- **Gitignore Updated** - Added `.buildkite/` directory to `.gitignore`
+  - Pipeline configurations are managed separately from the main repository
+  - Prevents CI/CD configs from being tracked in version control
+
+### Infrastructure
+- Builds push to ECR at `301868770392.dkr.ecr.ca-central-1.amazonaws.com/bsim/ssim`
+- Production deployment via AWS SSM to EC2 instance
+- Health checks verify both stores after deployment
+
+---
+
 ## [1.15.0] - 2025-12-19
 
 ### Added

@@ -115,6 +115,27 @@ docker build -t ssim .
 docker run -p 3005:3005 --env-file .env ssim
 ```
 
+## CI/CD Pipeline
+
+SSIM uses Buildkite for continuous integration and deployment. Pipeline configurations are stored in `.buildkite/` (gitignored, managed separately).
+
+### Available Pipelines
+
+| Pipeline | Purpose |
+|----------|---------|
+| `pipeline.yaml` | Full: tests → build → ECR push → dev deploy → production deploy (manual gate) |
+| `pipeline-dev.yaml` | Dev only: tests → local docker-compose deployment |
+| `pipeline-build.yaml` | Build only: tests → ECR push (no deployment) |
+
+### Pipeline Flow
+
+1. **Tests** - Run Jest unit tests and TypeScript type checking in parallel
+2. **Build** - Build Docker image and push to ECR (`bsim/ssim:latest`)
+3. **Dev Deploy** - Automatic deployment to dev environment via BSIM docker-compose
+4. **Production Deploy** - Manual approval gate, then deploy to EC2 via AWS SSM
+
+Both SSIM Store (`ssim.banksim.ca`) and Regalmoose Store (`regalmoose.ca`) are deployed together since they share the same Docker image with different environment configurations.
+
 ## AWS Deployment
 
 SSIM is deployed to AWS ECS Fargate as part of the BSIM infrastructure.
@@ -578,6 +599,7 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [x] **Hardware Payment Terminals** - ESP32-based terminals for displaying QR codes in physical retail (v1.15.0)
 
 ### Pending
+- [ ] **Multi-bank payment providers** - Support multiple bank auth providers (e.g., BSIM, NewBank) for card selection while routing through single NSIM (which already supports multi-card routing)
 - [ ] **Order expiration** - Auto-void authorized orders that aren't captured within timeout period
 - [ ] **Email notifications** - Send order confirmation and status update emails
 - [ ] **Partial refunds** - Support refunding less than the full captured amount

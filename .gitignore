@@ -48,3 +48,6 @@ LOCAL_DEPLOYMENT_PLANS/
 task-definition*.json
 
 /src/generated/prisma
+
+# Buildkite pipeline configs (managed separately from repo)
+.buildkite/
