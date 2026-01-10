@@ -1,0 +1,959 @@
+openapi: 3.1.0
+info:
+  title: SSIM - Store Simulator API
+  description: |
+    REST API for the Store Simulator (SSIM) - a demonstration e-commerce application
+    showcasing Open Banking payment integration with BSIM, NSIM, and WSIM.
+
+    ## Authentication
+    Most endpoints require session-based authentication via OIDC login with BSIM.
+    Terminal API endpoints use API key authentication via `X-API-Key` header.
+
+    ## Payment Providers
+    - **Bank Payment (BSIM)**: Direct bank account payment via BSIM OIDC
+    - **Wallet Payment (WSIM)**: Digital wallet payment via WSIM
+    - **Mobile Wallet (mwsim)**: QR code payment via mobile app
+    - **Terminal Payment**: Hardware terminal with QR display
+  version: 1.16.1
+  contact:
+    name: SSIM Development Team
+  license:
+    name: MIT
+
+servers:
+  - url: https://ssim-dev.banksim.ca
+    description: Development server
+  - url: https://ssim.banksim.ca
+    description: Production server
+
+tags:
+  - name: Cart
+    description: Shopping cart operations
+  - name: Payment
+    description: Payment initiation and processing
+  - name: Mobile Payment
+    description: Mobile wallet (mwsim) payment operations
+  - name: Auth
+    description: OIDC authentication
+  - name: Terminal API
+    description: Hardware terminal API (ESP32)
+  - name: Webhooks
+    description: Payment webhook handlers
+  - name: Open Banking
+    description: Open Banking API proxy
+
+paths:
+  # ============================================
+  # Cart Endpoints
+  # ============================================
+  /cart:
+    get:
+      tags: [Cart]
+      summary: Get cart contents
+      description: Returns all items in the session cart with product details and totals
+      responses:
+        '200':
+          description: Cart contents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /cart/add:
+    post:
+      tags: [Cart]
+      summary: Add item to cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId]
+              properties:
+                productId:
+                  type: string
+                  description: Product ID to add
+                quantity:
+                  type: integer
+                  default: 1
+                  minimum: 1
+      responses:
+        '200':
+          description: Item added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  itemCount:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Product not found
+
+  /cart/update:
+    put:
+      tags: [Cart]
+      summary: Update item quantity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, quantity]
+              properties:
+                productId:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: 0
+                  description: Set to 0 to remove item
+      responses:
+        '200':
+          description: Cart updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  itemCount:
+                    type: integer
+        '404':
+          description: Item not in cart
+
+  /cart/remove/{productId}:
+    delete:
+      tags: [Cart]
+      summary: Remove item from cart
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item removed
+        '404':
+          description: Item not in cart
+
+  /cart/clear:
+    post:
+      tags: [Cart]
+      summary: Clear cart
+      responses:
+        '200':
+          description: Cart cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  itemCount:
+                    type: integer
+                    example: 0
+
+  # ============================================
+  # Payment Endpoints
+  # ============================================
+  /payment/initiate:
+    post:
+      tags: [Payment]
+      summary: Initiate payment
+      description: |
+        Creates an order and initiates the payment flow.
+        - `bank`: Requires BSIM authentication, redirects to BSIM for card selection
+        - `wallet`: Redirects to WSIM, no prior authentication required
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  enum: [bank, wallet]
+                  default: bank
+      responses:
+        '200':
+          description: Payment initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  redirectUrl:
+                    type: string
+                    format: uri
+                    description: URL to redirect user for payment authorization
+                  orderId:
+                    type: string
+        '400':
+          description: Cart empty or invalid provider
+        '401':
+          description: Authentication required (bank payments only)
+
+  /payment/callback:
+    get:
+      tags: [Payment]
+      summary: BSIM payment callback
+      description: OAuth callback from BSIM after card selection. Exchanges code for card token and authorizes payment.
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to order confirmation or checkout with error
+
+  /payment/wallet-callback:
+    get:
+      tags: [Payment]
+      summary: WSIM wallet callback
+      description: OAuth callback from WSIM after wallet payment authorization
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to order confirmation or checkout with error
+
+  /payment/capture/{orderId}:
+    post:
+      tags: [Payment]
+      summary: Capture authorized payment
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                  description: Amount to capture in cents (optional, defaults to full amount)
+      responses:
+        '200':
+          description: Payment captured
+        '400':
+          description: Order not in authorized state
+        '404':
+          description: Order not found
+
+  /payment/void/{orderId}:
+    post:
+      tags: [Payment]
+      summary: Void authorized payment
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment voided
+        '400':
+          description: Order not in authorized state
+
+  /payment/refund/{orderId}:
+    post:
+      tags: [Payment]
+      summary: Refund captured payment
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: integer
+                  description: Amount to refund in cents
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Payment refunded
+        '400':
+          description: Order not in captured state
+
+  # ============================================
+  # Mobile Payment Endpoints (mwsim)
+  # ============================================
+  /payment/mobile/initiate:
+    post:
+      tags: [Mobile Payment]
+      summary: Initiate mobile wallet payment
+      description: Creates a payment request for the mwsim mobile app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: integer
+                  description: Amount in cents
+                currency:
+                  type: string
+                  default: CAD
+                orderId:
+                  type: string
+                returnUrl:
+                  type: string
+                  format: uri
+                sourceBrowser:
+                  type: string
+                  description: Browser type for return flow
+      responses:
+        '200':
+          description: Payment request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobilePaymentInitResponse'
+
+  /payment/mobile/status/{requestId}:
+    get:
+      tags: [Mobile Payment]
+      summary: Get mobile payment status
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobilePaymentStatusResponse'
+        '404':
+          description: Payment request not found
+
+  /payment/mobile/complete/{requestId}:
+    post:
+      tags: [Mobile Payment]
+      summary: Complete mobile payment
+      description: Exchange one-time token for card tokens and authorize payment
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oneTimePaymentToken]
+              properties:
+                oneTimePaymentToken:
+                  type: string
+      responses:
+        '200':
+          description: Payment authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status:
+                    type: string
+                  orderId:
+                    type: string
+                  transactionId:
+                    type: string
+        '400':
+          description: Payment declined
+
+  /payment/mobile/cancel/{requestId}:
+    post:
+      tags: [Mobile Payment]
+      summary: Cancel mobile payment request
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment cancelled
+
+  # ============================================
+  # Auth Endpoints
+  # ============================================
+  /auth/providers:
+    get:
+      tags: [Auth]
+      summary: List OIDC providers
+      responses:
+        '200':
+          description: Available providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+
+  /auth/login/{providerId}:
+    get:
+      tags: [Auth]
+      summary: Initiate OIDC login
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: returnTo
+          in: query
+          schema:
+            type: string
+          description: URL to return to after login
+      responses:
+        '302':
+          description: Redirect to OIDC provider
+        '404':
+          description: Provider not found
+
+  /auth/callback/{providerId}:
+    get:
+      tags: [Auth]
+      summary: OIDC callback
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to profile or returnTo URL
+
+  /auth/logout:
+    get:
+      tags: [Auth]
+      summary: Logout
+      description: Destroys session and optionally redirects to provider logout
+      responses:
+        '302':
+          description: Redirect to home or provider logout
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user info
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userInfo:
+                    $ref: '#/components/schemas/UserInfo'
+                  tokenSet:
+                    type: object
+                  providerId:
+                    type: string
+        '401':
+          description: Not authenticated
+
+  # ============================================
+  # Terminal API Endpoints (ESP32)
+  # ============================================
+  /api/terminal/pair:
+    post:
+      tags: [Terminal API]
+      summary: Complete terminal pairing
+      description: Called by ESP32 terminal during initial setup with 6-digit pairing code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pairingCode]
+              properties:
+                pairingCode:
+                  type: string
+                  pattern: '^\d{6}$'
+                deviceInfo:
+                  type: object
+                  properties:
+                    model:
+                      type: string
+                    firmwareVersion:
+                      type: string
+                    macAddress:
+                      type: string
+      responses:
+        '200':
+          description: Pairing successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerminalPairResponse'
+        '400':
+          description: Invalid or expired pairing code
+
+  /api/terminal/config:
+    get:
+      tags: [Terminal API]
+      summary: Get terminal configuration
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Terminal configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  terminalId:
+                    type: string
+                  name:
+                    type: string
+                  config:
+                    $ref: '#/components/schemas/TerminalConfig'
+        '401':
+          description: Invalid API key
+
+  /api/terminal/heartbeat:
+    post:
+      tags: [Terminal API]
+      summary: Terminal heartbeat
+      description: HTTP fallback for heartbeat when WebSocket not used
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Heartbeat acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/terminal/payment/pending:
+    get:
+      tags: [Terminal API]
+      summary: Check for pending payments
+      description: HTTP polling fallback to check for pending payment requests
+      security:
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Pending payment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerminalPendingPaymentResponse'
+
+  # ============================================
+  # Webhook Endpoints
+  # ============================================
+  /webhooks/payment:
+    post:
+      tags: [Webhooks]
+      summary: Payment webhook handler
+      description: |
+        Receives payment events from NSIM. Signature verification via `X-Webhook-Signature` header.
+        Always returns 200 to acknowledge receipt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+        '401':
+          description: Invalid signature
+
+  /webhooks/health:
+    get:
+      tags: [Webhooks]
+      summary: Webhook endpoint health check
+      responses:
+        '200':
+          description: Endpoint healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  endpoint:
+                    type: string
+                    example: webhooks
+
+  # ============================================
+  # Open Banking API Proxy
+  # ============================================
+  /api/accounts:
+    get:
+      tags: [Open Banking]
+      summary: Get user accounts
+      description: Proxies to Open Banking API to fetch user's bank accounts
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: User accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+        '401':
+          description: Not authenticated
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: Session cookie from OIDC login
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Terminal API key (obtained via pairing)
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: string
+
+  schemas:
+    CartResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId:
+                type: string
+              quantity:
+                type: integer
+              product:
+                $ref: '#/components/schemas/Product'
+              subtotal:
+                type: integer
+        itemCount:
+          type: integer
+        total:
+          type: integer
+          description: Total in cents
+        formattedTotal:
+          type: string
+          example: "$29.99"
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: integer
+          description: Price in cents
+        imageUrl:
+          type: string
+
+    UserInfo:
+      type: object
+      properties:
+        sub:
+          type: string
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        email_verified:
+          type: boolean
+
+    MobilePaymentInitResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        requestId:
+          type: string
+        orderId:
+          type: string
+        deepLinkUrl:
+          type: string
+          description: mwsim://payment/{requestId} deep link
+        qrCodeUrl:
+          type: string
+          description: URL for QR code generation
+        expiresAt:
+          type: string
+          format: date-time
+        merchant:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            logoUrl:
+              type: string
+        payment:
+          type: object
+          properties:
+            amount:
+              type: integer
+            currency:
+              type: string
+            orderId:
+              type: string
+
+    MobilePaymentStatusResponse:
+      type: object
+      properties:
+        requestId:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, declined, cancelled, expired]
+        orderId:
+          type: string
+        message:
+          type: string
+        oneTimePaymentToken:
+          type: string
+          description: Only present when status is approved
+
+    TerminalPairResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        terminalId:
+          type: string
+        apiKey:
+          type: string
+          description: API key for subsequent requests
+        config:
+          $ref: '#/components/schemas/TerminalConfig'
+
+    TerminalConfig:
+      type: object
+      properties:
+        wsEndpoint:
+          type: string
+          description: WebSocket endpoint URL
+        heartbeatInterval:
+          type: integer
+          description: Heartbeat interval in ms
+          example: 30000
+        reconnectDelay:
+          type: integer
+          description: Reconnect delay in ms
+          example: 5000
+
+    TerminalPendingPaymentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        hasPending:
+          type: boolean
+        payment:
+          type: object
+          properties:
+            paymentId:
+              type: string
+            qrData:
+              type: string
+            amount:
+              type: integer
+            currency:
+              type: string
+            reference:
+              type: string
+            expiresAt:
+              type: string
+              format: date-time
+
+    WebhookPayload:
+      type: object
+      required: [id, type, timestamp, data]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - payment.authorized
+            - payment.captured
+            - payment.voided
+            - payment.refunded
+            - payment.declined
+            - payment.expired
+            - payment.failed
+        timestamp:
+          type: string
+          format: date-time
+        data:
+          type: object
+          properties:
+            transactionId:
+              type: string
+            merchantId:
+              type: string
+            amount:
+              type: number
+            currency:
+              type: string
+            status:
+              type: string
+            orderId:
+              type: string
+            authorizationCode:
+              type: string
+            declineReason:
+              type: string
+            failureReason:
+              type: string
+            refundedAmount:
+              type: number
+            capturedAmount:
+              type: number
+
+    Account:
+      type: object
+      properties:
+        accountId:
+          type: string
+        accountType:
+          type: string
+        displayName:
+          type: string
+        balance:
+          type: number
+        currency:
+          type: string

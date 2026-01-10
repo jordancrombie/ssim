@@ -2,6 +2,22 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [1.16.1] - 2026-01-10
+
+### Added
+- **API Specifications** - OpenAPI and AsyncAPI specs for team integration
+  - `docs/openapi.yaml` - OpenAPI 3.1 specification for all REST endpoints
+  - `docs/asyncapi.yaml` - AsyncAPI 3.0 specification for Terminal WebSocket interface
+  - `docs/README.md` - Guide explaining when to use each specification format
+
+- **Project Context File** - `CLAUDE.md` for AI assistant guidance
+  - Development guidelines and common patterns
+  - API specification maintenance requirements
+  - Multi-instance isolation considerations
+
+### Documentation
+- Added pending feature: Multi-bank payment providers support
+
 ## [1.16.0] - 2026-01-06
 
 ### Added
@@ -21,8 +37,6 @@ All notable changes to SSIM (Store Simulator) will be documented in this file.
 - Builds push to ECR at `301868770392.dkr.ecr.ca-central-1.amazonaws.com/bsim/ssim`
 - Production deployment via AWS SSM to EC2 instance
 - Health checks verify both stores after deployment
-
----
 
 ## [1.15.0] - 2025-12-19
 

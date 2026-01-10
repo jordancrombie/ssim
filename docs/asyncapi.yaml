@@ -1,0 +1,443 @@
+asyncapi: 3.0.0
+info:
+  title: SSIM Terminal WebSocket API
+  version: 1.16.1
+  description: |
+    WebSocket API for real-time communication with ESP32 hardware payment terminals.
+
+    Terminals connect to `/terminal/ws` with API key authentication to receive
+    payment requests and send status updates. The connection is bidirectional -
+    the server sends payment commands and the terminal sends heartbeats and status updates.
+
+    ## Authentication
+    Terminals authenticate via API key passed as:
+    - Query parameter: `?apiKey=<key>`
+    - Or header: `X-API-Key: <key>`
+
+    API keys are obtained during terminal pairing (see OpenAPI spec for `/api/terminal/pair`).
+
+    ## Connection Lifecycle
+    1. Terminal connects with API key
+    2. Server verifies terminal belongs to current store (multi-instance isolation)
+    3. Server sends `config_update` welcome message
+    4. Terminal sends periodic `heartbeat` messages
+    5. Server sends `payment_request` when merchant initiates payment
+    6. Terminal displays QR code and sends `payment_status` updates
+    7. Server sends `payment_complete` when payment succeeds
+
+    ## Heartbeat
+    - Terminals should send heartbeat every 30 seconds
+    - Server pings terminals every 30 seconds
+    - Terminals failing heartbeat check are disconnected
+
+servers:
+  development:
+    host: ssim-dev.banksim.ca
+    pathname: /terminal/ws
+    protocol: wss
+    description: Development WebSocket server
+  production:
+    host: ssim.banksim.ca
+    pathname: /terminal/ws
+    protocol: wss
+    description: Production WebSocket server
+
+channels:
+  terminal:
+    address: /terminal/ws
+    description: |
+      Bidirectional WebSocket channel for terminal communication.
+      Requires API key authentication.
+    messages:
+      # Messages FROM terminal TO server
+      heartbeat:
+        $ref: '#/components/messages/Heartbeat'
+      paymentStatus:
+        $ref: '#/components/messages/PaymentStatus'
+      terminalError:
+        $ref: '#/components/messages/TerminalError'
+      # Messages FROM server TO terminal
+      paymentRequest:
+        $ref: '#/components/messages/PaymentRequest'
+      paymentCancel:
+        $ref: '#/components/messages/PaymentCancel'
+      paymentComplete:
+        $ref: '#/components/messages/PaymentComplete'
+      configUpdate:
+        $ref: '#/components/messages/ConfigUpdate'
+      pong:
+        $ref: '#/components/messages/Pong'
+
+operations:
+  # Terminal -> Server operations
+  sendHeartbeat:
+    action: receive
+    channel:
+      $ref: '#/channels/terminal'
+    summary: Terminal sends heartbeat
+    description: |
+      Terminal sends periodic heartbeat to indicate it's alive and online.
+      Server responds with `pong` message.
+    messages:
+      - $ref: '#/channels/terminal/messages/heartbeat'
+
+  sendPaymentStatus:
+    action: receive
+    channel:
+      $ref: '#/channels/terminal'
+    summary: Terminal reports payment status
+    description: |
+      Terminal reports status updates for active payments.
+      Statuses: `displayed` (QR showing), `approved`, `declined`, `error`
+    messages:
+      - $ref: '#/channels/terminal/messages/paymentStatus'
+
+  sendError:
+    action: receive
+    channel:
+      $ref: '#/channels/terminal'
+    summary: Terminal reports error
+    description: Terminal reports errors to the server for logging
+    messages:
+      - $ref: '#/channels/terminal/messages/terminalError'
+
+  # Server -> Terminal operations
+  requestPayment:
+    action: send
+    channel:
+      $ref: '#/channels/terminal'
+    summary: Server sends payment request
+    description: |
+      Server sends a payment request with QR code data for display.
+      Terminal should display QR code and wait for customer to scan.
+    messages:
+      - $ref: '#/channels/terminal/messages/paymentRequest'
+
+  cancelPayment:
+    action: send
+    channel:
+      $ref: '#/channels/terminal'
+    summary: Server cancels payment
+    description: |
+      Server cancels an active payment request.
+      Terminal should clear the QR display.
+    messages:
+      - $ref: '#/channels/terminal/messages/paymentCancel'
+
+  notifyPaymentComplete:
+    action: send
+    channel:
+      $ref: '#/channels/terminal'
+    summary: Server notifies payment complete
+    description: |
+      Server notifies terminal that payment was completed successfully.
+      Terminal should show success message and clear QR display.
+    messages:
+      - $ref: '#/channels/terminal/messages/paymentComplete'
+
+  sendConfig:
+    action: send
+    channel:
+      $ref: '#/channels/terminal'
+    summary: Server sends configuration
+    description: |
+      Server sends configuration update to terminal.
+      Sent on initial connection as welcome message.
+    messages:
+      - $ref: '#/channels/terminal/messages/configUpdate'
+
+  sendPong:
+    action: send
+    channel:
+      $ref: '#/channels/terminal'
+    summary: Server responds to heartbeat
+    description: Server acknowledges heartbeat with pong
+    messages:
+      - $ref: '#/channels/terminal/messages/pong'
+
+components:
+  messages:
+    # Terminal -> Server messages
+    Heartbeat:
+      name: heartbeat
+      title: Heartbeat
+      summary: Terminal heartbeat message
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/HeartbeatPayload'
+
+    PaymentStatus:
+      name: payment_status
+      title: Payment Status
+      summary: Payment status update from terminal
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/PaymentStatusPayload'
+
+    TerminalError:
+      name: error
+      title: Terminal Error
+      summary: Error report from terminal
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ErrorPayload'
+
+    # Server -> Terminal messages
+    PaymentRequest:
+      name: payment_request
+      title: Payment Request
+      summary: Payment request with QR data
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/PaymentRequestPayload'
+
+    PaymentCancel:
+      name: payment_cancel
+      title: Payment Cancel
+      summary: Cancel payment request
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/PaymentCancelPayload'
+
+    PaymentComplete:
+      name: payment_complete
+      title: Payment Complete
+      summary: Payment completed notification
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/PaymentCompletePayload'
+
+    ConfigUpdate:
+      name: config_update
+      title: Configuration Update
+      summary: Terminal configuration from server
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ConfigUpdatePayload'
+
+    Pong:
+      name: pong
+      title: Pong
+      summary: Heartbeat acknowledgement
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/PongPayload'
+
+  schemas:
+    # Base message structure
+    BaseMessage:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          description: Message type identifier
+        payload:
+          type: object
+          description: Message-specific payload
+
+    # Terminal -> Server payloads
+    HeartbeatPayload:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          const: heartbeat
+        payload:
+          type: object
+          properties:
+            firmwareVersion:
+              type: string
+              description: Current firmware version
+            freeHeap:
+              type: integer
+              description: Free heap memory in bytes
+            uptime:
+              type: integer
+              description: Uptime in seconds
+            wifiRssi:
+              type: integer
+              description: WiFi signal strength (dBm)
+
+    PaymentStatusPayload:
+      type: object
+      required:
+        - type
+        - payload
+      properties:
+        type:
+          type: string
+          const: payment_status
+        payload:
+          type: object
+          required:
+            - paymentId
+            - status
+          properties:
+            paymentId:
+              type: string
+              description: Payment session ID
+            status:
+              type: string
+              enum:
+                - displayed
+                - approved
+                - declined
+                - error
+              description: |
+                - `displayed`: QR code is being shown
+                - `approved`: Payment was approved
+                - `declined`: Payment was declined
+                - `error`: Terminal error occurred
+            errorMessage:
+              type: string
+              description: Error details if status is 'error'
+
+    ErrorPayload:
+      type: object
+      required:
+        - type
+        - payload
+      properties:
+        type:
+          type: string
+          const: error
+        payload:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Error message
+            details:
+              type: object
+              description: Additional error details
+
+    # Server -> Terminal payloads
+    PaymentRequestPayload:
+      type: object
+      required:
+        - type
+        - payload
+      properties:
+        type:
+          type: string
+          const: payment_request
+        payload:
+          type: object
+          required:
+            - paymentId
+            - qrCodeUrl
+            - amount
+            - currency
+          properties:
+            paymentId:
+              type: string
+              description: Unique payment session ID
+            qrCodeUrl:
+              type: string
+              format: uri
+              description: URL to encode in QR code (wsim pay link)
+            amount:
+              type: integer
+              description: Payment amount in cents
+            currency:
+              type: string
+              description: Currency code (e.g., CAD)
+              example: CAD
+            reference:
+              type: string
+              description: Optional reference (e.g., order number)
+            expiresAt:
+              type: string
+              format: date-time
+              description: Payment expiration timestamp
+
+    PaymentCancelPayload:
+      type: object
+      required:
+        - type
+        - payload
+      properties:
+        type:
+          type: string
+          const: payment_cancel
+        payload:
+          type: object
+          required:
+            - paymentId
+          properties:
+            paymentId:
+              type: string
+              description: Payment session ID to cancel
+
+    PaymentCompletePayload:
+      type: object
+      required:
+        - type
+        - payload
+      properties:
+        type:
+          type: string
+          const: payment_complete
+        payload:
+          type: object
+          required:
+            - paymentId
+            - status
+          properties:
+            paymentId:
+              type: string
+              description: Payment session ID
+            status:
+              type: string
+              enum:
+                - approved
+                - declined
+              description: Final payment status
+
+    ConfigUpdatePayload:
+      type: object
+      required:
+        - type
+        - payload
+      properties:
+        type:
+          type: string
+          const: config_update
+        payload:
+          type: object
+          properties:
+            heartbeatInterval:
+              type: integer
+              description: Recommended heartbeat interval in ms
+              example: 30000
+            connected:
+              type: boolean
+              description: Connection confirmed flag
+              example: true
+
+    PongPayload:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          const: pong
+
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: query
+      description: |
+        API key for terminal authentication. Can be passed as:
+        - Query parameter: `?apiKey=<key>`
+        - Header: `X-API-Key: <key>`
+
+        Obtained during terminal pairing process.
