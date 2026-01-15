@@ -1,8 +1,8 @@
 # SSIM - Store Simulator
 
-A merchant demo application that demonstrates e-commerce payment flows using BSIM (Banking Simulator) for authentication and NSIM (Network Simulator) for payment processing.
+**Version:** 1.16.1 | **Production URL:** https://ssim.banksim.ca
 
-**Production URL:** https://ssim.banksim.ca
+A merchant demo application that demonstrates e-commerce payment flows using BSIM (Banking Simulator) for authentication and NSIM (Network Simulator) for payment processing.
 
 ## Overview
 
@@ -40,11 +40,12 @@ SSIM is part of the BankSim ecosystem - a suite of applications that simulate re
 - **Access Control** - Email-based admin authorization via BSIM auth
 
 ### Authentication & Open Banking
-- **OIDC Authentication** - Login via BSIM identity provider
+- **Multiple OIDC Providers** - Configure multiple identity providers (BSIM, NewBank, etc.) via JSON config
 - **PKCE Support** - Proof Key for Code Exchange for enhanced security
-- **RP-Initiated Logout** - Ends session at both SSIM and BSIM
+- **RP-Initiated Logout** - Ends session at both SSIM and identity provider
 - **KENOK** - Open Banking integration to fetch account data from BSIM
 - **OAuth 2.0 Resource Indicators** - RFC 8707 for JWT access tokens
+- **Multi-Instance Support** - Multiple SSIM instances can share a database with store isolation
 - Clean, responsive UI with Tailwind CSS
 
 ## Quick Start
@@ -142,13 +143,17 @@ SSIM is deployed to AWS ECS Fargate as part of the BSIM infrastructure.
 
 **Production URL:** https://ssim.banksim.ca
 
-### Deployment Documentation
+### Documentation
 
 | Document | Description |
 |----------|-------------|
-| [AWS-Deployment-Guide.md](docs/AWS-Deployment-Guide.md) | General AWS ECS deployment guide for developers |
-| [SSIM-Production-Deployment-v1.8.md](docs/SSIM-Production-Deployment-v1.8.md) | **For BSIM Team** - Production-specific deployment for v1.8.x |
-| [ssim-task-definition.json](ssim-task-definition.json) | ECS task definition template |
+| [docs/README.md](docs/README.md) | Documentation index and API spec guide |
+| [docs/openapi.yaml](docs/openapi.yaml) | OpenAPI 3.1 - REST API specification |
+| [docs/asyncapi.yaml](docs/asyncapi.yaml) | AsyncAPI 3.0 - WebSocket specification |
+| [docs/AWS-Deployment-Guide.md](docs/AWS-Deployment-Guide.md) | General AWS ECS deployment guide |
+| [docs/Wallet-Integration-Guide.md](docs/Wallet-Integration-Guide.md) | WSIM wallet payment integration |
+| [docs/TERMINAL_DEPLOYMENT.md](docs/TERMINAL_DEPLOYMENT.md) | Hardware terminal setup guide |
+| [CLAUDE.md](CLAUDE.md) | Project context for AI assistants/contributors |
 
 ### Key Configuration for Production
 
@@ -285,6 +290,21 @@ WSIM_QR_BASE_URL=https://wsim.banksim.ca/pay
 - Real-time status polling (2 second interval)
 - Cancel button to return to payment selection
 - Admin toggle to enable/disable in Payment Methods settings
+
+## API Specifications
+
+SSIM provides machine-readable API specifications for integration with other systems:
+
+| Specification | Format | Purpose |
+|---------------|--------|---------|
+| [openapi.yaml](docs/openapi.yaml) | OpenAPI 3.1 | REST API endpoints (Cart, Payment, Auth, Terminal, Webhooks) |
+| [asyncapi.yaml](docs/asyncapi.yaml) | AsyncAPI 3.0 | Terminal WebSocket interface (real-time messages) |
+
+**When to use which:**
+- **OpenAPI** - For HTTP request/response integrations (calling SSIM APIs, generating client SDKs)
+- **AsyncAPI** - For WebSocket integrations (building ESP32 terminal firmware, real-time dashboards)
+
+See [docs/README.md](docs/README.md) for detailed guidance on using these specifications.
 
 ## Registering SSIM as an OAuth Client in BSIM
 
@@ -597,6 +617,8 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [x] **iOS Browser Compatibility** - Mobile wallet works on Safari and Chrome iOS with cross-tab order confirmation (v1.13.3)
 - [x] **QR Code Payment (Desktop)** - Desktop users scan QR code with mwsim app for biometric-approved payments (v1.14.0)
 - [x] **Hardware Payment Terminals** - ESP32-based terminals for displaying QR codes in physical retail (v1.15.0)
+- [x] **Buildkite CI/CD Pipelines** - Automated testing, building, and deployment to dev/production (v1.16.0)
+- [x] **API Specifications** - OpenAPI 3.1 and AsyncAPI 3.0 specs for team integration (v1.16.1)
 
 ### Pending
 - [ ] **Multi-bank payment providers** - Support multiple bank auth providers (e.g., BSIM, NewBank) for card selection while routing through single NSIM (which already supports multi-card routing)
@@ -604,6 +626,13 @@ SSIM automatically registers for payment webhooks on startup. NSIM sends real-ti
 - [ ] **Email notifications** - Send order confirmation and status update emails
 - [ ] **Partial refunds** - Support refunding less than the full captured amount
 - [ ] **Receipt generation** - Generate PDF receipts for completed orders
+
+## Contributing
+
+See [CLAUDE.md](CLAUDE.md) for project context, coding guidelines, and important considerations like:
+- Multi-instance store isolation (always filter by `storeId`)
+- API specification maintenance requirements
+- Common patterns and pitfalls
 
 ## License
 
