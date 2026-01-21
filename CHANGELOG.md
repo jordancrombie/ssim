@@ -2,6 +2,89 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.0.0] - 2026-01-21
+
+### Added
+- **Agent Commerce Protocol (SACP) Support** - AI agents can now browse products and complete purchases
+  - Part of SimToolBox Agent Commerce Protocol cross-team initiative
+  - Enables autonomous AI shopping with human oversight for step-up approvals
+
+- **UCP Discovery Endpoint** - Standard discovery at `/.well-known/ucp`
+  - Returns store capabilities, API endpoints, payment methods
+  - Schema.org-compatible merchant information
+  - Configurable session expiration (5-60 minutes, default 30)
+
+- **Agent Authentication Middleware** - WSIM token validation
+  - Bearer token authentication via WSIM introspection
+  - Token caching with 60-second TTL (per SACP Q18)
+  - Rate limiting at 1000 req/min per agent (per SACP Q20)
+  - Retry with exponential backoff on WSIM unavailability (per SACP Q21)
+
+- **Product Catalog API for Agents** - Machine-readable product data
+  - `GET /api/agent/v1/products` - List products with pagination
+  - `GET /api/agent/v1/products/search` - Full-text search
+  - `GET /api/agent/v1/products/:id` - Product details with Schema.org markup
+
+- **Checkout Session API** - Agent checkout flow
+  - `POST /api/agent/v1/sessions` - Create checkout session
+  - `GET /api/agent/v1/sessions/:id` - Get session status
+  - `PATCH /api/agent/v1/sessions/:id` - Update cart, buyer info, fulfillment
+  - `POST /api/agent/v1/sessions/:id/complete` - Complete checkout
+  - `DELETE /api/agent/v1/sessions/:id` - Cancel session
+
+- **WSIM Agent Client Service** - Integration with WSIM agent APIs
+  - Token introspection with caching
+  - Payment token requests with step-up flow support
+  - Mock mode for development (`WSIM_AGENT_MOCK=true`)
+
+- **Session State Machine** - Robust checkout flow management
+  - States: `cart_building` → `awaiting_buyer_info` → `awaiting_authorization` → `ready_for_payment` → `processing` → `completed`/`cancelled`/`failed`
+  - Session expiration with configurable timeout
+  - Complete isolation from human browser sessions (per SACP Q19)
+
+### New Environment Variables
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AGENT_API_ENABLED` | `false` | Enable agent commerce API endpoints |
+| `WSIM_AGENT_API_URL` | `https://wsim-dev.banksim.ca/api/agent/v1` | WSIM agent API endpoint |
+| `AGENT_TOKEN_CACHE_TTL` | `60` | Token cache TTL in seconds |
+| `AGENT_SESSION_EXPIRATION_MINUTES` | `30` | Session expiration (5-60 minutes) |
+| `AGENT_RATE_LIMIT_PER_MINUTE` | `1000` | Rate limit per agent |
+| `WSIM_AGENT_MOCK` | `false` | Enable mock mode for development |
+
+### Database Migrations
+- **`add_agent_sessions`** - Adds `agent_sessions` table for agent checkout sessions
+- **Order table changes** - Adds `agentId` and `agentSessionId` fields to orders
+
+### New Files
+| File | Description |
+|------|-------------|
+| `src/services/wsim-agent.ts` | WSIM agent client with token introspection and caching |
+| `src/middleware/agent-auth.ts` | Agent authentication and rate limiting middleware |
+| `src/routes/agent-api.ts` | All agent API endpoints (UCP, products, sessions) |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `prisma/schema.prisma` | Added `AgentSession` model, `agentId`/`agentSessionId` on `Order` |
+| `src/config/env.ts` | Added agent configuration options |
+| `src/server.ts` | Registered agent API routes |
+| `.env.example` | Documented agent configuration |
+
+### Technical Details
+- Agent sessions stored in separate `agent_sessions` table (complete isolation per SACP Q19)
+- Prices in API responses are in dollars (internal storage remains cents)
+- Flat $10 shipping rate for MVP (per SACP Q2 - full shipping options in Phase 2)
+- 13% HST tax calculation for Ontario
+- Session messages log all state changes for debugging
+
+### Documentation
+- SSIM SACP requirements reviewed and signed off
+- Cross-team Q&A completed (Q1-Q4, Q17-Q21)
+- Timeline confirmed at 6-8 weeks
+
+---
+
 ## [1.16.1] - 2026-01-10
 
 ### Added

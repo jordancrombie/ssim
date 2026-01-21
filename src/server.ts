@@ -17,6 +17,7 @@ import wsimApiRoutes from './routes/wsim-api';
 import userApiRoutes from './routes/user-api';
 import terminalRoutes from './routes/terminal';
 import terminalApiRoutes from './routes/terminal-api';
+import agentApiRoutes from './routes/agent-api';
 import { registerWebhook } from './services/payment';
 import { initializeWebSocket } from './services/terminal-websocket';
 import { resetTerminalStatuses } from './services/terminal';
@@ -75,6 +76,9 @@ app.use('/api/wsim', wsimApiRoutes);
 app.use('/api/user', userApiRoutes);
 app.use('/terminal', terminalRoutes);
 app.use('/api/terminal', terminalApiRoutes);
+// Agent Commerce API (SACP)
+app.use('/.well-known', agentApiRoutes); // UCP discovery at /.well-known/ucp
+app.use('/api/agent/v1', agentApiRoutes); // Agent API endpoints
 app.use('/', pageRoutes);
 
 // Health check
@@ -144,6 +148,10 @@ async function start() {
       console.log(`SSIM Store Simulator running on port ${config.port}`);
       console.log(`Visit: ${config.appBaseUrl}`);
       console.log(`Terminal WebSocket: ${config.appBaseUrl.replace('http', 'ws')}/terminal/ws`);
+      if (config.agentApiEnabled || process.env.WSIM_AGENT_MOCK === 'true') {
+        console.log(`Agent Commerce API: ${config.appBaseUrl}/api/agent/v1`);
+        console.log(`UCP Discovery: ${config.appBaseUrl}/.well-known/ucp`);
+      }
     });
 
     // Register webhook after server is listening (non-blocking)
