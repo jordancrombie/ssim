@@ -109,7 +109,7 @@ export async function introspectAgentToken(
 
   const introspectUrl = `${config.wsimAgentApiUrl}/oauth/introspect`;
   const credentials = Buffer.from(
-    `${config.wsimClientId}:${config.wsimClientSecret}`
+    `${config.wsimIntrospectionClientId}:${config.wsimIntrospectionClientSecret}`
   ).toString('base64');
 
   let lastError: Error | null = null;
