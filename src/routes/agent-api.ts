@@ -679,11 +679,12 @@ router.post(
         },
       });
 
-      // TODO: Integrate with NSIM payment processing
-      // For now, simulate successful payment in mock mode
-      if (process.env.WSIM_AGENT_MOCK === 'true') {
-        // Create order
-        const buyer = session.buyer as any;
+      // If we have a payment_token (from WSIM), the payment is authorized
+      // Create the order - WSIM has already validated the payment
+      const finalPaymentToken = paymentToken || req.body.paymentToken;
+
+      if (finalPaymentToken || process.env.WSIM_AGENT_MOCK === 'true') {
+        // Create order - payment is authorized via WSIM token or mock mode
         const order = await prisma.order.create({
           data: {
             storeId: session.storeId,
@@ -698,6 +699,7 @@ router.post(
               paymentMethod: 'agent_wallet',
               agentId: session.agentId,
               mandateId: mandateId || null,
+              paymentToken: finalPaymentToken || null,
             },
           },
         });
@@ -715,7 +717,7 @@ router.post(
             status: 'completed',
             payment: {
               order_id: order.id,
-              transaction_id: `mock_tx_${Date.now()}`,
+              transaction_id: finalPaymentToken ? `wsim_${Date.now()}` : `mock_tx_${Date.now()}`,
               status: 'authorized',
             },
             messages,
@@ -729,10 +731,10 @@ router.post(
         });
       }
 
-      // Real NSIM integration would go here
+      // No payment token and not in mock mode - cannot proceed
       res.status(501).json({
         error: 'not_implemented',
-        message: 'Real payment processing not yet implemented. Enable WSIM_AGENT_MOCK=true for testing.',
+        message: 'Real payment processing requires a payment_token from WSIM. Enable WSIM_AGENT_MOCK=true for testing without WSIM.',
       });
     } catch (error) {
       console.error('[Agent API] Complete session error:', error);

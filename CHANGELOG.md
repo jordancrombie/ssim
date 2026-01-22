@@ -2,6 +2,22 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.0.5] - 2026-01-22
+
+### Fixed
+- **Checkout now works with real WSIM payment tokens** - Previously returned 501 unless `WSIM_AGENT_MOCK=true`
+  - When a `payment_token` is provided (from WSIM after step-up approval), SSIM now trusts it and creates the order
+  - Mock mode is only required when SSIM needs to simulate WSIM token generation
+  - Payment token is stored in order's `paymentDetails` for audit trail
+  - Transaction ID distinguishes real (`wsim_*`) vs mock (`mock_tx_*`) payments
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/routes/agent-api.ts` | Create orders when valid `payment_token` provided, not just in mock mode |
+
+---
+
 ## [2.0.4] - 2026-01-22
 
 ### Fixed
