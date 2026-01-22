@@ -164,7 +164,7 @@ router.get('/products', optionalAgentAuth, async (req: Request, res: Response) =
         total,
         limit: parseInt(String(limit), 10),
         offset: parseInt(String(offset), 10),
-        hasMore: parseInt(String(offset), 10) + products.length < total,
+        has_more: parseInt(String(offset), 10) + products.length < total,
       },
     });
   } catch (error) {
@@ -214,7 +214,7 @@ router.get('/products/search', optionalAgentAuth, async (req: Request, res: Resp
         total,
         limit: parseInt(String(limit), 10),
         offset: parseInt(String(offset), 10),
-        hasMore: parseInt(String(offset), 10) + products.length < total,
+        has_more: parseInt(String(offset), 10) + products.length < total,
       },
     });
   } catch (error) {
@@ -250,6 +250,7 @@ router.get('/products/:id', optionalAgentAuth, async (req: Request, res: Respons
 
 /**
  * Format product for API response
+ * Uses snake_case per SACP protocol convention
  */
 function formatProduct(product: any) {
   return {
@@ -301,7 +302,8 @@ router.post('/sessions', authenticateAgent, async (req: Request, res: Response) 
     }
 
     // Validate items and fetch product details
-    const productIds = items.map((item: any) => item.productId);
+    // Accept both snake_case (SACP convention) and camelCase for compatibility
+    const productIds = items.map((item: any) => item.product_id || item.productId);
     const products = await prisma.product.findMany({
       where: {
         id: { in: productIds },
@@ -316,19 +318,20 @@ router.post('/sessions', authenticateAgent, async (req: Request, res: Response) 
       return res.status(400).json({
         error: 'item_unavailable',
         message: 'Some products are not available',
-        unavailableItems: missingIds,
+        unavailable_items: missingIds,
       });
     }
 
     // Build cart
     const cartItems = items.map((item: any) => {
-      const product = products.find((p) => p.id === item.productId)!;
+      const itemProductId = item.product_id || item.productId;
+      const product = products.find((p) => p.id === itemProductId)!;
       const quantity = Math.max(1, parseInt(item.quantity, 10) || 1);
       return {
-        productId: product.id,
+        product_id: product.id,
         name: product.name,
         quantity,
-        unitPrice: product.price,
+        unit_price: product.price,
         subtotal: product.price * quantity,
       };
     });
@@ -453,7 +456,8 @@ router.patch('/sessions/:id', authenticateAgent, async (req: Request, res: Respo
 
     // Update items if provided
     if (items && Array.isArray(items)) {
-      const productIds = items.map((item: any) => item.productId);
+      // Accept both snake_case (SACP convention) and camelCase for compatibility
+      const productIds = items.map((item: any) => item.product_id || item.productId);
       const products = await prisma.product.findMany({
         where: {
           id: { in: productIds },
@@ -468,18 +472,19 @@ router.patch('/sessions/:id', authenticateAgent, async (req: Request, res: Respo
         return res.status(400).json({
           error: 'item_unavailable',
           message: 'Some products are not available',
-          unavailableItems: missingIds,
+          unavailable_items: missingIds,
         });
       }
 
       const cartItems = items.map((item: any) => {
-        const product = products.find((p) => p.id === item.productId)!;
+        const itemProductId = item.product_id || item.productId;
+        const product = products.find((p) => p.id === itemProductId)!;
         const quantity = Math.max(1, parseInt(item.quantity, 10) || 1);
         return {
-          productId: product.id,
+          product_id: product.id,
           name: product.name,
           quantity,
-          unitPrice: product.price,
+          unit_price: product.price,
           subtotal: product.price * quantity,
         };
       });
@@ -639,7 +644,7 @@ router.post(
 
           return res.status(202).json({
             status: 'awaiting_authorization',
-            stepUpId: tokenResponse.stepUpId,
+            step_up_id: tokenResponse.stepUpId,
             message: 'Human approval required. Check back for status.',
           });
         }
@@ -707,8 +712,8 @@ router.post(
           data: {
             status: 'completed',
             payment: {
-              orderId: order.id,
-              transactionId: `mock_tx_${Date.now()}`,
+              order_id: order.id,
+              transaction_id: `mock_tx_${Date.now()}`,
               status: 'authorized',
             },
             messages,
@@ -717,7 +722,7 @@ router.post(
 
         return res.json({
           status: 'completed',
-          orderId: order.id,
+          order_id: order.id,
           message: 'Order created successfully',
         });
       }
@@ -783,19 +788,21 @@ router.delete('/sessions/:id', authenticateAgent, async (req: Request, res: Resp
 
 /**
  * Format session for API response
+ * Uses snake_case per SACP protocol convention
  */
 function formatSession(session: any) {
   const cart = session.cart as any;
   return {
-    sessionId: session.id,
+    session_id: session.id,
     status: session.status,
     cart: cart
       ? {
           items: cart.items?.map((item: any) => ({
-            productId: item.productId,
+            // Support both old camelCase and new snake_case stored data
+            product_id: item.product_id || item.productId,
             name: item.name,
             quantity: item.quantity,
-            unitPrice: item.unitPrice / 100,
+            unit_price: (item.unit_price || item.unitPrice) / 100,
             subtotal: item.subtotal / 100,
           })),
           subtotal: (cart.subtotal || 0) / 100,
@@ -809,9 +816,9 @@ function formatSession(session: any) {
     fulfillment: session.fulfillment,
     payment: session.payment,
     messages: session.messages,
-    expiresAt: session.expiresAt.toISOString(),
-    createdAt: session.createdAt.toISOString(),
-    updatedAt: session.updatedAt.toISOString(),
+    expires_at: session.expiresAt.toISOString(),
+    created_at: session.createdAt.toISOString(),
+    updated_at: session.updatedAt.toISOString(),
   };
 }
 

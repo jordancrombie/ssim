@@ -2,6 +2,21 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.0.1] - 2026-01-22
+
+### Changed
+- **Agent API now uses snake_case** - Aligned with SACP protocol convention
+  - Request fields: `product_id` (also accepts `productId` for compatibility)
+  - Response fields: `session_id`, `product_id`, `unit_price`, `expires_at`, `created_at`, `updated_at`, `has_more`, `step_up_id`, `order_id`, `transaction_id`, `retry_after`, `unavailable_items`
+  - Matches WSIM Agent API convention used for token introspection and payment requests
+
+### Technical Details
+- Backward compatible request parsing: accepts both `product_id` and `productId`
+- Stored cart data supports both old camelCase and new snake_case formats
+- Breaking change for clients expecting camelCase responses
+
+---
+
 ## [2.0.0] - 2026-01-21
 
 ### Added

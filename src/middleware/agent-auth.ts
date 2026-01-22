@@ -113,7 +113,7 @@ export async function authenticateAgent(
       res.status(429).json({
         error: 'rate_limit_exceeded',
         message: 'Too many requests. Please slow down.',
-        retryAfter: 60,
+        retry_after: 60,
       });
       return;
     }
