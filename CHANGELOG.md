@@ -2,6 +2,21 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.0.4] - 2026-01-22
+
+### Fixed
+- **Checkout endpoint now accepts snake_case parameters** - `payment_token` and `mandate_id`
+  - Previously only accepted camelCase (`paymentToken`, `mandateId`)
+  - Agents sending `{"payment_token": "..."}` were being ignored, causing unnecessary step-up requests
+  - Now accepts both formats for SACP compatibility
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/routes/agent-api.ts` | Accept `payment_token`/`mandate_id` in addition to camelCase |
+
+---
+
 ## [2.0.3] - 2026-01-22
 
 ### Fixed

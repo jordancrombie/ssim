@@ -603,7 +603,9 @@ router.post(
         });
       }
 
-      const { paymentToken, mandateId } = req.body;
+      // Accept both snake_case (SACP convention) and camelCase for compatibility
+      const paymentToken = req.body.payment_token || req.body.paymentToken;
+      const mandateId = req.body.mandate_id || req.body.mandateId;
       const cart = session.cart as any;
 
       // If no payment token, request one from WSIM
