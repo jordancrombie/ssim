@@ -613,13 +613,13 @@ router.post(
 
         const tokenResponse = await requestPaymentToken(agentToken, {
           merchantId: config.merchantId,
-          amount: cart.total,
+          amount: cart.total / 100, // Convert cents to dollars for WSIM
           currency: cart.currency,
           sessionId: session.id,
           items: cart.items.map((item: any) => ({
             name: item.name,
             quantity: item.quantity,
-            price: item.unitPrice,
+            price: (item.unit_price || item.unitPrice) / 100, // Convert cents to dollars
           })),
           callbackUrl: `${config.appBaseUrl}/api/agent/v1/sessions/${session.id}/webhook`,
         });

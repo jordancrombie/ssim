@@ -2,6 +2,21 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.0.3] - 2026-01-22
+
+### Fixed
+- **Payment amount conversion bug** - Cart amounts were passed in cents to WSIM which expects dollars
+  - `cart.total` now divided by 100 before sending to WSIM payment token request
+  - `item.unitPrice` / `item.unit_price` now converted to dollars for line items
+  - This was causing $77.79 purchases to appear as $7,779.00 in WSIM step-up notifications
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/routes/agent-api.ts` | Fixed cents-to-dollars conversion in `requestPaymentToken()` call |
+
+---
+
 ## [2.0.2] - 2026-01-22
 
 ### Added
