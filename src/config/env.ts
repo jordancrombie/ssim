@@ -79,4 +79,6 @@ export const config = {
   agentSessionExpirationMinutes: Math.min(60, Math.max(5, parseInt(process.env.AGENT_SESSION_EXPIRATION_MINUTES || '30', 10))),
   // Rate limiting (requests per minute per agent, default 1000 per Q20)
   agentRateLimitPerMinute: parseInt(process.env.AGENT_RATE_LIMIT_PER_MINUTE || '1000', 10),
+  // WSIM Webhook secret for token revocation notifications
+  wsimWebhookSecret: process.env.WSIM_WEBHOOK_SECRET || '',
 };

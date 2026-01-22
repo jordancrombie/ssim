@@ -3,6 +3,7 @@
  * Handles token introspection and agent identity verification for SACP
  */
 
+import crypto from 'crypto';
 import { config } from '../config/env';
 
 /**
@@ -29,10 +30,21 @@ export interface AgentContext {
 interface TokenCacheEntry {
   context: AgentContext;
   cachedAt: number;
+  tokenHash: string;
 }
 
 // In-memory token cache (per Q18: 60-second TTL approved)
 const tokenCache = new Map<string, TokenCacheEntry>();
+
+// Reverse lookup: hash -> token (for webhook-based invalidation)
+const hashToTokenMap = new Map<string, string>();
+
+/**
+ * Compute SHA-256 hash of a token
+ */
+export function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 /**
  * Clean expired entries from cache
@@ -43,6 +55,7 @@ function cleanExpiredCache(): void {
 
   for (const [token, entry] of tokenCache.entries()) {
     if (now - entry.cachedAt > ttlMs) {
+      hashToTokenMap.delete(entry.tokenHash);
       tokenCache.delete(token);
     }
   }
@@ -73,17 +86,68 @@ function getCachedToken(token: string): AgentContext | null {
  * Cache a token introspection result
  */
 function cacheToken(token: string, context: AgentContext): void {
+  const tokenHashValue = hashToken(token);
   tokenCache.set(token, {
     context,
     cachedAt: Date.now(),
+    tokenHash: tokenHashValue,
   });
+  // Store reverse lookup for webhook-based invalidation
+  hashToTokenMap.set(tokenHashValue, token);
 }
 
 /**
  * Invalidate a cached token (e.g., on revocation webhook)
  */
 export function invalidateToken(token: string): void {
+  const entry = tokenCache.get(token);
+  if (entry) {
+    hashToTokenMap.delete(entry.tokenHash);
+  }
   tokenCache.delete(token);
+  console.log('[WSIM Agent] Token invalidated from cache');
+}
+
+/**
+ * Invalidate a token by its hash (called from WSIM revocation webhook)
+ */
+export function invalidateTokenByHash(tokenHashValue: string): boolean {
+  const token = hashToTokenMap.get(tokenHashValue);
+  if (token) {
+    tokenCache.delete(token);
+    hashToTokenMap.delete(tokenHashValue);
+    console.log('[WSIM Agent] Token invalidated by hash');
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Invalidate all tokens for a specific agent (called from WSIM revocation webhook)
+ */
+export function invalidateTokensByAgentId(agentId: string): number {
+  let count = 0;
+  for (const [token, entry] of tokenCache.entries()) {
+    if (entry.context.agentId === agentId) {
+      hashToTokenMap.delete(entry.tokenHash);
+      tokenCache.delete(token);
+      count++;
+    }
+  }
+  if (count > 0) {
+    console.log(`[WSIM Agent] Invalidated ${count} token(s) for agent ${agentId}`);
+  }
+  return count;
+}
+
+/**
+ * Get cache statistics (for debugging/monitoring)
+ */
+export function getCacheStats(): { tokenCount: number; hashCount: number } {
+  return {
+    tokenCount: tokenCache.size,
+    hashCount: hashToTokenMap.size,
+  };
 }
 
 /**

@@ -18,6 +18,7 @@ import userApiRoutes from './routes/user-api';
 import terminalRoutes from './routes/terminal';
 import terminalApiRoutes from './routes/terminal-api';
 import agentApiRoutes from './routes/agent-api';
+import agentWebhooksRoutes from './routes/agent-webhooks';
 import { registerWebhook } from './services/payment';
 import { initializeWebSocket } from './services/terminal-websocket';
 import { resetTerminalStatuses } from './services/terminal';
@@ -79,6 +80,7 @@ app.use('/api/terminal', terminalApiRoutes);
 // Agent Commerce API (SACP)
 app.use('/.well-known', agentApiRoutes); // UCP discovery at /.well-known/ucp
 app.use('/api/agent/v1', agentApiRoutes); // Agent API endpoints
+app.use('/api/agent/webhooks', agentWebhooksRoutes); // Agent token revocation webhooks
 app.use('/', pageRoutes);
 
 // Health check
@@ -151,6 +153,7 @@ async function start() {
       if (config.agentApiEnabled || process.env.WSIM_AGENT_MOCK === 'true') {
         console.log(`Agent Commerce API: ${config.appBaseUrl}/api/agent/v1`);
         console.log(`UCP Discovery: ${config.appBaseUrl}/.well-known/ucp`);
+        console.log(`Agent Webhooks: ${config.appBaseUrl}/api/agent/webhooks`);
       }
     });
 

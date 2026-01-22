@@ -2,6 +2,40 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.0.2] - 2026-01-22
+
+### Added
+- **Webhook-based token cache invalidation** - Immediate token revocation support
+  - New endpoint `POST /api/agent/webhooks/token-revoked` for WSIM notifications
+  - HMAC signature verification with timestamp validation (5 min tolerance)
+  - Invalidation by token hash or agent ID
+  - Health check at `GET /api/agent/webhooks/health` with cache stats
+
+### New Environment Variables
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WSIM_WEBHOOK_SECRET` | (none) | Shared secret for WSIM webhook signature verification |
+
+### Technical Details
+- Token cache now tracks SHA-256 hashes for webhook-based invalidation
+- Reverse lookup map enables O(1) invalidation by hash
+- Agent-level invalidation removes all cached tokens for a deactivated agent
+- Cache statistics available via webhook health endpoint
+
+### New Files
+| File | Description |
+|------|-------------|
+| `src/routes/agent-webhooks.ts` | Webhook endpoint for token revocation |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/services/wsim-agent.ts` | Added hash tracking, `invalidateTokenByHash()`, `invalidateTokensByAgentId()` |
+| `src/config/env.ts` | Added `wsimWebhookSecret` configuration |
+| `src/server.ts` | Mounted agent webhooks router |
+
+---
+
 ## [2.0.1] - 2026-01-22
 
 ### Changed
