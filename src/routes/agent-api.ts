@@ -20,6 +20,7 @@ import { config } from '../config/env';
 import { authenticateAgent, optionalAgentAuth } from '../middleware/agent-auth';
 import { getOrCreateStore } from '../services/store';
 import { requestPaymentToken } from '../services/wsim-agent';
+import { authorizePayment } from '../services/payment';
 
 const router = Router();
 
@@ -679,12 +680,20 @@ router.post(
         },
       });
 
-      // If we have a payment_token (from WSIM), the payment is authorized
-      // Create the order - WSIM has already validated the payment
+      // If we have a payment_token (from WSIM), process through NSIM
       const finalPaymentToken = paymentToken || req.body.paymentToken;
 
       if (finalPaymentToken || process.env.WSIM_AGENT_MOCK === 'true') {
-        // Create order - payment is authorized via WSIM token or mock mode
+        // Build agent context for NSIM (forwarded to BSIM for visibility)
+        const agentContext = {
+          agentId: session.agentId,
+          ownerId: session.ownerId,
+          humanPresent: false,
+          mandateId: mandateId || session.mandateId || undefined,
+          mandateType: 'cart' as const,
+        };
+
+        // Create order first (pending payment authorization)
         const order = await prisma.order.create({
           data: {
             storeId: session.storeId,
@@ -692,7 +701,7 @@ router.post(
             items: cart.items,
             subtotal: cart.total,
             currency: cart.currency,
-            status: 'authorized',
+            status: 'pending', // Will be updated after NSIM authorization
             agentId: session.agentId,
             agentSessionId: session.id,
             paymentDetails: {
@@ -700,6 +709,127 @@ router.post(
               agentId: session.agentId,
               mandateId: mandateId || null,
               paymentToken: finalPaymentToken || null,
+            },
+          },
+        });
+
+        let transactionId: string | null = null;
+        let paymentStatus: 'authorized' | 'declined' | 'failed' = 'authorized';
+
+        // Process payment through NSIM (unless in mock mode without real token)
+        if (finalPaymentToken) {
+          try {
+            console.log(`[Agent API] Authorizing payment via NSIM for order ${order.id}`);
+
+            const authResult = await authorizePayment({
+              merchantId: config.merchantId,
+              amount: cart.total,
+              currency: cart.currency,
+              cardToken: finalPaymentToken, // WSIM payment token acts as card token
+              orderId: order.id,
+              agentContext,
+            });
+
+            transactionId = authResult.transactionId;
+            paymentStatus = authResult.status;
+
+            console.log(`[Agent API] NSIM authorization result: ${paymentStatus}, txn: ${transactionId}`);
+
+            if (paymentStatus === 'declined') {
+              // Update order to declined
+              await prisma.order.update({
+                where: { id: order.id },
+                data: { status: 'declined' },
+              });
+
+              messages.push({
+                timestamp: new Date().toISOString(),
+                type: 'declined',
+                message: authResult.declineReason || 'Payment declined',
+              });
+
+              await prisma.agentSession.update({
+                where: { id: session.id },
+                data: {
+                  status: 'failed',
+                  payment: {
+                    order_id: order.id,
+                    transaction_id: transactionId,
+                    status: 'declined',
+                    decline_reason: authResult.declineReason,
+                  },
+                  messages,
+                },
+              });
+
+              return res.status(400).json({
+                status: 'declined',
+                order_id: order.id,
+                message: authResult.declineReason || 'Payment declined',
+              });
+            }
+
+            if (paymentStatus === 'failed') {
+              // Update order to failed
+              await prisma.order.update({
+                where: { id: order.id },
+                data: { status: 'failed' },
+              });
+
+              messages.push({
+                timestamp: new Date().toISOString(),
+                type: 'failed',
+                message: authResult.message || 'Payment failed',
+              });
+
+              await prisma.agentSession.update({
+                where: { id: session.id },
+                data: {
+                  status: 'failed',
+                  payment: {
+                    order_id: order.id,
+                    transaction_id: transactionId,
+                    status: 'failed',
+                    error: authResult.message,
+                  },
+                  messages,
+                },
+              });
+
+              return res.status(500).json({
+                status: 'failed',
+                order_id: order.id,
+                message: authResult.message || 'Payment processing failed',
+              });
+            }
+          } catch (error) {
+            console.error('[Agent API] NSIM authorization error:', error);
+            // For now, fail the order if NSIM is unavailable
+            await prisma.order.update({
+              where: { id: order.id },
+              data: { status: 'failed' },
+            });
+
+            return res.status(500).json({
+              error: 'payment_processing_error',
+              message: error instanceof Error ? error.message : 'Payment processing failed',
+            });
+          }
+        } else {
+          // Mock mode - generate mock transaction ID
+          transactionId = `mock_tx_${Date.now()}`;
+          console.log(`[Agent API] Mock mode - skipping NSIM, generated txn: ${transactionId}`);
+        }
+
+        // Payment authorized - update order status
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'authorized',
+            paymentDetails: {
+              ...(order.paymentDetails as object),
+              transactionId,
+              authorizationCode: transactionId,
             },
           },
         });
@@ -717,7 +847,7 @@ router.post(
             status: 'completed',
             payment: {
               order_id: order.id,
-              transaction_id: finalPaymentToken ? `wsim_${Date.now()}` : `mock_tx_${Date.now()}`,
+              transaction_id: transactionId,
               status: 'authorized',
             },
             messages,
@@ -727,6 +857,7 @@ router.post(
         return res.json({
           status: 'completed',
           order_id: order.id,
+          transaction_id: transactionId,
           message: 'Order created successfully',
         });
       }

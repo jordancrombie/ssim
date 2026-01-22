@@ -2,6 +2,35 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.1.0] - 2026-01-22
+
+### Added
+- **NSIM payment integration with agentContext (Sprint 2)** - Agent checkouts now process through NSIM
+  - Added `AgentContext` interface to `AuthorizeParams` in payment service
+  - Agent checkouts call `authorizePayment()` with full agent context
+  - NSIM forwards `agentContext` to BSIM for agent transaction visibility
+  - BSIM can now display 🤖 agent badge on transactions initiated by AI agents
+
+### Changed
+- **Agent checkout flow now calls NSIM for real payment authorization**
+  - Previously only created orders without payment processing
+  - Now calls `POST /api/v1/payments/authorize` with agentContext
+  - Handles authorized, declined, and failed responses appropriately
+  - Transaction ID from NSIM stored on order for payment reconciliation
+
+### Technical Details
+- `agentContext` includes: `agentId`, `ownerId`, `humanPresent`, `mandateId`, `mandateType`
+- Mock mode (`WSIM_AGENT_MOCK=true`) skips NSIM call for local testing
+- Order created first with `pending` status, updated after NSIM authorization
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/services/payment.ts` | Added `AgentContext` interface, `agentContext` param to `AuthorizeParams` |
+| `src/routes/agent-api.ts` | Call `authorizePayment()` with agentContext during checkout completion |
+
+---
+
 ## [2.0.5] - 2026-01-22
 
 ### Fixed
