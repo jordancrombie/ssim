@@ -1,6 +1,6 @@
 # SSIM - Store Simulator
 
-**Version:** 1.16.1 | **Production URL:** https://ssim.banksim.ca
+**Version:** 2.0.2 | **Production URL:** https://ssim.banksim.ca
 
 A merchant demo application that demonstrates e-commerce payment flows using BSIM (Banking Simulator) for authentication and NSIM (Network Simulator) for payment processing.
 

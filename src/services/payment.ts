@@ -1,5 +1,17 @@
 import { config } from '../config/env';
 
+/**
+ * Agent context for SACP transactions
+ * Passed to NSIM for forwarding to BSIM for agent visibility
+ */
+export interface AgentContext {
+  agentId: string;
+  ownerId: string;
+  humanPresent: boolean;
+  mandateId?: string;
+  mandateType?: string;
+}
+
 export interface AuthorizeParams {
   merchantId: string;
   amount: number;
@@ -7,6 +19,7 @@ export interface AuthorizeParams {
   cardToken: string;
   walletCardToken?: string;  // For wallet payments - used by NSIM for routing
   orderId: string;
+  agentContext?: AgentContext;  // For agent-initiated transactions (SACP)
 }
 
 export interface AuthorizeResult {
@@ -101,6 +114,12 @@ export async function authorizePayment(params: AuthorizeParams): Promise<Authori
   // Include wallet routing token if present (for wallet payments)
   if (params.walletCardToken) {
     body.walletCardToken = params.walletCardToken;
+  }
+
+  // Include agent context for SACP transactions
+  if (params.agentContext) {
+    body.agentContext = params.agentContext;
+    console.log('[PaymentService] Including agentContext:', params.agentContext.agentId);
   }
 
   return makePaymentRequest<AuthorizeResult>('/authorize', 'POST', body);

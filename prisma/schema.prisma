@@ -42,11 +42,12 @@ model Store {
   walletMobileEnabled        Boolean @default(true)  // WSIM mobile app payment (mwsim deep link)
   qrPaymentEnabled           Boolean @default(false) // QR code payment for desktop (scan with mwsim)
 
-  users     StoreUser[]
-  products  Product[]
-  orders    Order[]
-  admins    StoreAdmin[]
-  terminals Terminal[]
+  users         StoreUser[]
+  products      Product[]
+  orders        Order[]
+  admins        StoreAdmin[]
+  terminals     Terminal[]
+  agentSessions AgentSession[]
 
   @@map("stores")
 }
@@ -146,6 +147,10 @@ model Order {
   // Mobile wallet payment tracking (for cross-tab order lookup)
   mobilePaymentRequestId String? // WSIM mobile payment request ID (for mwsim flow)
 
+  // Agent commerce fields (SACP)
+  agentId        String? // WSIM agent ID if order placed by agent
+  agentSessionId String? // Reference to AgentSession if order originated from agent checkout
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -154,6 +159,7 @@ model Order {
   @@index([storeId, bsimUserId])
   @@index([storeUserId])
   @@index([mobilePaymentRequestId]) // Fast lookup for cross-tab scenarios
+  @@index([agentId]) // Fast lookup for agent orders
   @@map("orders")
 }
 
@@ -242,4 +248,48 @@ model TerminalPairingCode {
   @@index([code])
   @@index([storeId])
   @@map("terminal_pairing_codes")
+}
+
+// ============================================
+// Agent Commerce Sessions (SACP)
+// ============================================
+
+// Agent checkout sessions - completely isolated from human sessions
+// Part of SimToolBox Agent Commerce Protocol (SACP)
+model AgentSession {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  // Agent identity (from WSIM token introspection)
+  agentId   String   // WSIM agent ID
+  ownerId   String   // WSIM user who owns the agent
+
+  // Session state machine
+  // cart_building -> awaiting_buyer_info -> awaiting_authorization -> ready_for_payment -> processing -> completed/cancelled/failed
+  status    String   @default("cart_building")
+
+  // Session data (JSON for flexibility)
+  cart        Json   @default("{}") // {items: [{productId, name, quantity, unitPrice, subtotal}], subtotal, tax, shipping, total, currency}
+  buyer       Json?  // {name, email}
+  fulfillment Json?  // {type, address: {line1, city, province, postalCode, country}}
+  payment     Json?  // Payment details after completion
+
+  // WSIM mandate reference (for step-up flow)
+  mandateId   String?
+
+  // Agent communication log
+  messages    Json   @default("[]") // Array of {timestamp, type, message}
+
+  // Session lifecycle
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([storeId])
+  @@index([agentId])
+  @@index([ownerId])
+  @@index([expiresAt])
+  @@index([storeId, status])
+  @@map("agent_sessions")
 }

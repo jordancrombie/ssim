@@ -2,6 +2,240 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.1.1] - 2026-01-23
+
+### Fixed
+- **Q30: Extract card_token from WSIM payment JWT** - Agent payments were failing with "Invalid card token"
+  - WSIM payment tokens are JWTs containing `wallet_card_token` and `card_token`
+  - Previously passed the entire JWT as `cardToken` to NSIM (incorrect)
+  - Now decodes JWT and extracts both tokens (same pattern as `payment.ts:448-468`)
+  - `cardToken` → used by BSIM for authorization
+  - `walletCardToken` → used by NSIM for routing
+
+### Changed
+- **Graceful error when card_token missing** - Returns clear error message until WSIM is updated
+  - `400 invalid_payment_token` with message explaining WSIM update required
+  - Order marked as failed to prevent orphaned pending orders
+
+### Technical Details
+- Requires WSIM v1.0.6+ to include `card_token` in payment JWT (Q30)
+- Deployment order: WSIM first, then SSIM
+- See Q30 in PROJECT_QA.md for full analysis
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/routes/agent-api.ts` | Decode JWT, extract `card_token` + `wallet_card_token`, pass to `authorizePayment()` |
+
+---
+
+## [2.1.0] - 2026-01-22
+
+### Added
+- **NSIM payment integration with agentContext (Sprint 2)** - Agent checkouts now process through NSIM
+  - Added `AgentContext` interface to `AuthorizeParams` in payment service
+  - Agent checkouts call `authorizePayment()` with full agent context
+  - NSIM forwards `agentContext` to BSIM for agent transaction visibility
+  - BSIM can now display 🤖 agent badge on transactions initiated by AI agents
+
+### Changed
+- **Agent checkout flow now calls NSIM for real payment authorization**
+  - Previously only created orders without payment processing
+  - Now calls `POST /api/v1/payments/authorize` with agentContext
+  - Handles authorized, declined, and failed responses appropriately
+  - Transaction ID from NSIM stored on order for payment reconciliation
+
+### Technical Details
+- `agentContext` includes: `agentId`, `ownerId`, `humanPresent`, `mandateId`, `mandateType`
+- Mock mode (`WSIM_AGENT_MOCK=true`) skips NSIM call for local testing
+- Order created first with `pending` status, updated after NSIM authorization
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/services/payment.ts` | Added `AgentContext` interface, `agentContext` param to `AuthorizeParams` |
+| `src/routes/agent-api.ts` | Call `authorizePayment()` with agentContext during checkout completion |
+
+---
+
+## [2.0.5] - 2026-01-22
+
+### Fixed
+- **Checkout now works with real WSIM payment tokens** - Previously returned 501 unless `WSIM_AGENT_MOCK=true`
+  - When a `payment_token` is provided (from WSIM after step-up approval), SSIM now trusts it and creates the order
+  - Mock mode is only required when SSIM needs to simulate WSIM token generation
+  - Payment token is stored in order's `paymentDetails` for audit trail
+  - Transaction ID distinguishes real (`wsim_*`) vs mock (`mock_tx_*`) payments
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/routes/agent-api.ts` | Create orders when valid `payment_token` provided, not just in mock mode |
+
+---
+
+## [2.0.4] - 2026-01-22
+
+### Fixed
+- **Checkout endpoint now accepts snake_case parameters** - `payment_token` and `mandate_id`
+  - Previously only accepted camelCase (`paymentToken`, `mandateId`)
+  - Agents sending `{"payment_token": "..."}` were being ignored, causing unnecessary step-up requests
+  - Now accepts both formats for SACP compatibility
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/routes/agent-api.ts` | Accept `payment_token`/`mandate_id` in addition to camelCase |
+
+---
+
+## [2.0.3] - 2026-01-22
+
+### Fixed
+- **Payment amount conversion bug** - Cart amounts were passed in cents to WSIM which expects dollars
+  - `cart.total` now divided by 100 before sending to WSIM payment token request
+  - `item.unitPrice` / `item.unit_price` now converted to dollars for line items
+  - This was causing $77.79 purchases to appear as $7,779.00 in WSIM step-up notifications
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/routes/agent-api.ts` | Fixed cents-to-dollars conversion in `requestPaymentToken()` call |
+
+---
+
+## [2.0.2] - 2026-01-22
+
+### Added
+- **Webhook-based token cache invalidation** - Immediate token revocation support
+  - New endpoint `POST /api/agent/webhooks/token-revoked` for WSIM notifications
+  - HMAC signature verification with timestamp validation (5 min tolerance)
+  - Invalidation by token hash or agent ID
+  - Health check at `GET /api/agent/webhooks/health` with cache stats
+
+### New Environment Variables
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WSIM_WEBHOOK_SECRET` | (none) | Shared secret for WSIM webhook signature verification |
+
+### Technical Details
+- Token cache now tracks SHA-256 hashes for webhook-based invalidation
+- Reverse lookup map enables O(1) invalidation by hash
+- Agent-level invalidation removes all cached tokens for a deactivated agent
+- Cache statistics available via webhook health endpoint
+
+### New Files
+| File | Description |
+|------|-------------|
+| `src/routes/agent-webhooks.ts` | Webhook endpoint for token revocation |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/services/wsim-agent.ts` | Added hash tracking, `invalidateTokenByHash()`, `invalidateTokensByAgentId()` |
+| `src/config/env.ts` | Added `wsimWebhookSecret` configuration |
+| `src/server.ts` | Mounted agent webhooks router |
+
+---
+
+## [2.0.1] - 2026-01-22
+
+### Changed
+- **Agent API now uses snake_case** - Aligned with SACP protocol convention
+  - Request fields: `product_id` (also accepts `productId` for compatibility)
+  - Response fields: `session_id`, `product_id`, `unit_price`, `expires_at`, `created_at`, `updated_at`, `has_more`, `step_up_id`, `order_id`, `transaction_id`, `retry_after`, `unavailable_items`
+  - Matches WSIM Agent API convention used for token introspection and payment requests
+
+### Technical Details
+- Backward compatible request parsing: accepts both `product_id` and `productId`
+- Stored cart data supports both old camelCase and new snake_case formats
+- Breaking change for clients expecting camelCase responses
+
+---
+
+## [2.0.0] - 2026-01-21
+
+### Added
+- **Agent Commerce Protocol (SACP) Support** - AI agents can now browse products and complete purchases
+  - Part of SimToolBox Agent Commerce Protocol cross-team initiative
+  - Enables autonomous AI shopping with human oversight for step-up approvals
+
+- **UCP Discovery Endpoint** - Standard discovery at `/.well-known/ucp`
+  - Returns store capabilities, API endpoints, payment methods
+  - Schema.org-compatible merchant information
+  - Configurable session expiration (5-60 minutes, default 30)
+
+- **Agent Authentication Middleware** - WSIM token validation
+  - Bearer token authentication via WSIM introspection
+  - Token caching with 60-second TTL (per SACP Q18)
+  - Rate limiting at 1000 req/min per agent (per SACP Q20)
+  - Retry with exponential backoff on WSIM unavailability (per SACP Q21)
+
+- **Product Catalog API for Agents** - Machine-readable product data
+  - `GET /api/agent/v1/products` - List products with pagination
+  - `GET /api/agent/v1/products/search` - Full-text search
+  - `GET /api/agent/v1/products/:id` - Product details with Schema.org markup
+
+- **Checkout Session API** - Agent checkout flow
+  - `POST /api/agent/v1/sessions` - Create checkout session
+  - `GET /api/agent/v1/sessions/:id` - Get session status
+  - `PATCH /api/agent/v1/sessions/:id` - Update cart, buyer info, fulfillment
+  - `POST /api/agent/v1/sessions/:id/complete` - Complete checkout
+  - `DELETE /api/agent/v1/sessions/:id` - Cancel session
+
+- **WSIM Agent Client Service** - Integration with WSIM agent APIs
+  - Token introspection with caching
+  - Payment token requests with step-up flow support
+  - Mock mode for development (`WSIM_AGENT_MOCK=true`)
+
+- **Session State Machine** - Robust checkout flow management
+  - States: `cart_building` → `awaiting_buyer_info` → `awaiting_authorization` → `ready_for_payment` → `processing` → `completed`/`cancelled`/`failed`
+  - Session expiration with configurable timeout
+  - Complete isolation from human browser sessions (per SACP Q19)
+
+### New Environment Variables
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AGENT_API_ENABLED` | `false` | Enable agent commerce API endpoints |
+| `WSIM_AGENT_API_URL` | `https://wsim-dev.banksim.ca/api/agent/v1` | WSIM agent API endpoint |
+| `AGENT_TOKEN_CACHE_TTL` | `60` | Token cache TTL in seconds |
+| `AGENT_SESSION_EXPIRATION_MINUTES` | `30` | Session expiration (5-60 minutes) |
+| `AGENT_RATE_LIMIT_PER_MINUTE` | `1000` | Rate limit per agent |
+| `WSIM_AGENT_MOCK` | `false` | Enable mock mode for development |
+
+### Database Migrations
+- **`add_agent_sessions`** - Adds `agent_sessions` table for agent checkout sessions
+- **Order table changes** - Adds `agentId` and `agentSessionId` fields to orders
+
+### New Files
+| File | Description |
+|------|-------------|
+| `src/services/wsim-agent.ts` | WSIM agent client with token introspection and caching |
+| `src/middleware/agent-auth.ts` | Agent authentication and rate limiting middleware |
+| `src/routes/agent-api.ts` | All agent API endpoints (UCP, products, sessions) |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `prisma/schema.prisma` | Added `AgentSession` model, `agentId`/`agentSessionId` on `Order` |
+| `src/config/env.ts` | Added agent configuration options |
+| `src/server.ts` | Registered agent API routes |
+| `.env.example` | Documented agent configuration |
+
+### Technical Details
+- Agent sessions stored in separate `agent_sessions` table (complete isolation per SACP Q19)
+- Prices in API responses are in dollars (internal storage remains cents)
+- Flat $10 shipping rate for MVP (per SACP Q2 - full shipping options in Phase 2)
+- 13% HST tax calculation for Ontario
+- Session messages log all state changes for debugging
+
+### Documentation
+- SSIM SACP requirements reviewed and signed off
+- Cross-team Q&A completed (Q1-Q4, Q17-Q21)
+- Timeline confirmed at 6-8 weeks
+
+---
+
 ## [1.16.1] - 2026-01-10
 
 ### Added

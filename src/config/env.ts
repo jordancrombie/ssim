@@ -65,4 +65,22 @@ export const config = {
   // WSIM QR Payment URL base (for generating QR code payment links)
   // This is the user-facing URL that QR codes point to, which redirects to mwsim app
   wsimQrBaseUrl: process.env.WSIM_QR_BASE_URL || 'https://wsim-dev.banksim.ca/pay',
+
+  // Agent Commerce (SACP) configuration
+  agentApiEnabled: process.env.AGENT_API_ENABLED === 'true',
+  // WSIM base URL for wallet provider discovery
+  wsimBaseUrl: process.env.WSIM_BASE_URL || 'https://wsim-dev.banksim.ca',
+  // WSIM Agent API endpoint for token introspection
+  wsimAgentApiUrl: process.env.WSIM_AGENT_API_URL || 'https://wsim-dev.banksim.ca/api/agent/v1',
+  // WSIM Agent introspection credentials (separate from OAuth merchant credentials)
+  wsimIntrospectionClientId: process.env.WSIM_INTROSPECTION_CLIENT_ID || process.env.WSIM_CLIENT_ID || 'ssim-merchant',
+  wsimIntrospectionClientSecret: process.env.WSIM_INTROSPECTION_CLIENT_SECRET || process.env.WSIM_CLIENT_SECRET || '',
+  // Token cache TTL in seconds (approved: 60 seconds per Q18)
+  agentTokenCacheTtl: parseInt(process.env.AGENT_TOKEN_CACHE_TTL || '60', 10),
+  // Session expiration in minutes (default 30, configurable 5-60 per Q1)
+  agentSessionExpirationMinutes: Math.min(60, Math.max(5, parseInt(process.env.AGENT_SESSION_EXPIRATION_MINUTES || '30', 10))),
+  // Rate limiting (requests per minute per agent, default 1000 per Q20)
+  agentRateLimitPerMinute: parseInt(process.env.AGENT_RATE_LIMIT_PER_MINUTE || '1000', 10),
+  // WSIM Webhook secret for token revocation notifications
+  wsimWebhookSecret: process.env.WSIM_WEBHOOK_SECRET || '',
 };
