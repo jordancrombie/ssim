@@ -721,11 +721,42 @@ router.post(
           try {
             console.log(`[Agent API] Authorizing payment via NSIM for order ${order.id}`);
 
+            // Decode WSIM payment token JWT to extract card tokens (same pattern as payment.ts:448-468)
+            let walletCardToken: string | undefined;
+            let cardToken: string | undefined;
+
+            if (finalPaymentToken.split('.').length === 3) {
+              try {
+                const payload = JSON.parse(
+                  Buffer.from(finalPaymentToken.split('.')[1], 'base64').toString()
+                );
+                walletCardToken = payload.wallet_card_token;
+                cardToken = payload.card_token;
+                console.log('[Agent API] Extracted tokens from JWT - wallet:', !!walletCardToken, 'card:', !!cardToken);
+              } catch (e) {
+                console.error('[Agent API] Could not decode payment token as JWT:', e);
+              }
+            }
+
+            // Require card_token for BSIM authorization (Q30 fix)
+            if (!cardToken) {
+              console.error('[Agent API] Payment token missing card_token - WSIM update required');
+              await prisma.order.update({
+                where: { id: order.id },
+                data: { status: 'failed' },
+              });
+              return res.status(400).json({
+                error: 'invalid_payment_token',
+                message: 'Payment token missing card_token. WSIM update required.',
+              });
+            }
+
             const authResult = await authorizePayment({
               merchantId: config.merchantId,
               amount: cart.total,
               currency: cart.currency,
-              cardToken: finalPaymentToken, // WSIM payment token acts as card token
+              cardToken,           // Extracted from JWT (for BSIM authorization)
+              walletCardToken,     // Extracted from JWT (for NSIM routing)
               orderId: order.id,
               agentContext,
             });

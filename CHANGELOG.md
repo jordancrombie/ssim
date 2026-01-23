@@ -2,6 +2,33 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.1.1] - 2026-01-23
+
+### Fixed
+- **Q30: Extract card_token from WSIM payment JWT** - Agent payments were failing with "Invalid card token"
+  - WSIM payment tokens are JWTs containing `wallet_card_token` and `card_token`
+  - Previously passed the entire JWT as `cardToken` to NSIM (incorrect)
+  - Now decodes JWT and extracts both tokens (same pattern as `payment.ts:448-468`)
+  - `cardToken` → used by BSIM for authorization
+  - `walletCardToken` → used by NSIM for routing
+
+### Changed
+- **Graceful error when card_token missing** - Returns clear error message until WSIM is updated
+  - `400 invalid_payment_token` with message explaining WSIM update required
+  - Order marked as failed to prevent orphaned pending orders
+
+### Technical Details
+- Requires WSIM v1.0.6+ to include `card_token` in payment JWT (Q30)
+- Deployment order: WSIM first, then SSIM
+- See Q30 in PROJECT_QA.md for full analysis
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/routes/agent-api.ts` | Decode JWT, extract `card_token` + `wallet_card_token`, pass to `authorizePayment()` |
+
+---
+
 ## [2.1.0] - 2026-01-22
 
 ### Added
