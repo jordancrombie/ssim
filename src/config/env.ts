@@ -68,6 +68,8 @@ export const config = {
 
   // Agent Commerce (SACP) configuration
   agentApiEnabled: process.env.AGENT_API_ENABLED === 'true',
+  // WSIM base URL for wallet provider discovery
+  wsimBaseUrl: process.env.WSIM_BASE_URL || 'https://wsim-dev.banksim.ca',
   // WSIM Agent API endpoint for token introspection
   wsimAgentApiUrl: process.env.WSIM_AGENT_API_URL || 'https://wsim-dev.banksim.ca/api/agent/v1',
   // WSIM Agent introspection credentials (separate from OAuth merchant credentials)

@@ -2,8 +2,11 @@
  * Agent Commerce API Routes
  * Implements SimToolBox Agent Commerce Protocol (SACP) for SSIM
  *
- * Endpoints:
- * - GET /.well-known/ucp - UCP Discovery
+ * Discovery Endpoints:
+ * - GET /.well-known/ucp - UCP Discovery (merchant info, capabilities, wallet provider)
+ * - GET /.well-known/openapi.json - OpenAPI 3.0 specification
+ *
+ * Agent API Endpoints:
  * - GET /api/agent/v1/products - List products
  * - GET /api/agent/v1/products/:id - Get product details
  * - GET /api/agent/v1/products/search - Search products
@@ -12,15 +15,27 @@
  * - PATCH /api/agent/v1/sessions/:id - Update session
  * - POST /api/agent/v1/sessions/:id/complete - Complete checkout
  * - DELETE /api/agent/v1/sessions/:id - Cancel session
+ * - GET /api/agent/v1/orders/:id - Get order status
  */
 
 import { Router, Request, Response } from 'express';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import prisma from '../lib/prisma';
 import { config } from '../config/env';
 import { authenticateAgent, optionalAgentAuth } from '../middleware/agent-auth';
 import { getOrCreateStore } from '../services/store';
 import { requestPaymentToken } from '../services/wsim-agent';
 import { authorizePayment } from '../services/payment';
+
+// Load OpenAPI spec at startup
+let openApiSpec: object | null = null;
+try {
+  const specPath = join(__dirname, '../../docs/openapi-agent.json');
+  openApiSpec = JSON.parse(readFileSync(specPath, 'utf-8'));
+} catch (error) {
+  console.warn('[Agent API] Could not load OpenAPI spec:', error);
+}
 
 const router = Router();
 
@@ -95,6 +110,16 @@ router.get('/ucp', async (req: Request, res: Response) => {
         supported: ['card', 'wallet'],
         wallets: ['wsim'],
       },
+      // Wallet provider discovery for agent registration
+      wallet_provider: {
+        name: 'WSIM',
+        base_url: config.wsimBaseUrl,
+        discovery_url: `${config.wsimBaseUrl}/.well-known/agent-api`,
+        registration_url: `${config.wsimBaseUrl}/api/agent/v1/access-request`,
+        description: 'Register with WSIM using a pairing code to get OAuth credentials',
+      },
+      // OpenAPI specification location
+      openapi_url: '/.well-known/openapi.json',
       policies: {
         terms: `${config.appBaseUrl}/terms`,
         privacy: `${config.appBaseUrl}/privacy`,
@@ -112,6 +137,22 @@ router.get('/ucp', async (req: Request, res: Response) => {
     console.error('[Agent API] UCP endpoint error:', error);
     res.status(500).json({ error: 'Failed to generate UCP profile' });
   }
+});
+
+/**
+ * GET /.well-known/openapi.json
+ * Returns OpenAPI 3.0 specification for the Agent Commerce API
+ * No authentication required - public endpoint
+ */
+router.get('/openapi.json', (req: Request, res: Response) => {
+  if (!openApiSpec) {
+    return res.status(503).json({ error: 'OpenAPI specification not available' });
+  }
+
+  // Cache for 1 hour
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.set('Content-Type', 'application/json');
+  res.json(openApiSpec);
 });
 
 // ============================================
@@ -949,6 +990,53 @@ router.delete('/sessions/:id', authenticateAgent, async (req: Request, res: Resp
   } catch (error) {
     console.error('[Agent API] Cancel session error:', error);
     res.status(500).json({ error: 'Failed to cancel session' });
+  }
+});
+
+// ============================================
+// Order Status API
+// ============================================
+
+/**
+ * GET /api/agent/v1/orders/:id
+ * Get order details by ID
+ * Only returns orders created by this agent
+ */
+router.get('/orders/:id', authenticateAgent, async (req: Request, res: Response) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: {
+        id: req.params.id,
+        storeId: req.storeId,
+        agentId: req.agent!.agentId,
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const paymentDetails = order.paymentDetails as Record<string, unknown> | null;
+
+    res.json({
+      order_id: order.id,
+      status: order.status,
+      items: (order.items as any[]).map((item: any) => ({
+        product_id: item.product_id || item.productId,
+        name: item.name || item.productName,
+        quantity: item.quantity,
+        unit_price: (item.unit_price || item.unitPrice) / 100,
+        subtotal: item.subtotal / 100,
+      })),
+      subtotal: order.subtotal / 100,
+      currency: order.currency,
+      transaction_id: paymentDetails?.transactionId || null,
+      created_at: order.createdAt.toISOString(),
+      updated_at: order.updatedAt.toISOString(),
+    });
+  } catch (error) {
+    console.error('[Agent API] Get order error:', error);
+    res.status(500).json({ error: 'Failed to get order' });
   }
 });
 
