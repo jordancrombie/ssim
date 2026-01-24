@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "SSIM Agent Commerce API",
-    "description": "Store API for AI agents implementing the SimToolBox Agent Commerce Protocol (SACP).\n\nEnables agents to:\n- Discover store capabilities via UCP\n- Browse and search products\n- Create and manage checkout sessions\n- Complete purchases with wallet payment tokens\n- Check order status\n\n## Authentication\nAll authenticated endpoints require a Bearer token from WSIM.\nObtain credentials by registering with WSIM using a pairing code.\n\n## Discovery Flow\n1. `GET /.well-known/ucp` - Discover store and wallet provider info\n2. Register with WSIM using pairing code\n3. Exchange credentials for access token via WSIM OAuth\n4. Use access token to call SSIM agent endpoints",
-    "version": "2.2.1",
+    "description": "Store API for AI agents implementing the SimToolBox Agent Commerce Protocol (SACP).\n\nEnables agents to:\n- Discover store capabilities via UCP\n- Browse and search products\n- Create and manage checkout sessions\n- Complete purchases with wallet payment tokens\n- Check order status\n\n## Authentication\nAll authenticated endpoints require a Bearer token from WSIM.\nObtain credentials by registering with WSIM using a pairing code.\n\n## Discovery Flow\n1. `GET /.well-known/ucp` - Discover store and wallet provider info\n2. Register with WSIM using pairing code\n3. Exchange credentials for access token via WSIM OAuth\n4. Use access token to call SSIM agent endpoints\n\n## Checkout Flow (Required Steps)\n1. `POST /api/agent/v1/sessions` - Create session with cart items\n2. `PATCH /api/agent/v1/sessions/{id}` - Add buyer info and fulfillment address\n3. `POST /api/agent/v1/sessions/{id}/complete` - Complete checkout\n   - If step-up required: Poll `GET /api/agent/v1/sessions/{id}` until status changes\n4. `GET /api/agent/v1/orders/{id}` - Check order status\n\n**Important**: The `next_step` field in responses guides agents on what to do next.\n",
+    "version": "2.2.2",
     "contact": {
       "name": "SimToolBox",
       "url": "https://ssim.banksim.ca"
@@ -42,8 +42,10 @@
       "get": {
         "operationId": "discoverStore",
         "summary": "Discover store capabilities",
-        "description": "Universal Commerce Protocol (UCP) discovery endpoint.\nReturns merchant info, API endpoints, and wallet provider details.\nNo authentication required.",
-        "tags": ["Discovery"],
+        "description": "Universal Commerce Protocol (UCP) discovery endpoint.\nReturns merchant info, API endpoints, and wallet provider details.\nNo authentication required.\n",
+        "tags": [
+          "Discovery"
+        ],
         "responses": {
           "200": {
             "description": "Store capabilities",
@@ -78,8 +80,13 @@
                     }
                   },
                   "payment_methods": {
-                    "supported": ["card", "wallet"],
-                    "wallets": ["wsim"]
+                    "supported": [
+                      "card",
+                      "wallet"
+                    ],
+                    "wallets": [
+                      "wsim"
+                    ]
                   },
                   "wallet_provider": {
                     "name": "WSIM",
@@ -100,8 +107,15 @@
         "operationId": "listProducts",
         "summary": "List product catalog",
         "description": "Browse products with optional filtering and pagination",
-        "tags": ["Products"],
-        "security": [{"bearerAuth": []}, {}],
+        "tags": [
+          "Products"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -176,8 +190,15 @@
       "get": {
         "operationId": "searchProducts",
         "summary": "Search products by query",
-        "tags": ["Products"],
-        "security": [{"bearerAuth": []}, {}],
+        "tags": [
+          "Products"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
         "parameters": [
           {
             "name": "q",
@@ -240,8 +261,15 @@
       "get": {
         "operationId": "getProduct",
         "summary": "Get product details",
-        "tags": ["Products"],
-        "security": [{"bearerAuth": []}, {}],
+        "tags": [
+          "Products"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {}
+        ],
         "parameters": [
           {
             "name": "product_id",
@@ -274,15 +302,23 @@
         "operationId": "createSession",
         "summary": "Create checkout session",
         "description": "Create a new checkout session with items to purchase",
-        "tags": ["Checkout"],
-        "security": [{"bearerAuth": []}],
+        "tags": [
+          "Checkout"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["items"],
+                "required": [
+                  "items"
+                ],
                 "properties": {
                   "items": {
                     "type": "array",
@@ -322,7 +358,10 @@
                 "example": {
                   "error": "item_unavailable",
                   "message": "Some products are not available",
-                  "unavailable_items": ["prod_123", "prod_456"]
+                  "unavailable_items": [
+                    "prod_123",
+                    "prod_456"
+                  ]
                 }
               }
             }
@@ -343,8 +382,14 @@
       "get": {
         "operationId": "getSession",
         "summary": "Get checkout session",
-        "tags": ["Checkout"],
-        "security": [{"bearerAuth": []}],
+        "tags": [
+          "Checkout"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "session_id",
@@ -374,8 +419,14 @@
       "patch": {
         "operationId": "updateSession",
         "summary": "Update checkout items",
-        "tags": ["Checkout"],
-        "security": [{"bearerAuth": []}],
+        "tags": [
+          "Checkout"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "session_id",
@@ -426,8 +477,14 @@
       "delete": {
         "operationId": "cancelSession",
         "summary": "Cancel checkout session",
-        "tags": ["Checkout"],
-        "security": [{"bearerAuth": []}],
+        "tags": [
+          "Checkout"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "session_id",
@@ -465,9 +522,15 @@
       "post": {
         "operationId": "completeCheckout",
         "summary": "Complete checkout with payment",
-        "description": "Submit payment token to complete the purchase.\nThe payment_token must be obtained from the wallet provider (WSIM).",
-        "tags": ["Checkout"],
-        "security": [{"bearerAuth": []}],
+        "description": "Submit payment token to complete the purchase.\nThe payment_token must be obtained from the wallet provider (WSIM).\n",
+        "tags": [
+          "Checkout"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "session_id",
@@ -505,10 +568,16 @@
               "application/json": {
                 "schema": {
                   "type": "object",
+                  "required": [
+                    "status",
+                    "order_id"
+                  ],
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": ["completed"]
+                      "enum": [
+                        "completed"
+                      ]
                     },
                     "order_id": {
                       "type": "string"
@@ -516,8 +585,10 @@
                     "transaction_id": {
                       "type": "string"
                     },
-                    "message": {
-                      "type": "string"
+                    "next_step": {
+                      "type": "string",
+                      "description": "Guidance on what to do next",
+                      "example": "GET /api/agent/v1/orders/{order_id} to check order status"
                     }
                   }
                 }
@@ -530,16 +601,25 @@
               "application/json": {
                 "schema": {
                   "type": "object",
+                  "required": [
+                    "status",
+                    "step_up_id",
+                    "next_step"
+                  ],
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": ["awaiting_authorization"]
+                      "enum": [
+                        "awaiting_authorization"
+                      ]
                     },
                     "step_up_id": {
                       "type": "string"
                     },
-                    "message": {
-                      "type": "string"
+                    "next_step": {
+                      "type": "string",
+                      "description": "Guidance on what to do next",
+                      "example": "Poll GET /api/agent/v1/sessions/{id} every 2-5 seconds until status changes"
                     }
                   }
                 }
@@ -552,8 +632,12 @@
               "application/json": {
                 "schema": {
                   "oneOf": [
-                    {"$ref": "#/components/schemas/ErrorResponse"},
-                    {"$ref": "#/components/schemas/DeclinedResponse"}
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeclinedResponse"
+                    }
                   ]
                 }
               }
@@ -567,8 +651,14 @@
         "operationId": "getOrder",
         "summary": "Get order status",
         "description": "Get details of an order created by this agent",
-        "tags": ["Orders"],
-        "security": [{"bearerAuth": []}],
+        "tags": [
+          "Orders"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "order_id",
@@ -602,7 +692,7 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Access token from wallet provider (WSIM).\nObtain via WSIM's /api/agent/v1/oauth/token endpoint."
+        "description": "Access token from wallet provider (WSIM).\nObtain via WSIM's /api/agent/v1/oauth/token endpoint.\n"
       }
     },
     "responses": {
@@ -636,11 +726,17 @@
           "application/json": {
             "schema": {
               "type": "object",
-              "required": ["error", "message", "retry_after"],
+              "required": [
+                "error",
+                "message",
+                "retry_after"
+              ],
               "properties": {
                 "error": {
                   "type": "string",
-                  "enum": ["rate_limit_exceeded"]
+                  "enum": [
+                    "rate_limit_exceeded"
+                  ]
                 },
                 "message": {
                   "type": "string"
@@ -694,35 +790,71 @@
           "merchant": {
             "type": "object",
             "properties": {
-              "id": {"type": "string"},
-              "name": {"type": "string"},
-              "description": {"type": "string"},
-              "logo": {"type": "string", "format": "uri"},
-              "url": {"type": "string", "format": "uri"}
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "logo": {
+                "type": "string",
+                "format": "uri"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
             }
           },
           "capabilities": {
             "type": "object",
             "description": "Object with boolean flags",
             "properties": {
-              "discovery": {"type": "boolean"},
-              "cart": {"type": "boolean"},
-              "checkout": {"type": "boolean"},
-              "order_status": {"type": "boolean"},
-              "returns": {"type": "boolean"}
+              "discovery": {
+                "type": "boolean"
+              },
+              "cart": {
+                "type": "boolean"
+              },
+              "checkout": {
+                "type": "boolean"
+              },
+              "order_status": {
+                "type": "boolean"
+              },
+              "returns": {
+                "type": "boolean"
+              }
             }
           },
           "api": {
             "type": "object",
             "properties": {
-              "base_url": {"type": "string", "format": "uri"},
-              "authentication": {"type": "string", "enum": ["bearer"]},
+              "base_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "authentication": {
+                "type": "string",
+                "enum": [
+                  "bearer"
+                ]
+              },
               "endpoints": {
                 "type": "object",
                 "properties": {
-                  "products": {"type": "string"},
-                  "sessions": {"type": "string"},
-                  "orders": {"type": "string"}
+                  "products": {
+                    "type": "string"
+                  },
+                  "sessions": {
+                    "type": "string"
+                  },
+                  "orders": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -730,19 +862,42 @@
           "payment_methods": {
             "type": "object",
             "properties": {
-              "supported": {"type": "array", "items": {"type": "string"}},
-              "wallets": {"type": "array", "items": {"type": "string"}}
+              "supported": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "wallets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             }
           },
           "wallet_provider": {
             "type": "object",
             "description": "Wallet provider discovery info",
             "properties": {
-              "name": {"type": "string"},
-              "base_url": {"type": "string", "format": "uri"},
-              "discovery_url": {"type": "string", "format": "uri"},
-              "registration_url": {"type": "string", "format": "uri"},
-              "description": {"type": "string"}
+              "name": {
+                "type": "string"
+              },
+              "base_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "discovery_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "registration_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "description": {
+                "type": "string"
+              }
             }
           },
           "openapi_url": {
@@ -752,19 +907,31 @@
           "policies": {
             "type": "object",
             "properties": {
-              "terms": {"type": "string", "format": "uri"},
-              "privacy": {"type": "string", "format": "uri"}
+              "terms": {
+                "type": "string",
+                "format": "uri"
+              },
+              "privacy": {
+                "type": "string",
+                "format": "uri"
+              }
             }
           },
           "session_config": {
             "type": "object",
             "properties": {
-              "expiration_minutes": {"type": "integer"},
+              "expiration_minutes": {
+                "type": "integer"
+              },
               "expiration_range": {
                 "type": "object",
                 "properties": {
-                  "min": {"type": "integer"},
-                  "max": {"type": "integer"}
+                  "min": {
+                    "type": "integer"
+                  },
+                  "max": {
+                    "type": "integer"
+                  }
                 }
               }
             }
@@ -774,14 +941,27 @@
       "Product": {
         "type": "object",
         "properties": {
-          "id": {"type": "string"},
-          "name": {"type": "string"},
-          "description": {"type": "string"},
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
           "price": {
             "type": "object",
             "properties": {
-              "amount": {"type": "number", "format": "decimal", "description": "Price in dollars"},
-              "currency": {"type": "string", "example": "CAD"}
+              "amount": {
+                "type": "number",
+                "format": "decimal",
+                "description": "Price in dollars"
+              },
+              "currency": {
+                "type": "string",
+                "example": "CAD"
+              }
             }
           },
           "images": {
@@ -789,50 +969,99 @@
             "items": {
               "type": "object",
               "properties": {
-                "url": {"type": "string", "format": "uri"},
-                "alt": {"type": "string"}
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "alt": {
+                  "type": "string"
+                }
               }
             }
           },
           "inventory": {
             "type": "object",
             "properties": {
-              "available": {"type": "boolean"},
-              "quantity": {"type": "integer", "nullable": true}
+              "available": {
+                "type": "boolean"
+              },
+              "quantity": {
+                "type": "integer",
+                "nullable": true
+              }
             }
           },
-          "categories": {"type": "array", "items": {"type": "string"}},
-          "schema_org": {"type": "object", "description": "Schema.org Product markup"}
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "schema_org": {
+            "type": "object",
+            "description": "Schema.org Product markup"
+          }
         }
       },
       "CartItem": {
         "type": "object",
-        "required": ["product_id", "quantity"],
+        "required": [
+          "product_id",
+          "quantity"
+        ],
         "properties": {
-          "product_id": {"type": "string"},
-          "quantity": {"type": "integer", "minimum": 1}
+          "product_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "Buyer": {
         "type": "object",
         "properties": {
-          "name": {"type": "string"},
-          "email": {"type": "string", "format": "email"},
-          "phone": {"type": "string"}
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string"
+          }
         }
       },
       "Fulfillment": {
         "type": "object",
         "properties": {
-          "type": {"type": "string", "enum": ["shipping", "pickup"]},
+          "type": {
+            "type": "string",
+            "enum": [
+              "shipping",
+              "pickup"
+            ]
+          },
           "address": {
             "type": "object",
             "properties": {
-              "street": {"type": "string"},
-              "city": {"type": "string"},
-              "state": {"type": "string"},
-              "postal_code": {"type": "string"},
-              "country": {"type": "string"}
+              "street": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string"
+              },
+              "postal_code": {
+                "type": "string"
+              },
+              "country": {
+                "type": "string"
+              }
             }
           }
         }
@@ -840,10 +1069,27 @@
       "Session": {
         "type": "object",
         "properties": {
-          "session_id": {"type": "string"},
+          "session_id": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
-            "enum": ["cart_building", "awaiting_buyer_info", "ready_for_payment", "awaiting_authorization", "processing", "completed", "cancelled", "failed", "expired"]
+            "enum": [
+              "cart_building",
+              "awaiting_buyer_info",
+              "ready_for_payment",
+              "awaiting_authorization",
+              "processing",
+              "completed",
+              "cancelled",
+              "failed",
+              "expired"
+            ]
+          },
+          "next_step": {
+            "type": "string",
+            "nullable": true,
+            "description": "Hints the agent on what action to take next based on current status.\nExamples:\n- cart_building: \"PATCH /api/agent/v1/sessions/{id} with buyer and fulfillment info\"\n- ready_for_payment: \"POST /api/agent/v1/sessions/{id}/complete to checkout\"\n- awaiting_authorization: \"Poll GET /api/agent/v1/sessions/{id} every 2-5 seconds until status changes\"\n- completed: \"GET /api/agent/v1/orders/{order_id} to check order status\"\n"
           },
           "cart": {
             "type": "object",
@@ -854,70 +1100,158 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "product_id": {"type": "string"},
-                    "name": {"type": "string"},
-                    "quantity": {"type": "integer"},
-                    "unit_price": {"type": "number"},
-                    "subtotal": {"type": "number"}
+                    "product_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "quantity": {
+                      "type": "integer"
+                    },
+                    "unit_price": {
+                      "type": "number"
+                    },
+                    "subtotal": {
+                      "type": "number"
+                    }
                   }
                 }
               },
-              "subtotal": {"type": "number"},
-              "tax": {"type": "number"},
-              "shipping": {"type": "number", "nullable": true},
-              "total": {"type": "number"},
-              "currency": {"type": "string"}
+              "subtotal": {
+                "type": "number"
+              },
+              "tax": {
+                "type": "number"
+              },
+              "shipping": {
+                "type": "number",
+                "nullable": true
+              },
+              "total": {
+                "type": "number"
+              },
+              "currency": {
+                "type": "string"
+              }
             }
           },
-          "buyer": {"$ref": "#/components/schemas/Buyer"},
-          "fulfillment": {"$ref": "#/components/schemas/Fulfillment"},
-          "payment": {"type": "object", "nullable": true},
-          "messages": {"type": "array", "items": {"type": "object"}},
-          "expires_at": {"type": "string", "format": "date-time"},
-          "created_at": {"type": "string", "format": "date-time"},
-          "updated_at": {"type": "string", "format": "date-time"}
+          "buyer": {
+            "$ref": "#/components/schemas/Buyer"
+          },
+          "fulfillment": {
+            "$ref": "#/components/schemas/Fulfillment"
+          },
+          "payment": {
+            "type": "object",
+            "nullable": true
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "Order": {
         "type": "object",
         "properties": {
-          "order_id": {"type": "string"},
+          "order_id": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
-            "enum": ["pending", "authorized", "declined", "failed", "processing", "shipped", "delivered", "cancelled"]
+            "enum": [
+              "pending",
+              "authorized",
+              "declined",
+              "failed",
+              "processing",
+              "shipped",
+              "delivered",
+              "cancelled"
+            ]
           },
           "items": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "product_id": {"type": "string"},
-                "name": {"type": "string"},
-                "quantity": {"type": "integer"},
-                "unit_price": {"type": "number"},
-                "subtotal": {"type": "number"}
+                "product_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": "integer"
+                },
+                "unit_price": {
+                  "type": "number"
+                },
+                "subtotal": {
+                  "type": "number"
+                }
               }
             }
           },
-          "subtotal": {"type": "number"},
-          "currency": {"type": "string"},
-          "transaction_id": {"type": "string", "nullable": true, "description": "Payment transaction reference"},
-          "created_at": {"type": "string", "format": "date-time"},
-          "updated_at": {"type": "string", "format": "date-time"}
+          "subtotal": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "transaction_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Payment transaction reference"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "Pagination": {
         "type": "object",
         "properties": {
-          "total": {"type": "integer"},
-          "limit": {"type": "integer"},
-          "offset": {"type": "integer"},
-          "has_more": {"type": "boolean"}
+          "total": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "has_more": {
+            "type": "boolean"
+          }
         }
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["error", "message"],
+        "required": [
+          "error",
+          "message"
+        ],
         "properties": {
           "error": {
             "type": "string",
@@ -945,24 +1279,40 @@
           },
           "unavailable_items": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string"
+            },
             "description": "List of unavailable product IDs (only for item_unavailable error)"
           }
         }
       },
       "DeclinedResponse": {
         "type": "object",
-        "description": "Payment declined response",
-        "required": ["status", "order_id", "message"],
+        "description": "Payment declined or failed response",
+        "required": [
+          "status",
+          "order_id",
+          "message"
+        ],
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["declined", "failed"]
+            "enum": [
+              "declined",
+              "failed"
+            ]
           },
-          "order_id": {"type": "string"},
+          "order_id": {
+            "type": "string"
+          },
           "message": {
             "type": "string",
             "description": "Decline or failure reason"
+          },
+          "next_step": {
+            "type": "string",
+            "description": "Guidance on what to do next",
+            "example": "Create a new session to retry with different payment method"
           }
         }
       }
