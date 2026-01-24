@@ -20,7 +20,16 @@ info:
     2. Register with WSIM using pairing code
     3. Exchange credentials for access token via WSIM OAuth
     4. Use access token to call SSIM agent endpoints
-  version: 2.2.1
+
+    ## Checkout Flow (Required Steps)
+    1. `POST /api/agent/v1/sessions` - Create session with cart items
+    2. `PATCH /api/agent/v1/sessions/{id}` - Add buyer info and fulfillment address
+    3. `POST /api/agent/v1/sessions/{id}/complete` - Complete checkout
+       - If step-up required: Poll `GET /api/agent/v1/sessions/{id}` until status changes
+    4. `GET /api/agent/v1/orders/{id}` - Check order status
+
+    **Important**: The `next_step` field in responses guides agents on what to do next.
+  version: 2.2.2
   contact:
     name: SimToolBox
     url: https://ssim.banksim.ca
@@ -388,6 +397,9 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - status
+                  - order_id
                 properties:
                   status:
                     type: string
@@ -396,22 +408,30 @@ paths:
                     type: string
                   transaction_id:
                     type: string
-                  message:
+                  next_step:
                     type: string
+                    description: Guidance on what to do next
+                    example: GET /api/agent/v1/orders/{order_id} to check order status
         '202':
           description: Step-up authorization required
           content:
             application/json:
               schema:
                 type: object
+                required:
+                  - status
+                  - step_up_id
+                  - next_step
                 properties:
                   status:
                     type: string
                     enum: [awaiting_authorization]
                   step_up_id:
                     type: string
-                  message:
+                  next_step:
                     type: string
+                    description: Guidance on what to do next
+                    example: Poll GET /api/agent/v1/sessions/{id} every 2-5 seconds until status changes
         '400':
           description: Payment declined or session not ready
           content:
@@ -721,6 +741,16 @@ components:
             - cancelled
             - failed
             - expired
+        next_step:
+          type: string
+          nullable: true
+          description: |
+            Hints the agent on what action to take next based on current status.
+            Examples:
+            - cart_building: "PATCH /api/agent/v1/sessions/{id} with buyer and fulfillment info"
+            - ready_for_payment: "POST /api/agent/v1/sessions/{id}/complete to checkout"
+            - awaiting_authorization: "Poll GET /api/agent/v1/sessions/{id} every 2-5 seconds until status changes"
+            - completed: "GET /api/agent/v1/orders/{order_id} to check order status"
         cart:
           type: object
           nullable: true
@@ -865,7 +895,7 @@ components:
 
     DeclinedResponse:
       type: object
-      description: Payment declined response
+      description: Payment declined or failed response
       required:
         - status
         - order_id
@@ -879,3 +909,7 @@ components:
         message:
           type: string
           description: Decline or failure reason
+        next_step:
+          type: string
+          description: Guidance on what to do next
+          example: Create a new session to retry with different payment method

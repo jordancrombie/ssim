@@ -689,7 +689,7 @@ router.post(
           return res.status(202).json({
             status: 'awaiting_authorization',
             step_up_id: tokenResponse.stepUpId,
-            message: 'Human approval required. Check back for status.',
+            next_step: `Poll GET /api/agent/v1/sessions/${session.id} every 2-5 seconds until status changes`,
           });
         }
 
@@ -838,6 +838,7 @@ router.post(
                 status: 'declined',
                 order_id: order.id,
                 message: authResult.declineReason || 'Payment declined',
+                next_step: 'Create a new session to retry with different payment method',
               });
             }
 
@@ -872,6 +873,7 @@ router.post(
                 status: 'failed',
                 order_id: order.id,
                 message: authResult.message || 'Payment processing failed',
+                next_step: 'Create a new session to retry',
               });
             }
           } catch (error) {
@@ -930,7 +932,7 @@ router.post(
           status: 'completed',
           order_id: order.id,
           transaction_id: transactionId,
-          message: 'Order created successfully',
+          next_step: `GET /api/agent/v1/orders/${order.id} to check order status`,
         });
       }
 
@@ -1044,11 +1046,43 @@ router.get('/orders/:id', authenticateAgent, async (req: Request, res: Response)
  * Format session for API response
  * Uses snake_case per SACP protocol convention
  */
+/**
+ * Get the next_step hint based on session status
+ * This guides AI agents on what action to take next
+ */
+function getNextStep(session: any): string | null {
+  const sessionUrl = `/api/agent/v1/sessions/${session.id}`;
+
+  switch (session.status) {
+    case 'cart_building':
+    case 'awaiting_buyer_info':
+      return `PATCH ${sessionUrl} with buyer and fulfillment info`;
+    case 'ready_for_payment':
+      return `POST ${sessionUrl}/complete to checkout`;
+    case 'awaiting_authorization':
+      return `Poll GET ${sessionUrl} every 2-5 seconds until status changes`;
+    case 'processing':
+      return 'Wait for processing to complete';
+    case 'completed':
+      const payment = session.payment as any;
+      if (payment?.order_id) {
+        return `GET /api/agent/v1/orders/${payment.order_id} to check order status`;
+      }
+      return null;
+    case 'cancelled':
+    case 'failed':
+      return 'Create a new session to retry';
+    default:
+      return null;
+  }
+}
+
 function formatSession(session: any) {
   const cart = session.cart as any;
   return {
     session_id: session.id,
     status: session.status,
+    next_step: getNextStep(session),
     cart: cart
       ? {
           items: cart.items?.map((item: any) => ({
