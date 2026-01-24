@@ -29,7 +29,11 @@ info:
     4. `GET /api/agent/v1/orders/{id}` - Check order status
 
     **Important**: The `next_step` field in responses guides agents on what to do next.
-  version: 2.2.2
+
+    ## AI Discovery Endpoints
+    - `/.well-known/ai-plugin.json` - ChatGPT plugin manifest
+    - `/.well-known/mcp-server` - MCP (Model Context Protocol) server discovery
+  version: 2.2.3
   contact:
     name: SimToolBox
     url: https://ssim.banksim.ca
