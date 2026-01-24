@@ -50,6 +50,9 @@ COPY --from=builder /app/src/views ./dist/views
 # Copy public assets (logo, etc.)
 COPY --from=builder /app/src/public ./dist/public
 
+# Copy API documentation (OpenAPI specs for /.well-known/openapi.json)
+COPY --from=builder /app/docs ./docs
+
 # Set ownership
 RUN chown -R ssim:nodejs /app
 

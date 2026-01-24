@@ -2,6 +2,21 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.2.4] - 2026-01-24
+
+### Fixed
+- **Dockerfile missing docs folder** - OpenAPI spec not available in Docker image
+  - Added `COPY --from=builder /app/docs ./docs` to Dockerfile
+  - Required for `/.well-known/openapi.json` endpoint to serve the OpenAPI spec
+  - Reported by deployment team
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `Dockerfile` | Copy docs folder into production image |
+
+---
+
 ## [2.1.1] - 2026-01-23
 
 ### Fixed
