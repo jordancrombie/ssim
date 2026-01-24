@@ -5,6 +5,8 @@
  * Discovery Endpoints:
  * - GET /.well-known/ucp - UCP Discovery (merchant info, capabilities, wallet provider)
  * - GET /.well-known/openapi.json - OpenAPI 3.0 specification
+ * - GET /.well-known/ai-plugin.json - AI Plugin manifest (ChatGPT plugin format)
+ * - GET /.well-known/mcp-server - MCP (Model Context Protocol) server discovery
  *
  * Agent API Endpoints:
  * - GET /api/agent/v1/products - List products
@@ -153,6 +155,325 @@ router.get('/openapi.json', (req: Request, res: Response) => {
   res.set('Cache-Control', 'public, max-age=3600');
   res.set('Content-Type', 'application/json');
   res.json(openApiSpec);
+});
+
+/**
+ * GET /.well-known/ai-plugin.json
+ * Returns AI Plugin manifest for ChatGPT and web AI assistants
+ * No authentication required - public endpoint
+ */
+router.get('/ai-plugin.json', async (req: Request, res: Response) => {
+  try {
+    const store = await prisma.store.findUnique({
+      where: { id: req.storeId },
+    });
+
+    const storeName = store?.name || 'SSIM Store';
+    const storeId = store ? `ssim_${store.domain.replace(/\./g, '_')}` : 'ssim_store';
+
+    const manifest = {
+      schema_version: 'v1',
+      name_for_human: storeName,
+      name_for_model: storeId,
+      description_for_human: `Browse products and make purchases at ${storeName}.`,
+      description_for_model: 'A commerce API for browsing products, creating checkout sessions, and completing purchases. Use this to help users shop online. Requires Bearer token from WSIM wallet provider. See next_step field in responses for guidance.',
+      auth: {
+        type: 'oauth',
+        client_url: `${config.wsimBaseUrl}/api/agent/v1/oauth/authorize`,
+        scope: 'payments:read payments:write',
+        authorization_url: `${config.wsimBaseUrl}/api/agent/v1/oauth/token`,
+        authorization_content_type: 'application/x-www-form-urlencoded',
+      },
+      api: {
+        type: 'openapi',
+        url: `${config.appBaseUrl}/.well-known/openapi.json`,
+      },
+      logo_url: store?.logoUrl
+        ? `${config.appBaseUrl}${store.logoUrl}`
+        : `${config.appBaseUrl}/logo.png`,
+      contact_email: 'support@banksim.ca',
+      legal_info_url: `${config.appBaseUrl}/terms`,
+    };
+
+    // CORS for browser-based AI tools
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json(manifest);
+  } catch (error) {
+    console.error('[Agent API] AI Plugin manifest error:', error);
+    res.status(500).json({ error: 'Failed to generate AI plugin manifest' });
+  }
+});
+
+/**
+ * GET /.well-known/mcp-server
+ * Returns MCP (Model Context Protocol) server discovery document
+ * Allows AI agents to discover available tools as if they were local functions
+ * No authentication required - public endpoint
+ */
+router.get('/mcp-server', async (req: Request, res: Response) => {
+  try {
+    const store = await prisma.store.findUnique({
+      where: { id: req.storeId },
+    });
+
+    const storeName = store?.name || 'SSIM Store';
+    const version = (openApiSpec as any)?.info?.version || '2.2.2';
+
+    const mcpServer = {
+      name: 'ssim-store',
+      version,
+      description: `${storeName} - Browse and purchase products`,
+      protocol_version: '2024-11-05',
+
+      capabilities: {
+        tools: true,
+        resources: true,
+        prompts: false,
+      },
+
+      authentication: {
+        type: 'bearer',
+        token_url: `${config.wsimBaseUrl}/api/agent/v1/oauth/token`,
+        description: 'Obtain Bearer token from WSIM wallet provider using pairing code registration',
+      },
+
+      tools: [
+        {
+          name: 'discover_store',
+          description: 'Discover store capabilities and merchant information via UCP',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+        },
+        {
+          name: 'list_products',
+          description: 'Browse the product catalog with optional filtering and pagination',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              limit: {
+                type: 'integer',
+                description: 'Maximum results (default 20, max 100)',
+                default: 20,
+              },
+              offset: {
+                type: 'integer',
+                description: 'Pagination offset',
+                default: 0,
+              },
+              category: {
+                type: 'string',
+                description: 'Filter by category',
+              },
+              minPrice: {
+                type: 'number',
+                description: 'Minimum price in cents',
+              },
+              maxPrice: {
+                type: 'number',
+                description: 'Maximum price in cents',
+              },
+            },
+            required: [],
+          },
+        },
+        {
+          name: 'search_products',
+          description: 'Search products by keyword in name, description, and category',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              q: {
+                type: 'string',
+                description: 'Search query',
+              },
+              limit: {
+                type: 'integer',
+                description: 'Maximum results',
+                default: 20,
+              },
+            },
+            required: ['q'],
+          },
+        },
+        {
+          name: 'get_product',
+          description: 'Get detailed information about a specific product',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              product_id: {
+                type: 'string',
+                description: 'Product ID',
+              },
+            },
+            required: ['product_id'],
+          },
+        },
+        {
+          name: 'create_checkout',
+          description: 'Create a new checkout session with items. Returns session_id and next_step guidance.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    product_id: { type: 'string' },
+                    quantity: { type: 'integer' },
+                  },
+                  required: ['product_id', 'quantity'],
+                },
+                description: 'Items to add to cart',
+              },
+            },
+            required: ['items'],
+          },
+        },
+        {
+          name: 'get_checkout',
+          description: 'Get current checkout session details including next_step guidance',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              session_id: {
+                type: 'string',
+                description: 'Checkout session ID',
+              },
+            },
+            required: ['session_id'],
+          },
+        },
+        {
+          name: 'update_checkout',
+          description: 'Update checkout session with buyer info and fulfillment address. Required before completing checkout.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              session_id: {
+                type: 'string',
+                description: 'Checkout session ID',
+              },
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    product_id: { type: 'string' },
+                    quantity: { type: 'integer' },
+                  },
+                },
+                description: 'Updated cart items (optional)',
+              },
+              buyer: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  email: { type: 'string' },
+                  phone: { type: 'string' },
+                },
+                description: 'Buyer information (required for checkout)',
+              },
+              fulfillment: {
+                type: 'object',
+                properties: {
+                  type: { type: 'string', enum: ['shipping', 'pickup'] },
+                  address: {
+                    type: 'object',
+                    properties: {
+                      street: { type: 'string' },
+                      city: { type: 'string' },
+                      state: { type: 'string' },
+                      postal_code: { type: 'string' },
+                      country: { type: 'string' },
+                    },
+                  },
+                },
+                description: 'Fulfillment/shipping information (required for checkout)',
+              },
+            },
+            required: ['session_id'],
+          },
+        },
+        {
+          name: 'complete_checkout',
+          description: 'Complete the purchase. If payment_token not provided, one will be requested from WSIM. May return awaiting_authorization if user approval needed.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              session_id: {
+                type: 'string',
+                description: 'Checkout session ID',
+              },
+              payment_token: {
+                type: 'string',
+                description: 'Payment token from WSIM (optional - will be requested if not provided)',
+              },
+            },
+            required: ['session_id'],
+          },
+        },
+        {
+          name: 'cancel_checkout',
+          description: 'Cancel a checkout session',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              session_id: {
+                type: 'string',
+                description: 'Checkout session ID',
+              },
+            },
+            required: ['session_id'],
+          },
+        },
+        {
+          name: 'get_order',
+          description: 'Get order status and details after checkout completion',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              order_id: {
+                type: 'string',
+                description: 'Order ID from completed checkout',
+              },
+            },
+            required: ['order_id'],
+          },
+        },
+      ],
+
+      resources: [
+        {
+          uri: 'ssim://products',
+          name: 'Product Catalog',
+          description: 'Browse all available products',
+          mimeType: 'application/json',
+        },
+        {
+          uri: 'ssim://ucp',
+          name: 'Store Configuration',
+          description: 'Universal Commerce Protocol discovery document',
+          mimeType: 'application/json',
+        },
+      ],
+    };
+
+    // CORS for browser-based AI tools
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json(mcpServer);
+  } catch (error) {
+    console.error('[Agent API] MCP server discovery error:', error);
+    res.status(500).json({ error: 'Failed to generate MCP server config' });
+  }
 });
 
 // ============================================
