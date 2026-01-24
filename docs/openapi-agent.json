@@ -3,7 +3,7 @@
   "info": {
     "title": "SSIM Agent Commerce API",
     "description": "Store API for AI agents implementing the SimToolBox Agent Commerce Protocol (SACP).\n\nEnables agents to:\n- Discover store capabilities via UCP\n- Browse and search products\n- Create and manage checkout sessions\n- Complete purchases with wallet payment tokens\n- Check order status\n\n## Authentication\nAll authenticated endpoints require a Bearer token from WSIM.\nObtain credentials by registering with WSIM using a pairing code.\n\n## Discovery Flow\n1. `GET /.well-known/ucp` - Discover store and wallet provider info\n2. Register with WSIM using pairing code\n3. Exchange credentials for access token via WSIM OAuth\n4. Use access token to call SSIM agent endpoints",
-    "version": "2.2.0",
+    "version": "2.2.1",
     "contact": {
       "name": "SimToolBox",
       "url": "https://ssim.banksim.ca"
@@ -20,10 +20,22 @@
     }
   ],
   "tags": [
-    { "name": "Discovery", "description": "Store capability discovery" },
-    { "name": "Products", "description": "Product catalog operations" },
-    { "name": "Checkout", "description": "Checkout session management" },
-    { "name": "Orders", "description": "Order status and history" }
+    {
+      "name": "Discovery",
+      "description": "Store capability discovery"
+    },
+    {
+      "name": "Products",
+      "description": "Product catalog operations"
+    },
+    {
+      "name": "Checkout",
+      "description": "Checkout session management"
+    },
+    {
+      "name": "Orders",
+      "description": "Order status and history"
+    }
   ],
   "paths": {
     "/.well-known/ucp": {
@@ -37,7 +49,46 @@
             "description": "Store capabilities",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/UcpConfig" }
+                "schema": {
+                  "$ref": "#/components/schemas/UcpConfig"
+                },
+                "example": {
+                  "version": "1.0",
+                  "merchant": {
+                    "id": "ssim_ssim-dev_banksim_ca",
+                    "name": "SSIM Dev Store",
+                    "description": "Welcome to SSIM Dev Store",
+                    "logo": "https://ssim-dev.banksim.ca/logo.png",
+                    "url": "https://ssim-dev.banksim.ca"
+                  },
+                  "capabilities": {
+                    "discovery": true,
+                    "cart": true,
+                    "checkout": true,
+                    "order_status": true,
+                    "returns": false
+                  },
+                  "api": {
+                    "base_url": "https://ssim-dev.banksim.ca/api/agent/v1",
+                    "authentication": "bearer",
+                    "endpoints": {
+                      "products": "/products",
+                      "sessions": "/sessions",
+                      "orders": "/orders"
+                    }
+                  },
+                  "payment_methods": {
+                    "supported": ["card", "wallet"],
+                    "wallets": ["wsim"]
+                  },
+                  "wallet_provider": {
+                    "name": "WSIM",
+                    "base_url": "https://wsim-dev.banksim.ca",
+                    "discovery_url": "https://wsim-dev.banksim.ca/.well-known/agent-api",
+                    "registration_url": "https://wsim-dev.banksim.ca/api/agent/v1/access-request"
+                  },
+                  "openapi_url": "/.well-known/openapi.json"
+                }
               }
             }
           }
@@ -50,13 +101,51 @@
         "summary": "List product catalog",
         "description": "Browse products with optional filtering and pagination",
         "tags": ["Products"],
-        "security": [{ "bearerAuth": [] }, {}],
+        "security": [{"bearerAuth": []}, {}],
         "parameters": [
-          { "name": "limit", "in": "query", "description": "Maximum results (default 20, max 100)", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
-          { "name": "offset", "in": "query", "description": "Pagination offset", "schema": { "type": "integer", "default": 0 } },
-          { "name": "category", "in": "query", "description": "Filter by category", "schema": { "type": "string" } },
-          { "name": "minPrice", "in": "query", "description": "Minimum price in cents", "schema": { "type": "integer" } },
-          { "name": "maxPrice", "in": "query", "description": "Maximum price in cents", "schema": { "type": "integer" } }
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum results (default 20, max 100)",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Pagination offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Filter by category",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "description": "Minimum price in cents",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "description": "Maximum price in cents",
+            "schema": {
+              "type": "integer"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -66,8 +155,15 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "products": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
-                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                    "products": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Product"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
                   }
                 }
               }
@@ -81,11 +177,33 @@
         "operationId": "searchProducts",
         "summary": "Search products by query",
         "tags": ["Products"],
-        "security": [{ "bearerAuth": [] }, {}],
+        "security": [{"bearerAuth": []}, {}],
         "parameters": [
-          { "name": "q", "in": "query", "required": true, "description": "Search query (searches name, description, category)", "schema": { "type": "string" } },
-          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } },
-          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search query (searches name, description, category)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -95,15 +213,26 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "products": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
-                    "query": { "type": "string" },
-                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                    "products": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Product"
+                      }
+                    },
+                    "query": {
+                      "type": "string"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
                   }
                 }
               }
             }
           },
-          "400": { "description": "Missing query parameter" }
+          "400": {
+            "description": "Missing query parameter"
+          }
         }
       }
     },
@@ -112,20 +241,31 @@
         "operationId": "getProduct",
         "summary": "Get product details",
         "tags": ["Products"],
-        "security": [{ "bearerAuth": [] }, {}],
+        "security": [{"bearerAuth": []}, {}],
         "parameters": [
-          { "name": "product_id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Product details",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Product" }
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
               }
             }
           },
-          "404": { "description": "Product not found" }
+          "404": {
+            "description": "Product not found"
+          }
         }
       }
     },
@@ -135,7 +275,7 @@
         "summary": "Create checkout session",
         "description": "Create a new checkout session with items to purchase",
         "tags": ["Checkout"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [{"bearerAuth": []}],
         "requestBody": {
           "required": true,
           "content": {
@@ -144,9 +284,18 @@
                 "type": "object",
                 "required": ["items"],
                 "properties": {
-                  "items": { "type": "array", "items": { "$ref": "#/components/schemas/CartItem" } },
-                  "buyer": { "$ref": "#/components/schemas/Buyer" },
-                  "fulfillment": { "$ref": "#/components/schemas/Fulfillment" }
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/CartItem"
+                    }
+                  },
+                  "buyer": {
+                    "$ref": "#/components/schemas/Buyer"
+                  },
+                  "fulfillment": {
+                    "$ref": "#/components/schemas/Fulfillment"
+                  }
                 }
               }
             }
@@ -157,12 +306,36 @@
             "description": "Checkout session created",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Session" }
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
               }
             }
           },
-          "400": { "description": "Invalid items or product not found" },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "400": {
+            "description": "Invalid items or product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "item_unavailable",
+                  "message": "Some products are not available",
+                  "unavailable_items": ["prod_123", "prod_456"]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
         }
       }
     },
@@ -171,29 +344,47 @@
         "operationId": "getSession",
         "summary": "Get checkout session",
         "tags": ["Checkout"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [{"bearerAuth": []}],
         "parameters": [
-          { "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Checkout session",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Session" }
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
               }
             }
           },
-          "404": { "description": "Session not found" }
+          "404": {
+            "description": "Session not found"
+          }
         }
       },
       "patch": {
         "operationId": "updateSession",
         "summary": "Update checkout items",
         "tags": ["Checkout"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [{"bearerAuth": []}],
         "parameters": [
-          { "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
@@ -202,9 +393,18 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "items": { "type": "array", "items": { "$ref": "#/components/schemas/CartItem" } },
-                  "buyer": { "$ref": "#/components/schemas/Buyer" },
-                  "fulfillment": { "$ref": "#/components/schemas/Fulfillment" }
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/CartItem"
+                    }
+                  },
+                  "buyer": {
+                    "$ref": "#/components/schemas/Buyer"
+                  },
+                  "fulfillment": {
+                    "$ref": "#/components/schemas/Fulfillment"
+                  }
                 }
               }
             }
@@ -215,7 +415,9 @@
             "description": "Updated checkout session",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Session" }
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
               }
             }
           }
@@ -225,9 +427,16 @@
         "operationId": "cancelSession",
         "summary": "Cancel checkout session",
         "tags": ["Checkout"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [{"bearerAuth": []}],
         "parameters": [
-          { "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -237,8 +446,13 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": { "type": "string", "example": "cancelled" },
-                    "message": { "type": "string" }
+                    "status": {
+                      "type": "string",
+                      "example": "cancelled"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
                   }
                 }
               }
@@ -253,9 +467,16 @@
         "summary": "Complete checkout with payment",
         "description": "Submit payment token to complete the purchase.\nThe payment_token must be obtained from the wallet provider (WSIM).",
         "tags": ["Checkout"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [{"bearerAuth": []}],
         "parameters": [
-          { "name": "session_id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "requestBody": {
           "required": false,
@@ -264,8 +485,14 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "payment_token": { "type": "string", "description": "Payment token from WSIM (JWT)" },
-                  "mandate_id": { "type": "string", "description": "Optional mandate ID" }
+                  "payment_token": {
+                    "type": "string",
+                    "description": "Payment token from WSIM (JWT)"
+                  },
+                  "mandate_id": {
+                    "type": "string",
+                    "description": "Optional mandate ID"
+                  }
                 }
               }
             }
@@ -279,10 +506,19 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": { "type": "string", "enum": ["completed"] },
-                    "order_id": { "type": "string" },
-                    "transaction_id": { "type": "string" },
-                    "message": { "type": "string" }
+                    "status": {
+                      "type": "string",
+                      "enum": ["completed"]
+                    },
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "transaction_id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
                   }
                 }
               }
@@ -295,15 +531,34 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": { "type": "string", "enum": ["step_up_required"] },
-                    "step_up_id": { "type": "string" },
-                    "message": { "type": "string" }
+                    "status": {
+                      "type": "string",
+                      "enum": ["awaiting_authorization"]
+                    },
+                    "step_up_id": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             }
           },
-          "400": { "description": "Payment declined or session not ready" }
+          "400": {
+            "description": "Payment declined or session not ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {"$ref": "#/components/schemas/ErrorResponse"},
+                    {"$ref": "#/components/schemas/DeclinedResponse"}
+                  ]
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -313,20 +568,31 @@
         "summary": "Get order status",
         "description": "Get details of an order created by this agent",
         "tags": ["Orders"],
-        "security": [{ "bearerAuth": [] }],
+        "security": [{"bearerAuth": []}],
         "parameters": [
-          { "name": "order_id", "in": "path", "required": true, "schema": { "type": "string" } }
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
             "description": "Order details",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Order" }
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
               }
             }
           },
-          "404": { "description": "Order not found" }
+          "404": {
+            "description": "Order not found"
+          }
         }
       }
     }
@@ -345,10 +611,72 @@
         "content": {
           "application/json": {
             "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "missing_token": {
+                "value": {
+                  "error": "missing_token",
+                  "message": "Authorization header with Bearer token required"
+                }
+              },
+              "invalid_token": {
+                "value": {
+                  "error": "invalid_token",
+                  "message": "Token is invalid or expired"
+                }
+              }
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests",
+        "content": {
+          "application/json": {
+            "schema": {
               "type": "object",
+              "required": ["error", "message", "retry_after"],
               "properties": {
-                "error": { "type": "string", "example": "unauthorized" },
-                "message": { "type": "string" }
+                "error": {
+                  "type": "string",
+                  "enum": ["rate_limit_exceeded"]
+                },
+                "message": {
+                  "type": "string"
+                },
+                "retry_after": {
+                  "type": "integer",
+                  "description": "Seconds to wait before retrying"
+                }
+              }
+            },
+            "example": {
+              "error": "rate_limit_exceeded",
+              "message": "Too many requests. Please slow down.",
+              "retry_after": 60
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "Service temporarily unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "api_disabled": {
+                "value": {
+                  "error": "agent_api_disabled",
+                  "message": "Agent API is not enabled for this store"
+                }
+              },
+              "spec_unavailable": {
+                "value": {
+                  "error": "OpenAPI specification not available"
+                }
               }
             }
           }
@@ -359,39 +687,42 @@
       "UcpConfig": {
         "type": "object",
         "properties": {
-          "version": { "type": "string", "example": "1.0" },
+          "version": {
+            "type": "string",
+            "example": "1.0"
+          },
           "merchant": {
             "type": "object",
             "properties": {
-              "id": { "type": "string" },
-              "name": { "type": "string" },
-              "description": { "type": "string" },
-              "logo": { "type": "string", "format": "uri" },
-              "url": { "type": "string", "format": "uri" }
+              "id": {"type": "string"},
+              "name": {"type": "string"},
+              "description": {"type": "string"},
+              "logo": {"type": "string", "format": "uri"},
+              "url": {"type": "string", "format": "uri"}
             }
           },
           "capabilities": {
             "type": "object",
             "description": "Object with boolean flags",
             "properties": {
-              "discovery": { "type": "boolean" },
-              "cart": { "type": "boolean" },
-              "checkout": { "type": "boolean" },
-              "order_status": { "type": "boolean" },
-              "returns": { "type": "boolean" }
+              "discovery": {"type": "boolean"},
+              "cart": {"type": "boolean"},
+              "checkout": {"type": "boolean"},
+              "order_status": {"type": "boolean"},
+              "returns": {"type": "boolean"}
             }
           },
           "api": {
             "type": "object",
             "properties": {
-              "base_url": { "type": "string", "format": "uri" },
-              "authentication": { "type": "string", "enum": ["bearer"] },
+              "base_url": {"type": "string", "format": "uri"},
+              "authentication": {"type": "string", "enum": ["bearer"]},
               "endpoints": {
                 "type": "object",
                 "properties": {
-                  "products": { "type": "string" },
-                  "sessions": { "type": "string" },
-                  "orders": { "type": "string" }
+                  "products": {"type": "string"},
+                  "sessions": {"type": "string"},
+                  "orders": {"type": "string"}
                 }
               }
             }
@@ -399,38 +730,41 @@
           "payment_methods": {
             "type": "object",
             "properties": {
-              "supported": { "type": "array", "items": { "type": "string" } },
-              "wallets": { "type": "array", "items": { "type": "string" } }
+              "supported": {"type": "array", "items": {"type": "string"}},
+              "wallets": {"type": "array", "items": {"type": "string"}}
             }
           },
           "wallet_provider": {
             "type": "object",
             "description": "Wallet provider discovery info",
             "properties": {
-              "name": { "type": "string" },
-              "base_url": { "type": "string", "format": "uri" },
-              "discovery_url": { "type": "string", "format": "uri" },
-              "registration_url": { "type": "string", "format": "uri" },
-              "description": { "type": "string" }
+              "name": {"type": "string"},
+              "base_url": {"type": "string", "format": "uri"},
+              "discovery_url": {"type": "string", "format": "uri"},
+              "registration_url": {"type": "string", "format": "uri"},
+              "description": {"type": "string"}
             }
           },
-          "openapi_url": { "type": "string", "description": "Path to OpenAPI specification" },
+          "openapi_url": {
+            "type": "string",
+            "description": "Path to OpenAPI specification"
+          },
           "policies": {
             "type": "object",
             "properties": {
-              "terms": { "type": "string", "format": "uri" },
-              "privacy": { "type": "string", "format": "uri" }
+              "terms": {"type": "string", "format": "uri"},
+              "privacy": {"type": "string", "format": "uri"}
             }
           },
           "session_config": {
             "type": "object",
             "properties": {
-              "expiration_minutes": { "type": "integer" },
+              "expiration_minutes": {"type": "integer"},
               "expiration_range": {
                 "type": "object",
                 "properties": {
-                  "min": { "type": "integer" },
-                  "max": { "type": "integer" }
+                  "min": {"type": "integer"},
+                  "max": {"type": "integer"}
                 }
               }
             }
@@ -440,14 +774,14 @@
       "Product": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "description": { "type": "string" },
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
           "price": {
             "type": "object",
             "properties": {
-              "amount": { "type": "number", "format": "decimal", "description": "Price in dollars" },
-              "currency": { "type": "string", "example": "CAD" }
+              "amount": {"type": "number", "format": "decimal", "description": "Price in dollars"},
+              "currency": {"type": "string", "example": "CAD"}
             }
           },
           "images": {
@@ -455,50 +789,50 @@
             "items": {
               "type": "object",
               "properties": {
-                "url": { "type": "string", "format": "uri" },
-                "alt": { "type": "string" }
+                "url": {"type": "string", "format": "uri"},
+                "alt": {"type": "string"}
               }
             }
           },
           "inventory": {
             "type": "object",
             "properties": {
-              "available": { "type": "boolean" },
-              "quantity": { "type": "integer", "nullable": true }
+              "available": {"type": "boolean"},
+              "quantity": {"type": "integer", "nullable": true}
             }
           },
-          "categories": { "type": "array", "items": { "type": "string" } },
-          "schema_org": { "type": "object", "description": "Schema.org Product markup" }
+          "categories": {"type": "array", "items": {"type": "string"}},
+          "schema_org": {"type": "object", "description": "Schema.org Product markup"}
         }
       },
       "CartItem": {
         "type": "object",
         "required": ["product_id", "quantity"],
         "properties": {
-          "product_id": { "type": "string" },
-          "quantity": { "type": "integer", "minimum": 1 }
+          "product_id": {"type": "string"},
+          "quantity": {"type": "integer", "minimum": 1}
         }
       },
       "Buyer": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" },
-          "email": { "type": "string", "format": "email" },
-          "phone": { "type": "string" }
+          "name": {"type": "string"},
+          "email": {"type": "string", "format": "email"},
+          "phone": {"type": "string"}
         }
       },
       "Fulfillment": {
         "type": "object",
         "properties": {
-          "type": { "type": "string", "enum": ["shipping", "pickup"] },
+          "type": {"type": "string", "enum": ["shipping", "pickup"]},
           "address": {
             "type": "object",
             "properties": {
-              "street": { "type": "string" },
-              "city": { "type": "string" },
-              "state": { "type": "string" },
-              "postal_code": { "type": "string" },
-              "country": { "type": "string" }
+              "street": {"type": "string"},
+              "city": {"type": "string"},
+              "state": {"type": "string"},
+              "postal_code": {"type": "string"},
+              "country": {"type": "string"}
             }
           }
         }
@@ -506,10 +840,10 @@
       "Session": {
         "type": "object",
         "properties": {
-          "session_id": { "type": "string" },
+          "session_id": {"type": "string"},
           "status": {
             "type": "string",
-            "enum": ["cart_building", "ready_for_payment", "awaiting_authorization", "processing", "completed", "cancelled", "failed", "expired"]
+            "enum": ["cart_building", "awaiting_buyer_info", "ready_for_payment", "awaiting_authorization", "processing", "completed", "cancelled", "failed", "expired"]
           },
           "cart": {
             "type": "object",
@@ -520,34 +854,34 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "product_id": { "type": "string" },
-                    "name": { "type": "string" },
-                    "quantity": { "type": "integer" },
-                    "unit_price": { "type": "number" },
-                    "subtotal": { "type": "number" }
+                    "product_id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "quantity": {"type": "integer"},
+                    "unit_price": {"type": "number"},
+                    "subtotal": {"type": "number"}
                   }
                 }
               },
-              "subtotal": { "type": "number" },
-              "tax": { "type": "number" },
-              "shipping": { "type": "number", "nullable": true },
-              "total": { "type": "number" },
-              "currency": { "type": "string" }
+              "subtotal": {"type": "number"},
+              "tax": {"type": "number"},
+              "shipping": {"type": "number", "nullable": true},
+              "total": {"type": "number"},
+              "currency": {"type": "string"}
             }
           },
-          "buyer": { "$ref": "#/components/schemas/Buyer" },
-          "fulfillment": { "$ref": "#/components/schemas/Fulfillment" },
-          "payment": { "type": "object", "nullable": true },
-          "messages": { "type": "array", "items": { "type": "object" } },
-          "expires_at": { "type": "string", "format": "date-time" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
+          "buyer": {"$ref": "#/components/schemas/Buyer"},
+          "fulfillment": {"$ref": "#/components/schemas/Fulfillment"},
+          "payment": {"type": "object", "nullable": true},
+          "messages": {"type": "array", "items": {"type": "object"}},
+          "expires_at": {"type": "string", "format": "date-time"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
         }
       },
       "Order": {
         "type": "object",
         "properties": {
-          "order_id": { "type": "string" },
+          "order_id": {"type": "string"},
           "status": {
             "type": "string",
             "enum": ["pending", "authorized", "declined", "failed", "processing", "shipped", "delivered", "cancelled"]
@@ -557,28 +891,79 @@
             "items": {
               "type": "object",
               "properties": {
-                "product_id": { "type": "string" },
-                "name": { "type": "string" },
-                "quantity": { "type": "integer" },
-                "unit_price": { "type": "number" },
-                "subtotal": { "type": "number" }
+                "product_id": {"type": "string"},
+                "name": {"type": "string"},
+                "quantity": {"type": "integer"},
+                "unit_price": {"type": "number"},
+                "subtotal": {"type": "number"}
               }
             }
           },
-          "subtotal": { "type": "number" },
-          "currency": { "type": "string" },
-          "transaction_id": { "type": "string", "nullable": true, "description": "Payment transaction reference" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
+          "subtotal": {"type": "number"},
+          "currency": {"type": "string"},
+          "transaction_id": {"type": "string", "nullable": true, "description": "Payment transaction reference"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
         }
       },
       "Pagination": {
         "type": "object",
         "properties": {
-          "total": { "type": "integer" },
-          "limit": { "type": "integer" },
-          "offset": { "type": "integer" },
-          "has_more": { "type": "boolean" }
+          "total": {"type": "integer"},
+          "limit": {"type": "integer"},
+          "offset": {"type": "integer"},
+          "has_more": {"type": "boolean"}
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Machine-readable error code",
+            "enum": [
+              "missing_token",
+              "invalid_token",
+              "authentication_error",
+              "agent_api_disabled",
+              "store_context_missing",
+              "item_unavailable",
+              "session_not_ready",
+              "session_expired",
+              "session_not_editable",
+              "session_not_cancellable",
+              "payment_token_failed",
+              "invalid_payment_token",
+              "payment_processing_error",
+              "not_implemented"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error description"
+          },
+          "unavailable_items": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of unavailable product IDs (only for item_unavailable error)"
+          }
+        }
+      },
+      "DeclinedResponse": {
+        "type": "object",
+        "description": "Payment declined response",
+        "required": ["status", "order_id", "message"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["declined", "failed"]
+          },
+          "order_id": {"type": "string"},
+          "message": {
+            "type": "string",
+            "description": "Decline or failure reason"
+          }
         }
       }
     }

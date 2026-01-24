@@ -20,7 +20,7 @@ info:
     2. Register with WSIM using pairing code
     3. Exchange credentials for access token via WSIM OAuth
     4. Use access token to call SSIM agent endpoints
-  version: 2.2.0
+  version: 2.2.1
   contact:
     name: SimToolBox
     url: https://ssim.banksim.ca
@@ -87,7 +87,7 @@ paths:
                   name: WSIM
                   base_url: https://wsim-dev.banksim.ca
                   discovery_url: https://wsim-dev.banksim.ca/.well-known/agent-api
-                  registration_url: https://wsim-dev.banksim.ca/api/agent/v1/register
+                  registration_url: https://wsim-dev.banksim.ca/api/agent/v1/access-request
                 openapi_url: /.well-known/openapi.json
 
   /api/agent/v1/products:
@@ -249,8 +249,20 @@ paths:
                 $ref: '#/components/schemas/Session'
         '400':
           description: Invalid items or product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: item_unavailable
+                message: Some products are not available
+                unavailable_items: ["prod_123", "prod_456"]
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 
   /api/agent/v1/sessions/{session_id}:
     get:
@@ -395,13 +407,19 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [step_up_required]
+                    enum: [awaiting_authorization]
                   step_up_id:
                     type: string
                   message:
                     type: string
         '400':
           description: Payment declined or session not ready
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/DeclinedResponse'
 
   /api/agent/v1/orders/{order_id}:
     get:
@@ -443,13 +461,53 @@ components:
       content:
         application/json:
           schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_token:
+              value:
+                error: missing_token
+                message: Authorization header with Bearer token required
+            invalid_token:
+              value:
+                error: invalid_token
+                message: Token is invalid or expired
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
             type: object
+            required:
+              - error
+              - message
+              - retry_after
             properties:
               error:
                 type: string
-                example: unauthorized
+                enum: [rate_limit_exceeded]
               message:
                 type: string
+              retry_after:
+                type: integer
+                description: Seconds to wait before retrying
+          example:
+            error: rate_limit_exceeded
+            message: Too many requests. Please slow down.
+            retry_after: 60
+    ServiceUnavailable:
+      description: Service temporarily unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            api_disabled:
+              value:
+                error: agent_api_disabled
+                message: Agent API is not enabled for this store
+            spec_unavailable:
+              value:
+                error: OpenAPI specification not available
 
   schemas:
     UcpConfig:
@@ -655,6 +713,7 @@ components:
           type: string
           enum:
             - cart_building
+            - awaiting_buyer_info
             - ready_for_payment
             - awaiting_authorization
             - processing
@@ -770,3 +829,53 @@ components:
           type: integer
         has_more:
           type: boolean
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code
+          enum:
+            - missing_token
+            - invalid_token
+            - authentication_error
+            - agent_api_disabled
+            - store_context_missing
+            - item_unavailable
+            - session_not_ready
+            - session_expired
+            - session_not_editable
+            - session_not_cancellable
+            - payment_token_failed
+            - invalid_payment_token
+            - payment_processing_error
+            - not_implemented
+        message:
+          type: string
+          description: Human-readable error description
+        unavailable_items:
+          type: array
+          items:
+            type: string
+          description: List of unavailable product IDs (only for item_unavailable error)
+
+    DeclinedResponse:
+      type: object
+      description: Payment declined response
+      required:
+        - status
+        - order_id
+        - message
+      properties:
+        status:
+          type: string
+          enum: [declined, failed]
+        order_id:
+          type: string
+        message:
+          type: string
+          description: Decline or failure reason
