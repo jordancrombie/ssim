@@ -2,6 +2,43 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.2.5] - 2026-01-25
+
+### Added
+- **Guest Checkout Support (Gateway v1.4.0)** - SACP session endpoints now support unauthenticated access
+  - Implements Option A from Gateway v1.4.0 design document
+  - Guest checkout sessions can be created without authentication
+  - Authentication required only at payment time (Device Authorization)
+
+### Changed
+- **Schema**: `agentId` and `ownerId` now optional in `AgentSession` model
+  - Allows guest sessions with null values until Device Authorization
+  - Agent identity captured when `POST /sessions/:id/complete` is called
+- **Routes**: Session CRUD endpoints use `optionalAgentAuth` middleware
+  - `POST /api/agent/v1/sessions` - unauthenticated allowed
+  - `GET /api/agent/v1/sessions/:id` - unauthenticated allowed
+  - `PATCH /api/agent/v1/sessions/:id` - unauthenticated allowed
+  - `DELETE /api/agent/v1/sessions/:id` - unauthenticated allowed
+  - `POST /api/agent/v1/sessions/:id/complete` - **still requires authentication**
+
+### Security
+- Guest sessions isolated: unauthenticated requests can only access sessions with null `agentId`
+- Authenticated agents can only access their own sessions (matched by `agentId`)
+- Payment completion always requires valid agent token (Device Authorization flow)
+
+### Migration
+- New migration: `20260125000000_guest_checkout_optional_agent_fields`
+- Run `npx prisma migrate deploy` to apply
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `prisma/schema.prisma` | Made `agentId` and `ownerId` optional |
+| `src/routes/agent-api.ts` | Changed session routes to use `optionalAgentAuth` |
+| `prisma/migrations/20260125*` | New migration for schema changes |
+
+---
+
 ## [2.2.4] - 2026-01-24
 
 ### Fixed

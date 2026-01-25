@@ -654,9 +654,9 @@ function formatProduct(product: any) {
 /**
  * POST /api/agent/v1/sessions
  * Create a new checkout session
- * Requires agent authentication
+ * Authentication optional - supports guest checkout (Gateway v1.4.0)
  */
-router.post('/sessions', authenticateAgent, async (req: Request, res: Response) => {
+router.post('/sessions', optionalAgentAuth, async (req: Request, res: Response) => {
   try {
     const { items } = req.body;
 
@@ -708,12 +708,12 @@ router.post('/sessions', authenticateAgent, async (req: Request, res: Response) 
       Date.now() + config.agentSessionExpirationMinutes * 60 * 1000
     );
 
-    // Create session
+    // Create session (agentId/ownerId are null for guest checkout until Device Authorization)
     const session = await prisma.agentSession.create({
       data: {
         storeId: req.storeId!,
-        agentId: req.agent!.agentId,
-        ownerId: req.agent!.ownerId,
+        agentId: req.agent?.agentId ?? null,
+        ownerId: req.agent?.ownerId ?? null,
         status: 'cart_building',
         cart: {
           items: cartItems,
@@ -734,9 +734,8 @@ router.post('/sessions', authenticateAgent, async (req: Request, res: Response) 
       },
     });
 
-    console.log(
-      `[Agent API] Session created: ${session.id} by agent ${req.agent!.agentId}`
-    );
+    const agentInfo = req.agent ? `agent ${req.agent.agentId}` : 'guest (unauthenticated)';
+    console.log(`[Agent API] Session created: ${session.id} by ${agentInfo}`);
 
     res.status(201).json(formatSession(session));
   } catch (error) {
@@ -748,14 +747,17 @@ router.post('/sessions', authenticateAgent, async (req: Request, res: Response) 
 /**
  * GET /api/agent/v1/sessions/:id
  * Get session details
+ * Authentication optional - supports guest checkout (Gateway v1.4.0)
  */
-router.get('/sessions/:id', authenticateAgent, async (req: Request, res: Response) => {
+router.get('/sessions/:id', optionalAgentAuth, async (req: Request, res: Response) => {
   try {
+    // For authenticated agents, only show their sessions
+    // For unauthenticated requests, only show guest sessions (null agentId)
     const session = await prisma.agentSession.findFirst({
       where: {
         id: req.params.id,
         storeId: req.storeId,
-        agentId: req.agent!.agentId,
+        agentId: req.agent?.agentId ?? null,
       },
     });
 
@@ -782,14 +784,17 @@ router.get('/sessions/:id', authenticateAgent, async (req: Request, res: Respons
 /**
  * PATCH /api/agent/v1/sessions/:id
  * Update session (items, buyer info, fulfillment)
+ * Authentication optional - supports guest checkout (Gateway v1.4.0)
  */
-router.patch('/sessions/:id', authenticateAgent, async (req: Request, res: Response) => {
+router.patch('/sessions/:id', optionalAgentAuth, async (req: Request, res: Response) => {
   try {
+    // For authenticated agents, only show their sessions
+    // For unauthenticated requests, only show guest sessions (null agentId)
     const session = await prisma.agentSession.findFirst({
       where: {
         id: req.params.id,
         storeId: req.storeId,
-        agentId: req.agent!.agentId,
+        agentId: req.agent?.agentId ?? null,
       },
     });
 
@@ -1033,10 +1038,13 @@ router.post(
         message: 'Processing payment',
       });
 
+      // Update session with agent identity (for guest checkouts, this captures the agent at payment time)
       await prisma.agentSession.update({
         where: { id: session.id },
         data: {
           status: 'processing',
+          agentId: req.agent!.agentId,  // Capture agent identity at payment time
+          ownerId: req.agent!.ownerId,  // Capture owner identity at payment time
           mandateId: mandateId || session.mandateId,
           messages,
         },
@@ -1047,28 +1055,31 @@ router.post(
 
       if (finalPaymentToken || process.env.WSIM_AGENT_MOCK === 'true') {
         // Build agent context for NSIM (forwarded to BSIM for visibility)
+        // Use authenticated agent identity from token (req.agent) - required for all completions
+        // Session may have null agentId/ownerId if it was a guest checkout
         const agentContext = {
-          agentId: session.agentId,
-          ownerId: session.ownerId,
+          agentId: req.agent!.agentId,
+          ownerId: req.agent!.ownerId,
           humanPresent: false,
           mandateId: mandateId || session.mandateId || undefined,
           mandateType: 'cart' as const,
         };
 
         // Create order first (pending payment authorization)
+        // Use agent identity from token, not session (session might be guest)
         const order = await prisma.order.create({
           data: {
             storeId: session.storeId,
-            bsimUserId: session.ownerId, // Agent's owner
+            bsimUserId: req.agent!.ownerId, // Agent's owner (from authenticated token)
             items: cart.items,
             subtotal: cart.total,
             currency: cart.currency,
             status: 'pending', // Will be updated after NSIM authorization
-            agentId: session.agentId,
+            agentId: req.agent!.agentId, // From authenticated token
             agentSessionId: session.id,
             paymentDetails: {
               paymentMethod: 'agent_wallet',
-              agentId: session.agentId,
+              agentId: req.agent!.agentId, // From authenticated token
               mandateId: mandateId || null,
               paymentToken: finalPaymentToken || null,
             },
@@ -1272,14 +1283,17 @@ router.post(
 /**
  * DELETE /api/agent/v1/sessions/:id
  * Cancel a session
+ * Authentication optional - supports guest checkout (Gateway v1.4.0)
  */
-router.delete('/sessions/:id', authenticateAgent, async (req: Request, res: Response) => {
+router.delete('/sessions/:id', optionalAgentAuth, async (req: Request, res: Response) => {
   try {
+    // For authenticated agents, only show their sessions
+    // For unauthenticated requests, only show guest sessions (null agentId)
     const session = await prisma.agentSession.findFirst({
       where: {
         id: req.params.id,
         storeId: req.storeId,
-        agentId: req.agent!.agentId,
+        agentId: req.agent?.agentId ?? null,
       },
     });
 
@@ -1295,10 +1309,11 @@ router.delete('/sessions/:id', authenticateAgent, async (req: Request, res: Resp
     }
 
     const messages = [...(session.messages as any[])];
+    const cancelledBy = req.agent ? `agent ${req.agent.agentId}` : 'guest';
     messages.push({
       timestamp: new Date().toISOString(),
       type: 'cancelled',
-      message: 'Session cancelled by agent',
+      message: `Session cancelled by ${cancelledBy}`,
     });
 
     await prisma.agentSession.update({

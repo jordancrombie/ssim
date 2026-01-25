@@ -262,8 +262,9 @@ model AgentSession {
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   // Agent identity (from WSIM token introspection)
-  agentId   String   // WSIM agent ID
-  ownerId   String   // WSIM user who owns the agent
+  // Optional for guest checkout - populated when user authenticates at payment time
+  agentId   String?  // WSIM agent ID (null for guest sessions until payment)
+  ownerId   String?  // WSIM user who owns the agent (null for guest sessions until payment)
 
   // Session state machine
   // cart_building -> awaiting_buyer_info -> awaiting_authorization -> ready_for_payment -> processing -> completed/cancelled/failed
