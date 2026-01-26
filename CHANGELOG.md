@@ -2,6 +2,21 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.2.6] - 2026-01-26
+
+### Fixed
+- **Guest session completion bug** - Complete endpoint couldn't find guest sessions
+  - Guest sessions have `agentId: null` but the complete endpoint filtered by authenticated agent's ID
+  - Now allows completing both agent-owned sessions AND guest sessions (null agentId)
+  - Guest sessions can be completed by any valid authenticated agent (from Device Authorization)
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/routes/agent-api.ts` | Fixed session query in complete endpoint to allow guest sessions |
+
+---
+
 ## [2.2.5] - 2026-01-25
 
 ### Added

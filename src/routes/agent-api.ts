@@ -945,11 +945,17 @@ router.post(
   authenticateAgent,
   async (req: Request, res: Response) => {
     try {
+      // Allow completing either:
+      // 1. Sessions owned by this agent (agentId matches)
+      // 2. Guest sessions (agentId is null) - can be completed by any authenticated agent
       const session = await prisma.agentSession.findFirst({
         where: {
           id: req.params.id,
           storeId: req.storeId,
-          agentId: req.agent!.agentId,
+          OR: [
+            { agentId: req.agent!.agentId },
+            { agentId: null }, // Guest sessions
+          ],
         },
       });
 
