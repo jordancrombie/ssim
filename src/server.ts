@@ -5,6 +5,7 @@ import session from 'express-session';
 import path from 'path';
 import { createServer } from 'http';
 import { config } from './config/env';
+import { version } from '../package.json';
 import { initializeProviders } from './config/oidc';
 import authRoutes from './routes/auth';
 import pageRoutes from './routes/pages';
@@ -85,7 +86,7 @@ app.use('/', pageRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', version, timestamp: new Date().toISOString() });
 });
 
 // Error handler

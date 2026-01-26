@@ -1,6 +1,6 @@
 {
   "name": "ssim",
-  "version": "2.2.6",
+  "version": "2.2.7",
   "description": "Store Simulator - OIDC client connecting to BSIM banking simulator",
   "main": "dist/server.js",
   "scripts": {

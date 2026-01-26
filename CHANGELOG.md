@@ -2,6 +2,21 @@
 
 All notable changes to SSIM (Store Simulator) will be documented in this file.
 
+## [2.2.7] - 2026-01-26
+
+### Added
+- **Version in health endpoint** - `/health` now includes version from package.json
+  - Response: `{ status: 'ok', version: '2.2.7', timestamp: '...' }`
+  - Useful for deployment verification and debugging
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/server.ts` | Added version to health endpoint response |
+| `src/__tests__/server.test.ts` | Added test for version field |
+
+---
+
 ## [2.2.6] - 2026-01-26
 
 ### Fixed

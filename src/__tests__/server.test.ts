@@ -1,5 +1,6 @@
 import express from 'express';
 import request from 'supertest';
+import { version } from '../../package.json';
 
 // Mock the config/oidc module before importing
 jest.mock('../config/oidc', () => ({
@@ -21,7 +22,7 @@ const createTestApp = () => {
 
   // Health check endpoint
   app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({ status: 'ok', version, timestamp: new Date().toISOString() });
   });
 
   // Test error endpoint
@@ -64,6 +65,13 @@ describe('Server', () => {
       expect(response.body.timestamp).toBeDefined();
       // Check that timestamp is a valid ISO date string
       expect(new Date(response.body.timestamp).toISOString()).toBe(response.body.timestamp);
+    });
+
+    it('should return version from package.json', async () => {
+      const app = createTestApp();
+      const response = await request(app).get('/health');
+
+      expect(response.body.version).toBe(version);
     });
   });
 
